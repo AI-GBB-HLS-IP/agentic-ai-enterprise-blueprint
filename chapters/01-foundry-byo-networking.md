@@ -1,4 +1,4 @@
-# Chapter 05 — Create Microsoft Foundry with BYO Networking
+# Chapter 01 — Create Microsoft Foundry with BYO Networking
 
 ## Objective
 
@@ -6,11 +6,59 @@ Create a **Microsoft Foundry** instance with **Bring-Your-Own VNet (BYO networki
 
 ---
 
+## Architecture Context: Why Foundry Comes First
+
+### Where This Fits
+
+Microsoft Foundry is the **AI application platform** where agents are built, trained, evaluated, and deployed. By establishing Foundry as the first piece of infrastructure, you create the foundation that all subsequent chapters build upon:
+
+```
+┌─────────────────────────────────────────────┐
+│         Microsoft Foundry (This Chapter)     │
+│                                             │
+│  ┌─────────┐ ┌─────────┐ ┌──────────────┐  │
+│  │ Prompt  │ │ Hosted  │ │  Knowledge   │  │
+│  │ Agents  │ │ Agents  │ │  Indexes     │  │
+│  └─────────┘ └─────────┘ └──────────────┘  │
+│  ┌─────────┐ ┌─────────┐ ┌──────────────┐  │
+│  │ Model   │ │ Evalua- │ │  Tracing &   │  │
+│  │ Deploy  │ │ tions   │ │  Monitoring  │  │
+│  └─────────┘ └─────────┘ └──────────────┘  │
+│                    │                         │
+│         ┌──────────▼──────────┐             │
+│         │  Delegated Subnet   │             │
+│         │  (Your VNet)        │             │
+│         └─────────────────────┘             │
+└─────────────────────────────────────────────┘
+```
+
+### What You Will Achieve
+
+By the end of this chapter, you will have:
+- A fully private Foundry instance with no public internet exposure
+- A delegated subnet properly sized for agent workloads
+- Private endpoints for all dependent services (Storage, SQL, Key Vault)
+- DNS resolution configured for private connectivity
+- The networking foundation that enables Chapters 06-08 (knowledge bases, prompt agents, hosted agents)
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Zero Public Exposure** | All agent traffic stays within your VNet — no data traverses the public internet |
+| **Regulatory Compliance** | Meets requirements for HIPAA, SOC 2, PCI-DSS, and industry-specific regulations |
+| **Network Segmentation** | Foundry workloads are isolated in their own subnet with NSG controls |
+| **Private Data Access** | Agents can reach on-premises data sources through ExpressRoute/VPN without exposure |
+| **Foundation for Everything** | Every subsequent agent deployment (prompt agents, hosted agents, knowledge indexes) inherits this security posture |
+
+---
+
 ## Prerequisites
 
-- Chapters 01-04 completed
-- VNet from Chapter 01 available
-- Azure subscription with permissions to create Foundry resources
+- Azure subscription with Owner access
+- Azure CLI installed (`az --version` ≥ 2.60)
+- A resource group for the lab: `rg-internet-of-agents`
+- A virtual network planned for the platform
 
 ---
 
@@ -291,4 +339,4 @@ If you need to peer with other VNets:
 
 ## Next Steps
 
-Proceed to [Chapter 06 — Create a Foundry IQ Knowledge Base](./06-foundry-iq-knowledge.md)
+Proceed to [Chapter 02 — Build the AI Gateway](./02-ai-gateway.md)

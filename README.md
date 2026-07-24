@@ -18,15 +18,15 @@
 
 | Chapter | Title | Focus |
 |---------|-------|-------|
-| [00](./chapters/00-overview.md) | Platform Overview & Architecture | Architecture deep-dive, diagrams, and design principles |
-| [01](./chapters/01-ai-gateway.md) | Build the AI Gateway | APIM setup, networking, GenAI gateway, unified model API, MCP server |
-| [02](./chapters/02-agent-framework.md) | Build an Agent with Microsoft Agent Framework | Create agent, memory, harness, expose via A2A |
-| [03](./chapters/03-api-center.md) | Create Azure API Center | Centralized registry for MCP servers, skills, and APIs |
-| [04](./chapters/04-react-discovery-ui.md) | Build a React Discovery UI | Custom UI for agents, MCP tools, and skills discovery |
-| [05](./chapters/05-foundry-byo-networking.md) | Create Microsoft Foundry with BYO Networking | Foundry instance with private virtual network |
+| [00](./chapters/00-overview.md) | Platform Overview & Architecture | Architecture deep-dive, IQ ecosystem, security, governance philosophy |
+| [01](./chapters/01-foundry-byo-networking.md) | Create Microsoft Foundry with BYO Networking | Foundry instance with private virtual network, delegated subnets |
+| [02](./chapters/02-ai-gateway.md) | Build the AI Gateway | APIM setup, networking, GenAI gateway, unified model API, MCP server |
+| [03](./chapters/03-agent-framework.md) | Build an Agent with Microsoft Agent Framework | Create agent, memory, harness, expose via A2A |
+| [04](./chapters/04-api-center.md) | Create Azure API Center | Centralized registry for MCP servers, skills, and APIs |
+| [05](./chapters/05-react-discovery-ui.md) | Build a React Discovery UI | Custom UI for agents, MCP tools, and skills discovery |
 | [06](./chapters/06-foundry-iq-knowledge.md) | Create a Foundry IQ Knowledge Base | Enterprise knowledge grounding for agents |
 | [07](./chapters/07-prompt-agent.md) | Build a Prompt Agent in Foundry | Agent with knowledge base, MCP tools, and A2A calls |
-| [08](./chapters/08-hosted-agent.md) | Build a Hosted Agent in Foundry | Deploy Agent Framework agent as hosted agent |
+| [08](./chapters/08-hosted-agent.md) | Build a Hosted Agent in Foundry | Deploy Agent Framework agent as hosted agent, expose via A2A in APIM |
 | [09](./chapters/09-work-iq.md) | Connect Your Agent with Work IQ | Microsoft 365 data grounding with BYO networking considerations |
 | [10](./chapters/10-serverless-agent.md) | Create a Serverless Agent with Azure Functions | Event-driven agents with the serverless agents runtime |
 | [11](./chapters/11-fabric-iq.md) | Connect Your Agent with Fabric IQ (Optional) | Lakehouse, ontology, and Fabric IQ integration |

@@ -1,4 +1,4 @@
-# Chapter 03 — Create Azure API Center
+# Chapter 04 — Create Azure API Center
 
 ## Objective
 
@@ -6,17 +6,68 @@ Create an **Azure API Center** as the centralized registry for all MCP servers, 
 
 By the end of this chapter, you will have:
 - An Azure API Center instance linked to APIM
-- MCP servers registered and discoverable (including the one from Chapter 01)
+- MCP servers registered and discoverable (including the one from Chapter 02)
 - Sample skills registered from agentskills.io
 - A developer portal for API and tool discovery
 
 ---
 
+## Architecture Context: The Enterprise Catalog for AI
+
+### Where This Fits
+
+API Center is the **design-time registry** that makes the runtime gateway (APIM) discoverable. While APIM governs traffic at runtime, API Center tells developers what's available and how to use it.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  Developer Experience                         │
+│                                                             │
+│  "What MCP tools exist?"  "What agents can I delegate to?"  │
+│  "What skills are available for my use case?"               │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ Discovers via
+┌──────────────────────▼──────────────────────────────────────┐
+│           Azure API Center (This Chapter)                    │
+│                                                             │
+│  ┌────────────┐  ┌────────────┐  ┌────────────────────┐    │
+│  │ MCP Server │  │   Agent    │  │   Skill / Plugin   │    │
+│  │ Registry   │  │  Registry  │  │    Registry        │    │
+│  └────────────┘  └────────────┘  └────────────────────┘    │
+│  ┌────────────┐  ┌────────────┐  ┌────────────────────┐    │
+│  │ Governance │  │  Linting   │  │  Conformance       │    │
+│  │  Metadata  │  │   Rules    │  │   Scoring          │    │
+│  └────────────┘  └────────────┘  └────────────────────┘    │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ Linked to
+┌──────────────────────▼──────────────────────────────────────┐
+│           AI Gateway (APIM) — Runtime Governance             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### What You Will Achieve
+
+- A **single catalog** where every MCP tool, agent, and skill in the organization is registered
+- **Governance metadata** (owner, SLA, data classification, version) for every registered asset
+- **APIM integration** that auto-syncs runtime APIs into the catalog
+- **Developer discoverability** — developers find tools by capability, not by knowing internal team names
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Eliminate Duplication** | Developers search before building — find existing tools instead of recreating them |
+| **Governance at Scale** | Linting rules and conformance scores ensure all registered assets meet quality standards |
+| **Accelerate Composition** | Agents can dynamically discover available tools at runtime via API Center queries |
+| **Visibility** | Administrators see the complete landscape of AI capabilities across the organization |
+| **Lifecycle Management** | Track API versions, deprecations, and migrations in one place |
+
+---
+
 ## Prerequisites
 
-- Chapters 01-02 completed
+- Chapters 02-03 completed
 - Azure CLI authenticated
-- APIM instance from Chapter 01 operational
+- APIM instance from Chapter 02 operational
 
 ---
 
@@ -368,4 +419,4 @@ From VS Code, developers can:
 
 ## Next Steps
 
-Proceed to [Chapter 04 — Build a React Discovery UI](./04-react-discovery-ui.md)
+Proceed to [Chapter 05 — Build a React Discovery UI](./05-react-discovery-ui.md)

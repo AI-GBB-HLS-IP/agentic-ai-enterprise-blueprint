@@ -6,6 +6,31 @@ Build a **Serverless Agent** using the Azure Functions **Agents Runtime** — a 
 
 ---
 
+## Architecture Context: Event-Driven Agents at Scale
+
+### Where This Fits
+
+Serverless agents complement hosted agents (Chapter 08) for scenarios where **event-driven, pay-per-execution** economics make more sense than always-running containers. Ideal for agents that respond to triggers (HTTP, queue, timer) rather than maintaining persistent connections.
+
+### What You Will Achieve
+
+- An agent defined entirely in **markdown** (`.agent.md`) with no boilerplate code
+- MCP tool connections declared in **`mcp.json`** pointing to governed tools in APIM
+- **One-command deployment** via `azd up` with VNet integration
+- An agent that scales to zero when idle and scales up automatically under load
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Zero Idle Cost** | Pay only when the agent is invoked — no cost when there's no traffic |
+| **Markdown-First** | Define agent behavior in `.agent.md` — accessible to non-developers |
+| **Instant Scale** | Azure Functions scales automatically from 0 to thousands of concurrent executions |
+| **Event-Driven** | Trigger agents from queues, timers, webhooks, or Cosmos DB change feeds |
+| **azd Deployment** | Single command deploys agent + infrastructure — perfect for CI/CD |
+
+---
+
 ## Prerequisites
 
 - Chapters 01-09 completed

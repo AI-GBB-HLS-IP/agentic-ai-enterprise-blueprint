@@ -6,11 +6,36 @@ Create a **Foundry IQ Knowledge Base** to ground your agents in enterprise data.
 
 ---
 
+## Architecture Context: Grounding Agents in Enterprise Knowledge
+
+### Where This Fits
+
+Foundry IQ is the **knowledge retrieval engine** that prevents agents from hallucinating. Instead of relying solely on an LLM's training data, agents retrieve relevant documents and facts from your organization's actual knowledge repositories before generating responses.
+
+### What You Will Achieve
+
+- A **knowledge index** with hybrid search (keyword + semantic vector search)
+- **Automatic chunking and embedding** of enterprise documents (PDFs, Word, markdown)
+- A retrieval pipeline that agents can query with natural language
+- All data access through **private endpoints** (no public internet exposure)
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Eliminate Hallucination** | Agents respond based on actual documents, not fabricated information |
+| **Zero RAG Pipeline Code** | Foundry handles chunking, embedding, indexing, and retrieval — no custom code needed |
+| **Secure by Default** | Documents stay in your VNet; retrieval happens over private endpoints |
+| **Always Current** | Scheduled indexing keeps agent knowledge up-to-date as documents change |
+| **Composable** | Multiple agents can share the same knowledge index, or have dedicated indexes |
+
+---
+
 ## Prerequisites
 
-- Chapter 05 completed (Foundry with BYO VNet operational)
+- Chapter 01 completed (Foundry with BYO VNet operational)
 - Sample enterprise documents (PDFs, Word docs, or markdown files)
-- Azure Blob Storage from Chapter 05
+- Azure Blob Storage from Chapter 01
 
 ---
 

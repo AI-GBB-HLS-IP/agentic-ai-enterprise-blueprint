@@ -6,6 +6,32 @@ Connect your Foundry agent to **Work IQ** to enable it to query Microsoft 365 da
 
 ---
 
+## Architecture Context: Organizational Intelligence for Agents
+
+### Where This Fits
+
+Work IQ is the **organizational memory** layer. While Foundry IQ provides document knowledge and Fabric IQ provides data analytics, Work IQ gives agents access to the dynamic, interpersonal context of work — who's communicating with whom, what meetings are scheduled, what documents are being shared.
+
+### What You Will Achieve
+
+- An agent that can query **Microsoft 365 data** (email, calendar, Teams, files) on behalf of users
+- **On-Behalf-Of (OBO) authentication** that ensures agents only see data the user has access to
+- Understanding of Work IQ's **VNet limitations** and architectural workarounds
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Organizational Context** | Agents understand who you work with, what you're working on, and what's been discussed |
+| **User-Scoped Security** | OBO authentication means agents never see more than the user could see themselves |
+| **No Microsoft Graph Complexity** | Work IQ abstracts the Graph API — no need to learn Graph query syntax |
+| **Productivity Multiplier** | Agents can proactively surface relevant emails, upcoming meetings, and shared documents |
+| **Cross-IQ Composition** | Combine Work IQ with Fabric IQ and Foundry IQ for deeply contextual responses |
+
+> **Important VNet Limitation**: Work IQ does not currently support VNet integration. Connectivity uses A2A + OBO auth through Microsoft's managed infrastructure. See the architectural considerations section below.
+
+---
+
 ## Prerequisites
 
 - Chapters 01-08 completed
@@ -301,7 +327,7 @@ If the VNet limitation is unacceptable:
 1. Skip Work IQ entirely
 2. Build a custom Microsoft Graph connector as an Azure Function (Chapter 10)
 3. Deploy the Function in your VNet with private endpoints
-4. Register it as an MCP server in APIM (Chapter 01)
+4. Register it as an MCP server in APIM (Chapter 02)
 5. Call it from your agent like any other MCP tool
 
 ---

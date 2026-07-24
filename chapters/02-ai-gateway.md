@@ -1,4 +1,4 @@
-# Chapter 01 — Build the AI Gateway
+# Chapter 02 — Build the AI Gateway
 
 ## Objective
 
@@ -13,12 +13,66 @@ By the end of this chapter, you will have:
 
 ---
 
+## Architecture Context: The Heart of the Platform
+
+### Where This Fits
+
+The AI Gateway is the **single chokepoint** through which all AI traffic flows. Every LLM call, every MCP tool invocation, every A2A agent delegation passes through this layer — giving you centralized control over security, cost, and quality.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    All AI Consumers                            │
+│  Agents │ Apps │ Copilot │ Developers │ Partner Systems       │
+└──────────────────────┬───────────────────────────────────────┘
+                       │ Single Entry Point
+┌──────────────────────▼───────────────────────────────────────┐
+│              AI Gateway (APIM) — This Chapter                 │
+│                                                              │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   │
+│  │ GenAI    │ │ MCP      │ │ A2A      │ │ Content      │   │
+│  │ Policies │ │ Gateway  │ │ Broker   │ │ Safety       │   │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────────┘   │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐   │
+│  │ Rate     │ │ Semantic │ │ Load     │ │ Token        │   │
+│  │ Limiting │ │ Cache    │ │ Balance  │ │ Accounting   │   │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────────┘   │
+└──────────────────────┬───────────────────────────────────────┘
+                       │ Managed Identity Auth (no API keys)
+┌──────────────────────▼───────────────────────────────────────┐
+│  Azure OpenAI │ Foundry Models │ Claude │ Bedrock │ Gemini   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### What You Will Achieve
+
+A fully operational AI Gateway that:
+- Provides **one endpoint** for all LLM interactions across the organization
+- Transforms any REST API into an **MCP server** instantly (existing APIs become agent tools)
+- Governs all **A2A agent communication** with auth, rate limiting, and monitoring
+- Applies **Content Safety** (Prompt Shields, Task Adherence) inline on every request
+- Tracks **token consumption** per team/app/agent for cost attribution
+- Eliminates API key sprawl with **managed identity authentication**
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Unified Access** | Developers get one endpoint — no need to manage multiple API keys, endpoints, or SDKs |
+| **Cost Control** | Token quotas and rate limits prevent cost explosions; dashboards show exactly who's spending what |
+| **Instant Tool Creation** | Any existing REST API becomes an MCP tool with zero code changes — just import into APIM |
+| **Security by Default** | Content Safety, JWT validation, and managed identities are enforced for every request |
+| **Multi-Model Freedom** | Switch between Azure OpenAI, Claude, Bedrock, or Gemini without changing client code |
+| **Observability** | Every request is traced with Application Insights — full visibility into latency, errors, and patterns |
+
+---
+
 ## Prerequisites
 
+- Chapter 01 completed (Foundry with BYO VNet operational)
 - Azure subscription with Owner access
 - Azure CLI installed (`az --version` ≥ 2.60)
 - A resource group for the lab: `rg-internet-of-agents`
-- A virtual network planned for the platform
+- VNet from Chapter 01 available
 
 ---
 
@@ -587,4 +641,4 @@ You now have:
 
 ## Next Steps
 
-Proceed to [Chapter 02 — Build an Agent with Microsoft Agent Framework](./02-agent-framework.md)
+Proceed to [Chapter 03 — Build an Agent with Microsoft Agent Framework](./03-agent-framework.md)

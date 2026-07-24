@@ -1,4 +1,4 @@
-# Chapter 02 — Build an Agent with Microsoft Agent Framework
+# Chapter 03 — Build an Agent with Microsoft Agent Framework
 
 ## Objective
 
@@ -13,11 +13,64 @@ By the end of this chapter, you will have:
 
 ---
 
+## Architecture Context: Agents as First-Class Platform Citizens
+
+### Where This Fits
+
+The Microsoft Agent Framework provides the **standard building block** for creating agents in this platform. Every agent built here becomes discoverable, invocable, and governable through the enterprise mesh.
+
+```
+┌─────────────────────────────────────────────┐
+│         Your Agent (This Chapter)            │
+│                                             │
+│  ┌─────────────────────────────────────┐    │
+│  │  Microsoft Agent Framework (Python)  │    │
+│  │  • Instructions + System Prompt      │    │
+│  │  • Memory (Persistent State)         │    │
+│  │  • Tools (MCP via APIM)              │    │
+│  │  • A2A Server (Interoperability)     │    │
+│  └──────────────────┬──────────────────┘    │
+│                     │                        │
+│  ┌──────────────────▼──────────────────┐    │
+│  │  Agent Card (/.well-known/agent.json)│    │
+│  │  • Name, description, capabilities   │    │
+│  │  • Authentication requirements        │    │
+│  │  • Supported interaction modes        │    │
+│  └─────────────────────────────────────┘    │
+└─────────────────────────────────────────────┘
+         │                    ▲
+         │ Calls MCP tools    │ Other agents
+         ▼ via APIM           │ call this agent
+┌─────────────────┐  ┌───────────────────────┐
+│  AI Gateway     │  │  A2A Mesh / Catalog   │
+│  (Chapter 02)   │  │  (Chapter 04)         │
+└─────────────────┘  └───────────────────────┘
+```
+
+### What You Will Achieve
+
+- A production-ready agent with **persistent memory** that maintains context across sessions
+- An **A2A endpoint** that other agents (and the platform) can discover and invoke
+- A **test harness** for rapid local development without cloud dependencies
+- Understanding of how the Agent Framework abstracts LLM complexity while giving you full control
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Standardized Development** | Every team builds agents the same way — consistent patterns, shared best practices |
+| **Built-in Interoperability** | A2A protocol means any agent can call any other agent — no custom integration work |
+| **Framework Handles Complexity** | Memory management, tool orchestration, streaming — handled by the framework |
+| **Deploy Anywhere** | Same agent code runs on App Service, Container Apps, Foundry Hosted, or Azure Functions |
+| **Discoverable by Default** | Agent Card makes your agent automatically findable in the enterprise catalog |
+
+---
+
 ## Prerequisites
 
-- Chapter 01 completed (AI Gateway operational)
+- Chapter 02 completed (AI Gateway operational)
 - Python 3.11+ installed
-- Azure OpenAI endpoint from Chapter 01
+- Azure OpenAI endpoint from Chapter 02
 - Azure CLI authenticated
 
 ---
@@ -619,4 +672,4 @@ The agent is now governed through the central AI Gateway.
 
 ## Next Steps
 
-Proceed to [Chapter 03 — Create Azure API Center](./03-api-center.md)
+Proceed to [Chapter 04 — Create Azure API Center](./04-api-center.md)

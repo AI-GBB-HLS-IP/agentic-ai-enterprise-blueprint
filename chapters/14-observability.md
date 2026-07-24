@@ -6,10 +6,37 @@ Implement comprehensive **observability**, **evaluation**, and **AI safety guard
 
 ---
 
+## Architecture Context: Trust Through Transparency
+
+### Where This Fits
+
+Observability is the **nervous system** of the platform. Without it, you're operating blind — unable to detect quality degradation, security incidents, or cost anomalies until they become critical. This chapter closes the feedback loop.
+
+### What You Will Achieve
+
+- **OpenTelemetry instrumentation** across all agents with distributed tracing
+- **KQL dashboards** for real-time monitoring of agent health, latency, and errors
+- **Foundry Evaluations** that automatically score agent outputs for quality and safety
+- **Content Safety guardrails** with Prompt Shields and Task Adherence
+- An **AI red teaming pipeline** for systematic adversarial testing
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Early Warning** | Detect quality degradation or security incidents before users report them |
+| **Continuous Evaluation** | Automated scoring ensures agents maintain quality as models and data change |
+| **Cost Attribution** | Know exactly which agents, teams, and use cases are driving token costs |
+| **Safety Assurance** | Guardrails prevent harmful outputs even when prompts attempt manipulation |
+| **Audit Readiness** | Complete trace history for regulatory compliance and incident investigation |
+| **Proactive Defense** | Red teaming finds vulnerabilities before attackers do |
+
+---
+
 ## Prerequisites
 
 - Chapters 01-13 completed
-- Application Insights from Chapter 01
+- Application Insights from Chapter 02
 - Azure Monitor access
 
 ---

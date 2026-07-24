@@ -6,6 +6,31 @@ Configure **Model Router** in Azure AI Foundry to intelligently route agent requ
 
 ---
 
+## Architecture Context: Intelligent Multi-Model Orchestration
+
+### Where This Fits
+
+Model Router sits between the AI Gateway (APIM) and the model endpoints, making **real-time routing decisions** for every prompt. It uses a trained language model to analyze incoming requests and route them to the most appropriate LLM.
+
+### What You Will Achieve
+
+- Multiple model deployments (GPT-4o, GPT-4.1, o3, Claude) behind a **single endpoint**
+- Routing modes: **Balanced** (default), **Quality** (best model), **Cost** (cheapest adequate model)
+- **APIM policy integration** for per-consumer routing preferences
+- Cost tracking that shows savings from intelligent routing
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Cost Optimization** | Simple queries route to cheaper models; complex ones to premium models — automatic savings |
+| **Quality Assurance** | Critical workloads can force routing to the highest-quality model available |
+| **Zero Code Changes** | Routing happens transparently — application code always calls the same endpoint |
+| **Multi-Provider** | Route across Azure OpenAI, Anthropic, AWS Bedrock, and Google Gemini from one endpoint |
+| **Data-Driven Decisions** | Monitor which models handle which request types for continuous optimization |
+
+---
+
 ## Prerequisites
 
 - Chapters 01-11 completed
@@ -178,7 +203,7 @@ print(f"Cost → Model: {response_cost.model}")
 
 ### Update the AI Gateway Policy
 
-Add Model Router awareness to your APIM policy from Chapter 01:
+Add Model Router awareness to your APIM policy from Chapter 02:
 
 ```xml
 <policies>

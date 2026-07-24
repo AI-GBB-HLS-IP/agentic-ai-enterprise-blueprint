@@ -6,6 +6,31 @@ Enable **Microsoft Defender for AI** to provide continuous security monitoring a
 
 ---
 
+## Architecture Context: Enterprise Security Operations for AI
+
+### Where This Fits
+
+Microsoft Defender for AI extends your existing **Security Operations Center (SOC)** to cover AI-specific threats. While Content Safety (Chapter 14) protects at the application level, Defender operates at the **infrastructure level** — detecting threats across the entire agent ecosystem.
+
+### What You Will Achieve
+
+- **Automatic agent inventory** — Defender discovers all AI agents across your Azure subscriptions
+- **Risk scoring** — Each agent assessed for data access, tool permissions, and network exposure
+- **Active threat detection** — Monitoring for prompt injection, data exfiltration, and anomalous behavior
+- **SOC integration** — AI incidents surface in Microsoft Sentinel alongside traditional security alerts
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Complete Visibility** | Automatic discovery means no "shadow agents" operating without security oversight |
+| **AI-Specific Detection** | Purpose-built detectors for prompt injection, jailbreaks, and agent manipulation |
+| **Unified SOC** | AI security incidents handled through the same workflows as traditional threats |
+| **Attack Path Analysis** | Visualize how attackers could move through the agent mesh to reach sensitive data |
+| **Continuous Posture** | Ongoing assessment — not just point-in-time audits |
+
+---
+
 ## Prerequisites
 
 - Chapters 01-14 completed

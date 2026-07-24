@@ -1,8 +1,52 @@
-# Chapter 04 — Build a React Discovery UI
+# Chapter 05 — Build a React Discovery UI
 
 ## Objective
 
 Build a custom **React UI** that enables developers and business users to discover Agents (via A2A), MCP tools, and skills across the enterprise. Deploy it securely to an **App Service Environment (ASE)** with network isolation.
+
+---
+
+## Architecture Context: The Developer Self-Service Portal
+
+### Where This Fits
+
+The Discovery UI is the **human interface** to the enterprise catalog. While agents discover each other programmatically via A2A and API Center, humans need a rich visual experience to browse, search, and understand available capabilities.
+
+```
+┌─────────────────────────────────────────────────────┐
+│            React Discovery UI (This Chapter)         │
+│                                                     │
+│  ┌───────────┐  ┌───────────┐  ┌───────────────┐   │
+│  │  Agent    │  │   MCP     │  │    Skill      │   │
+│  │  Browser  │  │  Browser  │  │   Browser     │   │
+│  └───────────┘  └───────────┘  └───────────────┘   │
+│  ┌───────────┐  ┌───────────┐  ┌───────────────┐   │
+│  │  Try It   │  │  Usage    │  │   Agent       │   │
+│  │  Panel    │  │  Metrics  │  │   Compose     │   │
+│  └───────────┘  └───────────┘  └───────────────┘   │
+└──────────────────────┬──────────────────────────────┘
+                       │ Queries
+┌──────────────────────▼──────────────────────────────┐
+│  API Center (Chapter 04) + APIM (Chapter 02)        │
+└─────────────────────────────────────────────────────┘
+```
+
+### What You Will Achieve
+
+- A production-grade **React application** with TypeScript and modern component patterns
+- **Agent browsing** with capability search, filtering, and "try it" functionality
+- **MCP tool browsing** with schema visualization and usage examples
+- Secure deployment on **App Service Environment** (VNet-injected, no public access)
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Developer Productivity** | Find existing tools in seconds instead of asking around or searching wikis |
+| **Reduce Shadow AI** | When discovery is easy, developers use governed tools instead of building their own |
+| **Business User Access** | Non-developers can browse agent capabilities and request new ones |
+| **Composability** | Visual tool for composing multi-agent workflows using discovered capabilities |
+| **Adoption Metrics** | Track which tools are most popular, which are underused, and where gaps exist |
 
 ---
 
@@ -368,4 +412,4 @@ az containerapp create \
 
 ## Next Steps
 
-Proceed to [Chapter 05 — Create Microsoft Foundry with BYO Networking](./05-foundry-byo-networking.md)
+Proceed to [Chapter 06 — Create a Foundry IQ Knowledge Base](./06-foundry-iq-knowledge.md)

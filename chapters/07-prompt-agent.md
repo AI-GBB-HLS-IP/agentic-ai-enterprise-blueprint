@@ -2,7 +2,32 @@
 
 ## Objective
 
-Build a **Prompt Agent** in Microsoft Foundry that combines the knowledge base from Chapter 06, makes MCP tool calls via APIM (Chapter 01), and communicates with the Agent Framework agent via A2A (Chapter 02).
+Build a **Prompt Agent** in Microsoft Foundry that combines the knowledge base from Chapter 06, makes MCP tool calls via APIM (Chapter 02), and communicates with the Agent Framework agent via A2A (Chapter 03).
+
+---
+
+## Architecture Context: The Fully-Connected Agent
+
+### Where This Fits
+
+The Prompt Agent demonstrates the **power of composition** — a single agent that leverages all three intelligence channels simultaneously: knowledge retrieval (Foundry IQ), tool execution (MCP via APIM), and agent delegation (A2A).
+
+### What You Will Achieve
+
+- An agent that **retrieves knowledge** from Foundry IQ before responding
+- The same agent **calling external tools** via MCP through the governed AI Gateway
+- The same agent **delegating to other agents** via A2A when tasks fall outside its expertise
+- A fully managed deployment (no infrastructure to maintain)
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Compound Intelligence** | Combine knowledge, tools, and other agents in a single coherent experience |
+| **No Infrastructure** | Prompt agents are fully managed — no containers, no scaling, no patching |
+| **Governed Tool Access** | All MCP tool calls route through APIM with full policy enforcement |
+| **Agent Collaboration** | Delegate complex sub-tasks to specialized agents rather than building everything in one monolith |
+| **Rapid Iteration** | Change agent behavior by editing prompts and tool configurations — no redeployment needed |
 
 ---
 
@@ -58,7 +83,7 @@ with (
         description="Search enterprise travel and expense policies",
     )
 
-    # 2. MCP tool via APIM (from Chapter 01)
+    # 2. MCP tool via APIM (from Chapter 02)
     mcp_tool = McpTool(
         server_url="https://apim-agents-gateway.azure-api.net/mcp/enterprise-tools/mcp",
         server_label="Enterprise Tools",
@@ -146,7 +171,7 @@ Guidelines:
 
 ## Part 3: Add A2A Call to the Travel Agent
 
-To call the Enterprise Travel Agent (from Chapter 02) via A2A, register it as a tool server in your Foundry project:
+To call the Enterprise Travel Agent (from Chapter 03) via A2A, register it as a tool server in your Foundry project:
 
 ### Step 1: Create a Connection to the A2A Agent
 

@@ -6,6 +6,31 @@ Create a **Custom Engine Agent** that extends Microsoft 365 Copilot with your en
 
 ---
 
+## Architecture Context: Meeting Users Where They Work
+
+### Where This Fits
+
+Custom Engine Agents bring the **entire platform** to where users already spend their time — Microsoft 365. Instead of requiring users to open a separate portal, agents surface directly in Teams chat, Copilot sidebar, and Outlook.
+
+### What You Will Achieve
+
+- A **Teams bot** backed by your hosted agent (Chapter 08) that responds in Teams channels and 1:1 chats
+- A **Custom Engine Agent manifest** (v1.21+) registered in M365 Admin Center
+- **VNet connectivity** from the Teams bot through to your private agent infrastructure
+- Seamless access to all platform capabilities (MCP tools, A2A, IQ layers) from within M365
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Zero Context Switching** | Users interact with agents without leaving Teams or Outlook |
+| **Enterprise Adoption** | Familiar interface means higher adoption rates than custom portals |
+| **M365 Copilot Integration** | Your agents appear alongside Microsoft's built-in Copilot capabilities |
+| **Identity Preservation** | Entra ID identity flows through — agents respect user permissions |
+| **Organic Discovery** | Users discover agents naturally in their M365 workflow |
+
+---
+
 ## Prerequisites
 
 - Chapters 01-12 completed
@@ -295,7 +320,7 @@ Teams → Bot Framework → App Service (VNet) → APIM (VNet) → Foundry (BYO 
 
 1. **App Service VNet Integration**: Use the `snet-appservice` subnet
 2. **Route all traffic through VNet**: Enable `vnetRouteAllEnabled`
-3. **Access APIM via private endpoint**: Already configured in Chapter 01
+3. **Access APIM via private endpoint**: Already configured in Chapter 02
 4. **APIM routes to Foundry**: Already configured with private endpoints
 
 ```bash

@@ -6,6 +6,32 @@ Walk through the **complete developer journey** from "I want to build a complex 
 
 ---
 
+## Architecture Context: The Promise Delivered
+
+### Where This Fits
+
+This capstone chapter proves the platform's value proposition: what once took weeks of infrastructure work, custom integrations, and security reviews now takes **hours** with the Internet of Agents platform.
+
+### What You Will Achieve
+
+- A complete **multi-agent application** built end-to-end using the platform
+- Demonstration of **self-service discovery** (find existing tools and agents)
+- Demonstration of **rapid composition** (combine MCP tools, IQ layers, A2A agents)
+- Demonstration of **governed deployment** (publish, get certified, go live)
+- Evidence that the platform delivers on its promise of **developer acceleration**
+
+### Benefits Demonstrated
+
+| Platform Promise | How This Chapter Proves It |
+|-----------------|---------------------------|
+| **From weeks to hours** | Alex builds a production-ready multi-agent app in a single day |
+| **Self-service discovery** | Alex finds existing tools without filing tickets or asking around |
+| **Governed by default** | Every component Alex uses is already secured, monitored, and compliant |
+| **Composability** | Alex combines 5 existing capabilities into something entirely new |
+| **Enterprise-ready** | The finished app has monitoring, safety, and cost controls from day one |
+
+---
+
 ## The Scenario
 
 **Alex**, a developer on the Customer Success team, needs to build a **Customer Onboarding Assistant** — a multi-agent application that:
@@ -24,7 +50,7 @@ Alex has never built an agentic application before. Here's how the Internet of A
 
 ### Step 1: Browse the API Center Portal
 
-Alex opens the **Developer Self-Service Portal** (Chapter 04):
+Alex opens the **Developer Self-Service Portal** (Chapter 05):
 
 ```
 https://portal.agents.contoso.com
@@ -276,7 +302,7 @@ print(f"✅ Deployed: {hosted_agent.name}")
 ### Step 3: Register in API Center
 
 ```bash
-# Register the agent in API Center (Chapter 03)
+# Register the agent in API Center (Chapter 04)
 az apic api register \
   --resource-group $RESOURCE_GROUP \
   --service-name "apic-agents-platform" \
@@ -289,7 +315,7 @@ az apic api register \
 ### Step 4: Register in APIM
 
 ```bash
-# Import into APIM for governance (Chapter 01)
+# Import into APIM for governance (Chapter 02)
 az apim api import \
   --resource-group $RESOURCE_GROUP \
   --service-name "apim-agents-gateway" \

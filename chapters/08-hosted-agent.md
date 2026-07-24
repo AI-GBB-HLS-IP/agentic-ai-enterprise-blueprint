@@ -2,15 +2,40 @@
 
 ## Objective
 
-Take the Enterprise Travel Agent built with the Agent Framework (Chapter 02) and deploy it as a **Hosted Agent** in Microsoft Foundry. Hosted agents run your own container image on Azure Container Apps within Foundry's managed infrastructure.
+Take the Enterprise Travel Agent built with the Agent Framework (Chapter 03) and deploy it as a **Hosted Agent** in Microsoft Foundry. Hosted agents run your own container image on Azure Container Apps within Foundry's managed infrastructure.
+
+---
+
+## Architecture Context: Production-Grade Agent Deployment
+
+### Where This Fits
+
+Hosted Agents bridge the gap between **development** (Chapter 03) and **production**. You bring your own container image with full control over the runtime, while Foundry handles scaling, networking, and lifecycle management within your VNet.
+
+### What You Will Achieve
+
+- Your Agent Framework agent **containerized** with a production-ready Dockerfile
+- The container deployed as a **Hosted Agent** in Foundry with BYO VNet integration
+- The hosted agent accessible via **A2A protocol** and **SDK** for testing
+- The hosted agent **exposed via A2A in APIM** for enterprise-wide consumption with governance
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Full Runtime Control** | Bring any Python/Node.js runtime, custom dependencies, or proprietary libraries |
+| **Managed Scaling** | Foundry auto-scales your container based on request load — no manual intervention |
+| **VNet Integration** | Your agent runs inside your delegated subnet with full private network access |
+| **Enterprise Governance** | Exposing via APIM means rate limiting, auth, monitoring, and policy apply automatically |
+| **A2A Interoperability** | Other agents across the platform can discover and invoke your hosted agent seamlessly |
 
 ---
 
 ## Prerequisites
 
 - Chapters 01-07 completed
-- Azure Container Registry (ACR) from Chapter 02
-- Agent Framework code from Chapter 02
+- Azure Container Registry (ACR) from Chapter 03
+- Agent Framework code from Chapter 03
 - Foundry with BYO VNet from Chapter 05
 
 ---
@@ -240,6 +265,155 @@ print(response.output_text)
 
 ---
 
+## Part 6: Expose Hosted Agent via A2A in APIM
+
+Now that your hosted agent is running in Foundry, you need to **expose it through the AI Gateway (APIM)** so that:
+- Other agents across the enterprise can discover and invoke it with full governance
+- Rate limiting, authentication, and monitoring apply to all inbound A2A requests
+- The agent is registered in the enterprise catalog for discoverability
+
+### Step 1: Create the A2A API Definition
+
+Create an OpenAPI spec for the hosted agent's A2A endpoint:
+
+```yaml
+# hosted-travel-agent-a2a.yaml
+openapi: 3.0.1
+info:
+  title: Enterprise Travel Agent (Hosted) - A2A
+  description: A2A interface for the hosted travel agent in Foundry
+  version: "1.0"
+servers:
+  - url: https://foundry-agents-platform.services.ai.azure.com
+paths:
+  /agents/EnterpriseTravelAgentHosted/.well-known/agent.json:
+    get:
+      operationId: getAgentCard
+      summary: Get Agent Card
+      responses:
+        '200':
+          description: Agent Card
+  /agents/EnterpriseTravelAgentHosted/a2a:
+    post:
+      operationId: invokeAgent
+      summary: Invoke agent via A2A protocol
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                method:
+                  type: string
+                params:
+                  type: object
+      responses:
+        '200':
+          description: A2A response
+```
+
+### Step 2: Import into APIM
+
+```bash
+# Import the A2A API into APIM
+az apim api import \
+  --resource-group rg-internet-of-agents \
+  --service-name apim-agents-gateway \
+  --api-id hosted-travel-agent-a2a \
+  --path "agents/travel" \
+  --specification-format OpenApi \
+  --specification-path ./hosted-travel-agent-a2a.yaml \
+  --display-name "Enterprise Travel Agent (Hosted)" \
+  --service-url "https://foundry-agents-platform.services.ai.azure.com" \
+  --protocols https \
+  --subscription-required true
+```
+
+### Step 3: Apply A2A Governance Policy
+
+```xml
+<policies>
+  <inbound>
+    <base />
+    <!-- Validate JWT for A2A callers -->
+    <validate-jwt header-name="Authorization" failed-validation-httpcode="401">
+      <openid-config url="https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration" />
+      <required-claims>
+        <claim name="aud" match="all">
+          <value>{your-foundry-app-id}</value>
+        </claim>
+      </required-claims>
+    </validate-jwt>
+    <!-- Rate limit A2A calls -->
+    <rate-limit-by-key calls="100" renewal-period="60"
+      counter-key="@(context.Request.Headers.GetValueOrDefault("X-Agent-Id","anonymous"))" />
+    <!-- Log for observability -->
+    <set-header name="X-Request-Source" exists-action="override">
+      <value>@(context.Request.Headers.GetValueOrDefault("X-Agent-Id","unknown"))</value>
+    </set-header>
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+</policies>
+```
+
+### Step 4: Register in API Center
+
+```bash
+# Register the A2A endpoint in API Center for discoverability
+az apic api register \
+  --resource-group rg-internet-of-agents \
+  --service-name apic-agents-platform \
+  --api-id "hosted-travel-agent" \
+  --title "Enterprise Travel Agent (Hosted)" \
+  --type "a2a" \
+  --description "A hosted agent for travel planning — flights, hotels, itineraries" \
+  --custom-properties '{"agentType": "hosted", "iqLayers": ["foundry-iq"], "mcpTools": ["flight-search", "hotel-booking"]}'
+```
+
+### Step 5: Verify End-to-End
+
+```python
+import httpx
+
+# Other agents now invoke the hosted agent through APIM (governed)
+async def invoke_via_apim():
+    apim_url = "https://apim-agents-gateway.azure-api.net/agents/travel/a2a"
+
+    headers = {
+        "Authorization": f"Bearer {get_agent_token()}",
+        "X-Agent-Id": "customer-success-agent",
+        "Ocp-Apim-Subscription-Key": "{subscription-key}"
+    }
+
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "tasks/send",
+        "params": {
+            "id": "task-001",
+            "message": {
+                "role": "user",
+                "parts": [{"type": "text", "text": "Find flights from NYC to London next Monday"}]
+            }
+        }
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(apim_url, json=payload, headers=headers)
+        print(response.json())
+```
+
+Now any agent in the enterprise can discover and invoke your hosted travel agent through the governed AI Gateway — with full rate limiting, authentication, monitoring, and cost attribution.
+
+---
+
 ## Summary
 
 | Component | Status |
@@ -249,6 +423,8 @@ print(response.output_text)
 | Hosted agent deployed in Foundry | ✅ |
 | BYO VNet connectivity verified | ✅ |
 | A2A endpoint accessible | ✅ |
+| Exposed via A2A in APIM | ✅ |
+| Registered in API Center | ✅ |
 
 ---
 
@@ -256,6 +432,7 @@ print(response.output_text)
 
 - [Deploy Hosted Agent Code](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent-code?tabs=python)
 - [Hosted Agent Networking](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/agents-networking-deep-dive#hosted-agents-networking-behavior)
+- [Import A2A APIs into APIM](https://learn.microsoft.com/en-us/azure/api-management/import-api-from-oas)
 
 ---
 

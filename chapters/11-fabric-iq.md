@@ -8,6 +8,30 @@ Build a **Fabric IQ Agent** that enables natural-language querying of your organ
 
 ---
 
+## Architecture Context: Data Intelligence at Enterprise Scale
+
+### Where This Fits
+
+Fabric IQ is the **data analytics intelligence** layer. While Foundry IQ handles document knowledge and Work IQ handles organizational context, Fabric IQ gives agents access to **structured data at scale** — terabytes of transactional data, semantic models, and business metrics.
+
+### What You Will Achieve
+
+- An agent that can **query Lakehouse tables** using natural language (no SQL required by end users)
+- Integration with **Power BI semantic models** for business-ready metrics and KPIs
+- Understanding of how Fabric IQ respects **row-level security** and data governance
+
+### Benefits of This Approach
+
+| Benefit | Description |
+|---------|-------------|
+| **Natural Language to SQL** | Users ask questions in plain English; Fabric IQ generates and executes optimized queries |
+| **Enterprise Data Access** | Agents can access terabytes of structured data without custom data pipelines |
+| **Security Inheritance** | Row-level security from Power BI semantic models is automatically enforced |
+| **Business Metrics** | Agents can reference pre-defined measures and KPIs for accurate business answers |
+| **Cross-IQ Power** | Combine Fabric IQ data with Work IQ context for deeply informed business intelligence |
+
+---
+
 ## Prerequisites
 
 - Chapters 01-10 completed
