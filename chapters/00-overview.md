@@ -540,13 +540,16 @@ Chapter 11: Fabric IQ    Chapter 12: Model Router
 Chapter 13: M365 Custom Engine Agent
     │
     ▼
-Chapter 14: Observability & Evaluation
+Chapter 14: Copilot Studio VNet Integration
     │
     ▼
-Chapter 15: Microsoft Defender
+Chapter 15: Observability & Evaluation
     │
     ▼
-Chapter 16: Developer Journey (Capstone)
+Chapter 16: Microsoft Defender
+    │
+    ▼
+Chapter 17: Developer Journey (Capstone)
 ```
 
 ---

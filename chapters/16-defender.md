@@ -1,4 +1,4 @@
-# Chapter 15 — Secure with Microsoft Defender
+# Chapter 16 — Secure with Microsoft Defender
 
 ## Objective
 
@@ -10,7 +10,7 @@ Enable **Microsoft Defender for AI** to provide continuous security monitoring a
 
 ### Where This Fits
 
-Microsoft Defender for AI extends your existing **Security Operations Center (SOC)** to cover AI-specific threats. While Content Safety (Chapter 14) protects at the application level, Defender operates at the **infrastructure level** — detecting threats across the entire agent ecosystem.
+Microsoft Defender for AI extends your existing **Security Operations Center (SOC)** to cover AI-specific threats. While Content Safety (Chapter 15) protects at the application level, Defender operates at the **infrastructure level** — detecting threats across the entire agent ecosystem.
 
 ### What You Will Achieve
 
@@ -295,7 +295,7 @@ union customEvents, requests, dependencies
 - [ ] Verify content filtering is active on all deployments
 - [ ] Check that API key authentication remains disabled
 - [ ] Review RBAC assignments for least-privilege compliance
-- [ ] Run red team evaluation (Chapter 14)
+- [ ] Run red team evaluation (Chapter 15)
 
 ---
 
@@ -325,4 +325,4 @@ union customEvents, requests, dependencies
 
 ## Next Steps
 
-Proceed to [Chapter 16 — Capstone: End-to-End Developer Journey](./16-developer-journey.md)
+Proceed to [Chapter 17 — Capstone: End-to-End Developer Journey](./17-developer-journey.md)

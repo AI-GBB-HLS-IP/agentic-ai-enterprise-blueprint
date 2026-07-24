@@ -32,9 +32,10 @@
 | [11](./chapters/11-fabric-iq.md) | Connect Your Agent with Fabric IQ (Optional) | Lakehouse, ontology, and Fabric IQ integration |
 | [12](./chapters/12-model-router.md) | Create a Model Router in Foundry | Intelligent prompt routing across multiple LLMs |
 | [13](./chapters/13-m365-custom-engine.md) | Expose as Custom Engine Agent in M365 | Surface hosted agent in Microsoft 365 Copilot and Teams |
-| [14](./chapters/14-observability.md) | Observability, Evaluation & Red Teaming (Optional) | Monitoring dashboards, evaluators, guardrails, red teaming |
-| [15](./chapters/15-defender.md) | Implement Microsoft Defender for AI | AI agent inventory, risk assessment, threat detection |
-| [16](./chapters/16-developer-journey.md) | The Developer Journey | End-to-end scenario: from discovery to deployment |
+| [14](./chapters/14-copilot-studio-vnet.md) | Connect Copilot Studio to APIM MCP via VNet | Private endpoint connectivity, VNet integration, low-code MCP access |
+| [15](./chapters/15-observability.md) | Observability, Evaluation & Red Teaming (Optional) | Monitoring dashboards, evaluators, guardrails, red teaming |
+| [16](./chapters/16-defender.md) | Implement Microsoft Defender for AI | AI agent inventory, risk assessment, threat detection |
+| [17](./chapters/17-developer-journey.md) | The Developer Journey | End-to-end scenario: from discovery to deployment |
 
 ---
 

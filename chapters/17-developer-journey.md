@@ -1,4 +1,4 @@
-# Chapter 16 — Capstone: End-to-End Developer Journey
+# Chapter 17 — Capstone: End-to-End Developer Journey
 
 ## Objective
 
@@ -258,7 +258,7 @@ print("✅ Quality gate passed")
 ### Step 2: Run Safety Gate
 
 ```python
-# Run red team evaluation (from Chapter 14)
+# Run red team evaluation (from Chapter 15)
 results = await red_team.scan(
     target=lambda msg: onboarding_agent.run(msg).text,
     num_objectives=20,
@@ -359,7 +359,7 @@ Now any employee can type in Teams:
 
 ### Defender Dashboard
 
-Alex's new agent immediately appears in the Defender for AI inventory (Chapter 15):
+Alex's new agent immediately appears in the Defender for AI inventory (Chapter 16):
 
 | Agent | Risk | Notes |
 |-------|------|-------|
@@ -367,7 +367,7 @@ Alex's new agent immediately appears in the Defender for AI inventory (Chapter 1
 
 ### Observability
 
-The monitoring dashboard (Chapter 14) shows:
+The monitoring dashboard (Chapter 15) shows:
 
 ```kql
 // Alex's agent metrics

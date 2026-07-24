@@ -395,4 +395,4 @@ For development testing without publishing:
 
 ## Next Steps
 
-Proceed to [Chapter 14 — Set Up Observability, Evaluation, and Guardrails](./14-observability.md)
+Proceed to [Chapter 14 — Connect Copilot Studio to APIM MCP Server via VNet](./14-copilot-studio-vnet.md)

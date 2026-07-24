@@ -1,4 +1,4 @@
-# Chapter 14 — Set Up Observability, Evaluation, and Guardrails
+# Chapter 15 — Set Up Observability, Evaluation, and Guardrails
 
 ## Objective
 
@@ -501,4 +501,4 @@ def run_safety_gate():
 
 ## Next Steps
 
-Proceed to [Chapter 15 — Secure with Microsoft Defender](./15-defender.md)
+Proceed to [Chapter 16 — Secure with Microsoft Defender](./16-defender.md)
