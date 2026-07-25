@@ -61,6 +61,159 @@
 
 ---
 
+## The Secure Agent Factory — Why It Exists
+
+### The Problem: Shadow AI & Ungoverned Agents
+
+As organizations adopt AI agents, a dangerous pattern emerges:
+
+| Without Governance | What Happens |
+|---|---|
+| Developers create AI resources directly | No visibility into what's deployed or who owns it |
+| Direct model endpoint access | No rate limits, no content filtering, no audit trail |
+| Any tool, any MCP server | Data exfiltration risk, prompt injection from untrusted tools |
+| Shared API keys and secrets | Credential sprawl, no revocation, lateral movement risk |
+| No deployment gates | Hallucinating, unsafe, or expensive agents reach production |
+| Optional observability | Incidents discovered by users, not by the platform |
+
+The result is **Shadow AI** — untracked, ungoverned, and potentially dangerous agents operating across the enterprise with no central oversight, no cost control, and no safety guarantees.
+
+### The Solution: A Factory That Makes Security the Default
+
+The **Secure Agent Factory** is a governance layer that wraps the Internet of Agents platform (Chapters 00-16) to ensure that every agent built, tested, and deployed follows enterprise security and compliance standards — **without slowing developers down**.
+
+The core principle: **developers should be productive, but they should never be able to bypass security — even if they try.**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     SECURE AGENT FACTORY                                 │
+│                                                                         │
+│  ┌─────────────────┐    ┌──────────────────┐    ┌───────────────────┐  │
+│  │  PLATFORM        │    │  AI CENTER OF    │    │  DEVELOPERS       │  │
+│  │  ENGINEERING     │    │  EXCELLENCE      │    │                   │  │
+│  │                  │    │  (AI CoE)        │    │  • Build agents   │  │
+│  │  • Provisions    │    │                  │    │  • Use approved   │  │
+│  │    infrastructure│    │  • Approves      │    │    models & tools │  │
+│  │  • Azure Policy  │    │    projects      │    │  • Push through   │  │
+│  │  • Network/VNet  │    │  • Onboards      │    │    CI/CD gates   │  │
+│  │  • Defender      │    │    developers    │    │  • Cannot bypass  │  │
+│  │  • Observability │    │  • Reviews PRs   │    │    guardrails    │  │
+│  │    stack         │    │  • Deploys to    │    │  • No infra      │  │
+│  │                  │    │    production    │    │    access         │  │
+│  └────────┬─────────┘    └────────┬─────────┘    └────────┬──────────┘  │
+│           │                       │                        │             │
+│           ▼                       ▼                        ▼             │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │                    ENFORCEMENT PLANE                                │ │
+│  │                                                                    │ │
+│  │   Azure Policy    │  Network (NSG/APIM)  │  Identity (RBAC)       │ │
+│  │   "Cannot create  │  "Cannot reach models │  "Cannot escalate     │ │
+│  │    non-compliant  │   except through APIM" │   beyond developer   │ │
+│  │    resources"     │                        │   role"              │ │
+│  ├───────────────────┼────────────────────────┼──────────────────────┤ │
+│  │   Content Safety  │  Tool Governance       │  CI/CD Gates         │ │
+│  │   "Every I/O is   │  "Only approved MCP   │  "6 gates must pass  │ │
+│  │    filtered"      │   servers reachable"   │   before production" │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                                                         │
+│           ┌───────────────────────────────────────────────┐             │
+│           │         INTERNET OF AGENTS PLATFORM            │             │
+│           │    (Foundry, APIM, MCP, Agent Framework,       │             │
+│           │     API Center, Observability, Defender)        │             │
+│           └───────────────────────────────────────────────┘             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### The Three Roles — Separation of Duties
+
+The Secure Agent Factory enforces a strict separation between three personas. No single role can provision infrastructure **and** write agent code **and** deploy to production:
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│                                                                       │
+│   PLATFORM ENGINEERING          AI CoE              DEVELOPERS        │
+│   ════════════════════          ═════               ══════════        │
+│                                                                       │
+│   "We build the rails"    "We govern the train"   "We ride the train"│
+│                                                                       │
+│   ┌───────────────────┐   ┌───────────────────┐   ┌────────────────┐│
+│   │ • Deploy VNets,   │   │ • Approve project │   │ • Write agent  ││
+│   │   NSGs, Firewall  │   │   requests        │   │   code         ││
+│   │ • Configure APIM  │   │ • Run Bicep       │   │ • Use APIM     ││
+│   │   AI Gateway      │   │   blueprint to    │   │   endpoints    ││
+│   │ • Set Azure Policy│   │   create Foundry  │   │   (only path)  ││
+│   │ • Deploy Defender │   │   projects        │   │ • Test locally ││
+│   │   & App Insights  │   │ • Manage tool     │   │   with         ││
+│   │ • Manage DNS &    │   │   registry        │   │   guardrails   ││
+│   │   private zones   │   │ • Review PRs as   │   │ • Submit PRs   ││
+│   │                   │   │   CODEOWNERS      │   │   for review   ││
+│   │ CANNOT:           │   │ • Deploy to prod  │   │                ││
+│   │ ✗ Write agent code│   │                   │   │ CANNOT:        ││
+│   │ ✗ Access models   │   │ CANNOT:           │   │ ✗ Create infra ││
+│   │ ✗ Deploy agents   │   │ ✗ Modify network  │   │ ✗ Access models││
+│   │                   │   │ ✗ Change policies │   │   directly     ││
+│   │                   │   │ ✗ Disable logging │   │ ✗ Deploy to    ││
+│   │                   │   │                   │   │   production   ││
+│   │                   │   │                   │   │ ✗ Disable      ││
+│   │                   │   │                   │   │   guardrails   ││
+│   └───────────────────┘   └───────────────────┘   └────────────────┘│
+│                                                                       │
+│   Entra ID Group:          Entra ID Group:         Entra ID Group:   │
+│   sg-platform-engineering  sg-ai-coe               sg-agent-developers│
+│                                                                       │
+│   Azure Role:              Azure Role:             Azure Role:        │
+│   Contributor (infra RG)   AI CoE Custom Role      Cognitive Services │
+│   + Network Contributor    (Foundry project scope)  User (via APIM)  │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+### How It All Connects — The Agent Lifecycle
+
+```
+     Developer                    AI CoE                   Platform Eng
+     ─────────                    ──────                   ────────────
+         │                           │                          │
+    1. Submit Project Request ──────▶│                          │
+         │                           │                          │
+         │                    2. Approve & Run ────────────────▶│
+         │                       Blueprint                      │
+         │                           │                    3. Infrastructure
+         │                           │◀───── already exists ───(in place)
+         │                           │
+         │◀──── 4. Onboarding ───────│
+         │         Package           │
+         │                           │
+    5. Build Agent                   │
+       (APIM-only access)            │
+         │                           │
+    6. Push PR ─────────────────────▶│
+         │                           │
+         │                    7. CI/CD 6 Gates
+         │                       (automated)
+         │                           │
+         │                    8. Review & Approve
+         │                           │
+         │                    9. Deploy to Prod ───────────────▶│
+         │                           │                   (monitored forever)
+         │                           │                          │
+```
+
+### Key Design Principles
+
+| Principle | Implementation |
+|-----------|---------------|
+| **Zero Trust** | Every call authenticated, every network path explicitly allowed, no implicit trust |
+| **Least Privilege** | Each role has minimum permissions; developers cannot escalate |
+| **Security by Default** | Content Safety, Prompt Shield, and observability are non-optional |
+| **No Shadow AI** | APIM is the only network path to models; direct access is blocked by NSGs |
+| **Governed Tools** | API Center + APIM allowlist = only approved MCP tools are reachable |
+| **Automated Enforcement** | Azure Policy denies non-compliant resources before they exist |
+| **Quality Gates** | 6 CI/CD gates (security, prompt safety, red team, quality, cost, compliance) |
+| **Full Audit Trail** | Every model call, tool invocation, and deployment logged and queryable |
+| **Developer Velocity** | Same-day builds via starter templates, self-service catalog, automated onboarding |
+
+---
+
 ## Prerequisites
 
 - Azure subscription with Owner or Contributor access
