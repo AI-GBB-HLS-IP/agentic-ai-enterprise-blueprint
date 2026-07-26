@@ -1,16 +1,14 @@
-# Microsoft Secure Internet of Agents — Enterprise Lab Guide
-
-## 🏗️ Building a Highly Secure Enterprise Agentic AI Platform
-
----
+# Agentic AI Enterprise Blueprint — Build Governed Agent Platforms on Azure
 
 ## Vision
 
-> Create an enterprise-scale Agentic AI Platform that enables developers across the entire organization to seamlessly **discover, consume, and orchestrate** repeatable Agents, Tools, Skills, and Knowledge Assets — without the complexity of authentication, connectivity, or infrastructure management.
+> Build an enterprise AI agent platform where **developers ship fast** and **security teams sleep well** — not by choosing one over the other, but by making governed development the path of least resistance.
 
-> Provide a **global, governed marketplace** of reusable Agents, Tools, and Skills with rich discoverability, enabling both developers and business users to rapidly build, compose, and deploy agentic applications across all cloud providers.
+> Establish a **Secure Agent Factory** with clear separation of duties: **IT Platform Engineering** owns infrastructure and policy enforcement, the **AI Center of Excellence** owns standards and quality gates, and **Developers** own agent logic — each role self-sufficient within their boundary, each role unable to accidentally cross into another's.
 
-> Deliver **built-in Security, Tokenomics, Observability, Governance, and Compliance** by design, ensuring every AI interaction is trusted, measurable, optimized, and enterprise-ready.
+> Deliver a **global, governed marketplace** of reusable Agents, Tools, and Skills with rich discoverability via API Center and A2A protocol — enabling developers to discover, compose, and deploy agentic applications across the organization without tickets, meetings, or manual onboarding.
+
+> Make **Security, Observability, and Governance** properties of the architecture, not checklists bolted on after the fact. Azure Policy prevents non-compliance at creation time. APIM enforces security on every call. Defender detects threats automatically. Foundry Evaluations block bad agents in CI/CD. The platform removes work from every role.
 
 ---
 
