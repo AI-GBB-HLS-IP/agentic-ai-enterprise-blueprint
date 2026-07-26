@@ -53,11 +53,13 @@
 | [25](./chapters/25-cicd-gates.md) | CI/CD Gates — Promote to Production | 6-gate pipeline (security, prompt, red team, quality, cost, compliance) |
 | [26](./chapters/26-end-to-end-walkthrough.md) | Secure Agent Factory End-to-End Walkthrough | Complete flow from request to production, proof no bypass is possible |
 
-### Part 3: Capstone (Chapter 27)
+### Part 3: Capstone & Day-in-Life (Chapters 27-29)
 
 | Chapter | Title | Focus |
 |---------|-------|-------|
 | [27](./chapters/27-developer-journey.md) | The Governed Developer Journey | End-to-end scenario: request → onboard → build → submit → production |
+| [28](./chapters/28-day-in-life-ai-coe.md) | Day in the Life: AI CoE | Full day walkthrough — project provisioning, gate reviews, tool approvals, quality alerts |
+| [29](./chapters/29-day-in-life-it-platform.md) | Day in the Life: IT Platform Engineering | Full day walkthrough — platform health, policy enforcement, security triage, capacity planning |
 
 ---
 

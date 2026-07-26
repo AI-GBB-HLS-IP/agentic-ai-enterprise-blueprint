@@ -831,11 +831,17 @@ Chapter 26: End-to-End Scenario Validation
     │
     ▼
 ═══════════════════════════════════════════════
-  PART 3: CAPSTONE
+  PART 3: CAPSTONE & DAY-IN-LIFE
 ═══════════════════════════════════════════════
     │
     ▼
 Chapter 27: Governed Developer Journey (Capstone)
+    │
+    ▼
+Chapter 28: Day in the Life — AI CoE
+    │
+    ▼
+Chapter 29: Day in the Life — IT Platform Engineering
 ```
 
 ---
