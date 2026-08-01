@@ -24,8 +24,10 @@ Execute the **complete lifecycle** of the Secure Agent Factory — from a develo
 │  ✅ Eight Azure Policies enforced at subscription        [Ch 18]   │
 │  ✅ VNet + APIM AI Gateway + private endpoints           [Ch 19]   │
 │  ✅ Log Analytics + App Insights + Defender + alerts      [Ch 20]   │
+│  ✅ Microsoft Agent 365 registry synced + governance      [Ch 20]   │
 │                                                                     │
 │  The guardrails are in place. Nobody can bypass them.               │
+│  Agent 365 provides unified observe/govern/secure for all agents.   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -328,6 +330,7 @@ Gate 6: Compliance Verification          ✅ Passed (0m 8s)
 
 Deploy to Production                     ✅ Deployed
   ├─ Agent deployed to foundry-agent-factory-prod
+  ├─ Agent registered in Microsoft Agent 365 registry
   ├─ Tag: v1.0.0-prod
   └─ PR comment posted with deployment summary
 ```
@@ -460,6 +463,7 @@ Alert: Anomalous Token Usage
 │  │  CI/CD Pipeline → 6 gates before deployment         [Ch 25]      │    │
 │  │  Branch Protect → AI CoE approval required          [Ch 25]      │    │
 │  │  Defender ──────→ Threat detection & alerts          [Ch 20]      │    │
+│  │  Agent 365 ────→ Unified registry & lifecycle gov   [Ch 20]      │    │
 │  │  Log Analytics ─→ Full audit trail                  [Ch 20]      │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -482,7 +486,8 @@ Alert: Anomalous Token Usage
 | Agent outputs harmful content | Content Safety filters on all model responses (APIM + guardrails) | 19, 22 |
 | Prompt injection attack | Prompt Shield evaluates every user input | 22, 25 |
 | Cost runaway | APIM rate limiting + token budget + CI/CD cost gate | 19, 25 |
-| Rogue agent after deployment | Defender for AI + anomaly alerts + audit trail in Log Analytics | 20 |
+| Rogue agent after deployment | Defender for AI + Agent 365 registry governance + anomaly alerts + audit trail in Log Analytics | 20 |
+| Shadow agent (untracked) | Agent 365 centralized registry auto-discovers all agents; unregistered agents flagged | 20 |
 
 ---
 

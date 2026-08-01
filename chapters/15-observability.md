@@ -16,6 +16,7 @@ Observability is the **nervous system** of the platform. Without it, you're oper
 
 - **OpenTelemetry instrumentation** across all agents with distributed tracing
 - **KQL dashboards** for real-time monitoring of agent health, latency, and errors
+- **Microsoft Agent 365 registry sync** for centralized agent visibility across the enterprise
 - **Foundry Evaluations** that automatically score agent outputs for quality and safety
 - **Content Safety guardrails** with Prompt Shields and Task Adherence
 - An **AI red teaming pipeline** for systematic adversarial testing
@@ -50,6 +51,42 @@ Observability is the **nervous system** of the platform. Without it, you're oper
 | **Traces** | Application Insights + OpenTelemetry | End-to-end agent execution traces, tool calls, model interactions |
 | **Metrics** | Azure Monitor + APIM Analytics | Latency, throughput, error rates, token consumption, cost |
 | **Logs** | Log Analytics + Foundry Traces | Agent reasoning, tool call payloads, user interactions |
+| **Registry** | Microsoft Agent 365 | Centralized agent inventory, adoption metrics, health status, lifecycle state |
+
+### Microsoft Agent 365 — Observe Pillar
+
+[Microsoft Agent 365](https://learn.microsoft.com/en-us/microsoft-agent-365/overview) provides enterprise-wide observability for all agents in production:
+
+- **Centralized Agent Registry** — A single view of all agents (Foundry, third-party, partner) with their adoption, activity, and health status
+- **Role-Specific Dashboards** — AI admins, security leaders, and business leaders each get tailored views relevant to their domain
+- **Agent Health Monitoring** — Real-time signals for agent performance, risk indicators, and usage trends
+- **Registry Sync** — Agents deployed through this platform automatically sync to the Agent 365 registry
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                  OBSERVABILITY ARCHITECTURE                          │
+│                                                                     │
+│  Agent Runtime ──→ OpenTelemetry ──→ Application Insights           │
+│       │                                    │                        │
+│       │                                    ▼                        │
+│       │              ┌──────────────────────────────────────┐       │
+│       │              │        Azure Monitor / KQL            │       │
+│       │              └──────────────────┬───────────────────┘       │
+│       │                                 │                           │
+│       ▼                                 ▼                           │
+│  APIM Gateway ──→ Gateway Logs ──→ Log Analytics                    │
+│       │                                 │                           │
+│       │                                 ▼                           │
+│       │              ┌──────────────────────────────────────┐       │
+│       └─────────────▶│      Microsoft Agent 365              │       │
+│                      │  (Unified Registry + Observe Plane)   │       │
+│  Foundry Agents ────▶│                                       │       │
+│  Functions Agents ──▶│  • Agent inventory & adoption         │       │
+│  Custom Engine ─────▶│  • Health & risk signals              │       │
+│  Third-Party ───────▶│  • Role-specific oversight            │       │
+│                      └──────────────────────────────────────┘       │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ### Distributed Tracing Flow
 

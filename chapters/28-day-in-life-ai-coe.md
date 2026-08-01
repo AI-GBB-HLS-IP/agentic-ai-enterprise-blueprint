@@ -19,6 +19,7 @@ The AI Center of Excellence is the **governance and quality layer** between IT i
 | Manual security reviews for every agent | CI/CD gates auto-verify; review results, not code |
 | Custom infrastructure provisioning per project | Run a Bicep blueprint in 5 minutes |
 | Maintain spreadsheets of approved models/tools | Manage a live registry (API Center + model allowlist) |
+| No visibility into agent fleet health | Microsoft Agent 365 registry — single pane for all agents |
 | Bottleneck on every deployment | Same-day turnaround; gates do the heavy lifting |
 | Firefighting quality issues in production | Foundry Evaluations catch issues before deploy |
 | No standard for "good enough" | Define thresholds once → enforced everywhere |
@@ -152,6 +153,7 @@ az deployment group create \
 │  ✓ Branch protection rules                                   │
 │  ✓ Azure Policy assignment (project-scoped)                  │
 │  ✓ Defender for AI monitoring enabled                         │
+│  ✓ Agent registered in Microsoft Agent 365 registry           │
 │                                                              │
 │  Developer receives:                                         │
 │  📧 Email with repo link, APIM endpoint, quick-start guide   │

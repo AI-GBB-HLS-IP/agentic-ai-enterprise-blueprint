@@ -18,7 +18,8 @@ IT Platform Engineering owns the **foundation layer** — everything below the a
 |----------------------|---------------------|
 | Provision infrastructure per team, per project | Build platform once; teams self-serve within guardrails |
 | Manually audit for compliance gaps | Azure Policy prevents non-compliance at creation time |
-| Respond to security incidents with no context | Defender detects + alerts with full correlation |
+| No visibility into agent fleet | Microsoft Agent 365 provides centralized registry with observe/govern/secure |
+| Respond to security incidents with no context | Defender detects + alerts with full correlation; Agent 365 provides risk dashboards |
 | Set up monitoring per application | Application Insights enabled by default for everything |
 | Chase teams for logging compliance | Logging is non-optional — built into the architecture |
 | Manage VPN/VNet requests one by one | VNet pre-built; Private Link for all services |
@@ -58,6 +59,14 @@ Raj starts his day with the **Platform Health Dashboard** — a unified view of 
 │  │  Rotation due: 3     │  │  42/42 (100%)     │  │  2.3 GB/day   │ │
 │  │                      │  │  Risk: Low        │  │  Retention: ✅│ │
 │  └─────────────────────┘  └──────────────────┘  └───────────────┘ │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────┐│
+│  │  MICROSOFT AGENT 365 — UNIFIED REGISTRY                         ││
+│  │  Registry Status: ✅ Synced                                      ││
+│  │  Total Agents: 42  |  Active: 40  |  Under Review: 2            ││
+│  │  Governance Compliance: 100%                                     ││
+│  │  Third-Party Agents: 2 (approved, monitored)                     ││
+│  └─────────────────────────────────────────────────────────────────┘│
 │                                                                     │
 │  CAPACITY & COST                                                    │
 │  ┌─────────────────────────────────────────────────────────────────┐│
@@ -490,6 +499,7 @@ Actions taken:
 ✅ Verified Prompt Shields blocked all attempts
 ✅ Confirmed no data exfiltration
 ✅ IP auto-throttled by APIM rate limiting
+✅ Agent 365 security dashboard updated (risk signal recorded)
 ✅ Logged incident in security dashboard
 ✅ No action needed from developers (they don't even know it happened)
 ```

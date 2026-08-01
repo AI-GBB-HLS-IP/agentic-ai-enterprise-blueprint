@@ -2,7 +2,7 @@
 
 ## Objective
 
-Deploy the **mandatory observability infrastructure** that every Foundry project automatically inherits. No agent can operate without telemetry flowing to Azure Monitor, Application Insights, and Defender for AI.
+Deploy the **mandatory observability infrastructure** that every Foundry project automatically inherits. No agent can operate without telemetry flowing to Azure Monitor, Application Insights, Defender for AI, and the Microsoft Agent 365 registry.
 
 By the end of this lab, you will have:
 
@@ -10,6 +10,7 @@ By the end of this lab, you will have:
 - Diagnostic settings on all AI resources
 - APIM gateway metrics flowing to Azure Monitor
 - Defender for AI enabled with threat detection
+- Microsoft Agent 365 registry sync for unified agent visibility
 - Microsoft Purview connected for data governance
 - Alert rules for anomaly detection
 
@@ -364,7 +365,90 @@ union
 
 ---
 
-## Part 6: Configure Microsoft Purview
+## Part 6: Microsoft Agent 365 — Unified Control Plane
+
+### Step 6.0 — Why Agent 365 Matters for Observability
+
+Microsoft Agent 365 provides the **unified observe/govern/secure experience** that sits above individual Azure monitoring components. While Application Insights gives you traces, and Defender gives you threats, Agent 365 gives the enterprise a **single registry and control plane** for all agents — regardless of where they run.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                MICROSOFT AGENT 365 — CONTROL PLANE                   │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    AGENT REGISTRY                             │    │
+│  │  All agents visible in one place:                            │    │
+│  │  • Foundry Prompt Agents    • Azure Functions Agents         │    │
+│  │  • Foundry Hosted Agents    • Custom Engine Agents (M365)    │    │
+│  │  • Third-Party Agents       • Partner Ecosystem Agents       │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                     │
+│  ┌─────────────┐  ┌──────────────────┐  ┌──────────────────────┐   │
+│  │  OBSERVE     │  │  GOVERN           │  │  SECURE              │   │
+│  │             │  │                   │  │                      │   │
+│  │  Adoption   │  │  Lifecycle mgmt   │  │  Entra access ctrl   │   │
+│  │  Activity   │  │  Access control   │  │  Purview DLP         │   │
+│  │  Health     │  │  Compliance       │  │  Defender threats    │   │
+│  │  Dashboards │  │  M365 Admin Ctr   │  │  Runtime protection  │   │
+│  └─────────────┘  └──────────────────┘  └──────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Step 6.1 — Configure Agent 365 Prerequisites
+
+Microsoft Agent 365 requires Microsoft E5 as a prerequisite. At least one user must be licensed with a qualifying Microsoft Agent 365 license.
+
+1. Navigate to **Microsoft 365 Admin Center** → **Settings** → **Agent 365**
+2. Enable the Agent 365 service for your tenant
+3. Assign Agent 365 licenses to AI admins and security leaders
+
+### Step 6.2 — Enable Registry Sync
+
+Configure Agent 365 to automatically discover agents from your Azure subscriptions:
+
+```
+Agent 365 Registry Sync Sources:
+├── Azure Subscriptions (Foundry agents, Functions agents)
+├── Microsoft 365 (Copilot agents, Custom Engine agents)
+├── Third-Party (pre-integrated partner agents)
+└── Manual registration (for agents outside Azure)
+```
+
+### Step 6.3 — Configure Observe Dashboards
+
+In the M365 Admin Center Agent 365 section:
+
+| Dashboard | Audience | Key Metrics |
+|-----------|----------|-------------|
+| **Agent Adoption** | AI Admin | Active agents, usage trends, new registrations |
+| **Agent Health** | AI Admin | Performance signals, error rates, availability |
+| **Security Overview** | Security Leader | Risk scores, threat detections, compliance status |
+| **Business Value** | Business Leader | Agent utilization, ROI indicators, user satisfaction |
+
+### Step 6.4 — Configure Governance Policies
+
+Set lifecycle governance rules that apply to all agents in the registry:
+
+| Policy | Configuration |
+|--------|--------------|
+| **Agent Activation** | New agents require approval before serving production traffic |
+| **Periodic Review** | All production agents must pass quarterly access review |
+| **Decommissioning** | Inactive agents (no traffic for 90 days) flagged for retirement |
+| **Data Classification** | Agents must declare data sensitivity (Internal/Confidential/HC) |
+
+### Step 6.5 — Connect Security Telemetry to Agent 365
+
+Agent 365 aggregates security signals from the full Microsoft security stack:
+
+- **Microsoft Defender for AI** → Threat alerts, risk scores, attack paths
+- **Microsoft Purview** → Data sensitivity labels, DLP violations, insider risk
+- **Microsoft Entra** → Identity risk, Conditional Access compliance
+- **APIM Gateway** → Traffic anomalies, blocked requests, quota violations
+- **Foundry Evaluations** → Quality scores, safety failures, red team results
+
+---
+
+## Part 7: Configure Microsoft Purview
 
 ### Step 6.1 — Create Purview Account
 
@@ -401,7 +485,7 @@ In Purview Studio, create sensitivity labels:
 
 ---
 
-## Part 7: OpenTelemetry Configuration Template
+## Part 8: OpenTelemetry Configuration Template
 
 Create the standard OTel configuration that every agent project receives:
 
@@ -464,6 +548,8 @@ def configure_telemetry(agent_name: str, project_name: str):
 | Application Insights with private link | ✅ |
 | Diagnostic settings on APIM, AI Services, Key Vault | ✅ |
 | Defender for AI enabled (Standard tier) | ✅ |
+| Microsoft Agent 365 registry synced | ✅ |
+| Agent 365 observe/govern/secure configured | ✅ |
 | Alert rules (tokens, errors, auth, anomalies) | ✅ |
 | KQL dashboards (health, cost, audit, security) | ✅ |
 | Microsoft Purview connected | ✅ |

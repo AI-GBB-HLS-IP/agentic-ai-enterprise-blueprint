@@ -8,7 +8,7 @@
 
 > Deliver a **global, governed marketplace** of reusable Agents, Tools, and Skills with rich discoverability via API Center and A2A protocol — enabling developers to discover, compose, and deploy agentic applications across the organization without tickets, meetings, or manual onboarding.
 
-> Make **Security, Observability, and Governance** properties of the architecture, not checklists bolted on after the fact. Azure Policy prevents non-compliance at creation time. APIM enforces security on every call. Defender detects threats automatically. Foundry Evaluations block bad agents in CI/CD. The platform removes work from every role.
+> Make **Security, Observability, and Governance** properties of the architecture, not checklists bolted on after the fact. Azure Policy prevents non-compliance at creation time. APIM enforces security on every call. Defender detects threats automatically. Microsoft Agent 365 provides the unified control plane to observe, govern, and secure all agents in production. Foundry Evaluations block bad agents in CI/CD. The platform removes work from every role.
 
 ---
 
@@ -33,17 +33,17 @@
 | [12](./chapters/12-model-router.md) | Create a Model Router in Foundry | Intelligent prompt routing across multiple LLMs |
 | [13](./chapters/13-m365-custom-engine.md) | Expose as Custom Engine Agent in M365 | Surface hosted agent in Microsoft 365 Copilot and Teams |
 | [14](./chapters/14-copilot-studio-vnet.md) | Connect Copilot Studio to APIM MCP via VNet | Private endpoint connectivity, VNet integration, low-code MCP access |
-| [15](./chapters/15-observability.md) | Observability, Evaluation & Red Teaming (Optional) | Monitoring dashboards, evaluators, guardrails, red teaming |
-| [16](./chapters/16-defender.md) | Implement Microsoft Defender for AI | AI agent inventory, risk assessment, threat detection |
+| [15](./chapters/15-observability.md) | Observability, Evaluation & Red Teaming (Optional) | Monitoring dashboards, evaluators, guardrails, red teaming, Agent 365 registry |
+| [16](./chapters/16-defender.md) | Implement Microsoft Defender for AI | AI agent inventory, risk assessment, threat detection, Agent 365 integration |
 
 ### Part 2: Secure Agent Factory — Enterprise Governance (Chapters 17-26)
 
 | Chapter | Title | Focus |
 |---------|-------|-------|
-| [17](./chapters/17-roles-and-governance.md) | Governance Model, Roles & Separation of Duties | Three roles (Platform Eng, AI CoE, Developers), RBAC, Entra ID groups |
+| [17](./chapters/17-roles-and-governance.md) | Governance Model, Roles & Separation of Duties | Three roles (Platform Eng, AI CoE, Developers), RBAC, Entra ID groups, Agent 365 governance |
 | [18](./chapters/18-azure-policy-enforcement.md) | Azure Policy — Block Non-Compliant Deployments | 8 custom policies + initiative enforcing security baseline |
 | [19](./chapters/19-network-and-gateway.md) | Network Foundation & APIM AI Gateway | VNet, subnets, NSGs blocking direct AI access, APIM internal mode |
-| [20](./chapters/20-observability-and-defender.md) | Observability & Defender Stack | Log Analytics, App Insights, Defender for AI, alert rules, KQL dashboards |
+| [20](./chapters/20-observability-and-defender.md) | Observability & Defender Stack | Log Analytics, App Insights, Defender for AI, Microsoft Agent 365, alert rules, KQL dashboards |
 | [21](./chapters/21-foundry-project-blueprint.md) | Foundry Project Blueprint & Automated Provisioning | Bicep template for consistent project creation by AI CoE |
 | [22](./chapters/22-identity-rbac-guardrails.md) | Identity, RBAC & Guardrails by Default | Per-agent identity, Content Safety, Prompt Shield, SecureAgentRuntime |
 | [23](./chapters/23-tool-governance.md) | Tool Governance & Approved MCP Registry | API Center as tool catalog, approval workflow, APIM publication |
@@ -97,9 +97,9 @@ The core principle: **developers should be productive, but they should never be 
 │  │  • Azure Policy  │    │    projects      │    │  • Push through   │  │
 │  │  • Network/VNet  │    │  • Onboards      │    │    CI/CD gates   │  │
 │  │  • Defender      │    │    developers    │    │  • Cannot bypass  │  │
-│  │  • Observability │    │  • Reviews PRs   │    │    guardrails    │  │
-│  │    stack         │    │  • Deploys to    │    │  • No infra      │  │
-│  │                  │    │    production    │    │    access         │  │
+│  │  • Agent 365     │    │  • Reviews PRs   │    │    guardrails    │  │
+│  │  • Observability │    │  • Deploys to    │    │  • No infra      │  │
+│  │    stack         │    │    production    │    │    access         │  │
 │  └────────┬─────────┘    └────────┬─────────┘    └────────┬──────────┘  │
 │           │                       │                        │             │
 │           ▼                       ▼                        ▼             │
@@ -119,7 +119,8 @@ The core principle: **developers should be productive, but they should never be 
 │           ┌───────────────────────────────────────────────┐             │
 │           │         INTERNET OF AGENTS PLATFORM            │             │
 │           │    (Foundry, APIM, MCP, Agent Framework,       │             │
-│           │     API Center, Observability, Defender)        │             │
+│           │     API Center, Agent 365, Observability,      │             │
+│           │     Defender)                                   │             │
 │           └───────────────────────────────────────────────┘             │
 └─────────────────────────────────────────────────────────────────────────┘
 ```

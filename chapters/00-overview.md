@@ -67,6 +67,7 @@ Security in this platform is not a review gate that slows teams down — it's **
 | Component | What It Does | Why It Matters |
 |-----------|-------------|----------------|
 | **AI Gateway (APIM)** | Single chokepoint for all model and tool access. Enforces rate limiting, token quotas, content filtering, JWT validation, and full audit logging. | Developers don't implement security — they inherit it. Every call is governed by policy regardless of who wrote the agent. |
+| **Microsoft Agent 365** | Enterprise control plane for agents — centralized agent registry, lifecycle governance, and unified observe/govern/secure experience across all agent types (Foundry, third-party, partner). | Admins see every agent in one registry. Lifecycle management, access control, and compliance are centralized. Security and business leaders get role-specific oversight. |
 | **Microsoft Defender for AI** | Continuous agent inventory, risk scoring, threat detection, and attack path analysis across all deployed agents. | SOC teams see AI-specific threats alongside traditional security events. No separate tooling, no agent-by-agent setup. |
 | **Foundry Evaluations** | Automated quality and safety scoring (groundedness, relevance, coherence, safety) integrated into CI/CD pipelines. | Bad agents are blocked from production automatically — no manual review for every deployment. Quality is enforced by the pipeline, not by humans. |
 | **Content Safety + Prompt Shields** | Every input and output scanned for injection attacks, harmful content, jailbreaks, and data leakage — applied at the gateway level. | Developers cannot disable it. Even if an agent has a vulnerability, the platform catches the exploit before damage occurs. |
@@ -89,12 +90,20 @@ Security in this platform is not a review gate that slows teams down — it's **
 │         │                 │                 │               │      │
 │         ▼                 ▼                 ▼               ▼      │
 │  ┌────────────────────────────────────────────────────────────────┐ │
+│  │         Microsoft Agent 365 — Unified Control Plane            │ │
+│  │  Centralized agent registry, lifecycle governance, observe/    │ │
+│  │  govern/secure across all agents (Foundry, third-party, M365) │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+│         │                 │                 │               │      │
+│         ▼                 ▼                 ▼               ▼      │
+│  ┌────────────────────────────────────────────────────────────────┐ │
 │  │           Application Insights + Log Analytics                 │ │
 │  │     Full telemetry, KQL queries, dashboards, alerts            │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
 
 Result: Security teams set policy ONCE → applies to ALL agents FOREVER
+        Agent 365 provides unified observe/govern/secure for all agents
         No per-team audits. No per-agent reviews. No manual checklists.
 ```
 
@@ -173,13 +182,15 @@ The Internet of Agents solves this by making **each role self-sufficient within 
 │  │  • Configure APIM Gateway │  ☐ Respond to capacity alerts           │
 │  │  • Set Azure Policy       │  ☐ Update policies as new threats emerge│
 │  │  • Deploy Defender & Logs │  ☐ Patch and upgrade infra              │
-│  │  • Manage DNS & endpoints │  ☐ Review cost anomalies                │
+│  │  • Manage DNS & endpoints │  ☐ Review Agent 365 registry health     │
+│  │  • Manage Agent 365 sync  │  ☐ Review cost anomalies                │
 │  │                           │                                          │
 │  │  What they DON'T do:      │  What the platform gives them:          │
 │  │  ✗ Write agent code       │  • Azure Policy does enforcement        │
 │  │  ✗ Review agent PRs       │  • Defender does threat detection        │
 │  │  ✗ Deploy agents          │  • APIM does rate limiting               │
-│  │  ✗ Manage models          │  • No per-team infrastructure work      │
+│  │  ✗ Manage models          │  • Agent 365 unified observe/govern      │
+│  │                           │  • No per-team infrastructure work      │
 │  └──────────┬────────────────┘                                          │
 │             │                                                           │
 │             │ Provides: secure, governed infrastructure                  │
@@ -194,7 +205,7 @@ The Internet of Agents solves this by making **each role self-sufficient within 
 │  │  • Manage tool registry   │  ☐ Approve tools for the catalog        │
 │  │  • Review PRs (CODEOWNERS)│  ☐ Review CI/CD gate results            │
 │  │  • Deploy to production   │  ☐ Investigate failed evaluations       │
-│  │  • Set eval thresholds    │  ☐ Update model allowlists              │
+│  │  • Set eval thresholds    │  ☐ Manage Agent 365 lifecycle policies  │
 │  │                           │                                          │
 │  │  What they DON'T do:      │  What the platform gives them:          │
 │  │  ✗ Modify network/VNet    │  • CI/CD gates auto-verify quality      │
@@ -230,8 +241,8 @@ The Internet of Agents solves this by making **each role self-sufficient within 
 
 | Role | Without This Platform | With This Platform |
 |------|----------------------|-------------------|
-| **IT / Platform Eng** | Chase every team for compliance. Manually audit agents. Write custom monitoring for each deployment. Respond to incidents with no context. | Set policy once → Azure Policy enforces everywhere. Deploy Defender once → all agents monitored automatically. No per-team work ever. |
-| **AI CoE** | Review security for every agent manually. No standard for what "good" looks like. Bottleneck on every deployment. Overwhelmed by requests. | Run a Bicep blueprint → project is secure by construction. CI/CD gates auto-verify quality. Only review results, not implementation details. Same-day turnaround. |
+| **IT / Platform Eng** | Chase every team for compliance. Manually audit agents. Write custom monitoring for each deployment. Respond to incidents with no context. | Set policy once → Azure Policy enforces everywhere. Deploy Defender once → all agents monitored automatically. Agent 365 provides unified registry and control plane. No per-team work ever. |
+| **AI CoE** | Review security for every agent manually. No standard for what "good" looks like. Bottleneck on every deployment. Overwhelmed by requests. | Run a Bicep blueprint → project is secure by construction. CI/CD gates auto-verify quality. Agent 365 lifecycle governance ensures compliance. Only review results, not implementation details. Same-day turnaround. |
 | **Developers** | File tickets for infrastructure. Wait days for security review. Set up monitoring. Manage API keys. Build custom auth flows. Reinvent tools that already exist. | Receive a project with everything pre-configured. Browse the tool catalog. Code, test, push. Ship the same day. Focus on business logic, not plumbing. |
 
 ### The Standards Flow — Who Creates, Who Follows
@@ -368,6 +379,7 @@ Every request flows through the AI Gateway (APIM), creating a **single pane of g
 - **Token Economics** — Track consumption per team, per agent, per application. Set quotas, enforce limits, provide cost attribution dashboards.
 - **Quality Monitoring** — Foundry Evaluations automatically score agent outputs for groundedness, relevance, coherence, and safety.
 - **Security Monitoring** — Microsoft Defender for AI provides agent inventory, risk assessment, and active threat detection.
+- **Microsoft Agent 365** — The enterprise control plane that provides a centralized agent registry, lifecycle governance (Govern), real-time visibility into agent adoption and health (Observe), and end-to-end protection via Entra + Purview + Defender (Secure). All agents — Foundry-built, third-party, and partner — are managed through a single admin experience.
 - **Compliance Audit Trail** — Every interaction is logged with correlation IDs, enabling forensic analysis and regulatory compliance.
 - **Policy Enforcement** — Azure Policy ensures all agents meet organizational standards before deployment.
 
@@ -465,9 +477,26 @@ Red teaming is a best practice in responsible development of AI systems. It invo
 
 ## Microsoft Defender for AI: Enterprise-Grade Protection
 
-Microsoft Defender extends its security capabilities specifically for AI workloads:
+Microsoft Defender extends its security capabilities specifically for AI workloads, and integrates with **Microsoft Agent 365** — the unified control plane for observing, governing, and securing all agents in production:
 
-### Capabilities
+### Microsoft Agent 365 — The Control Plane for Agents
+
+[Microsoft Agent 365](https://learn.microsoft.com/en-us/microsoft-agent-365/overview) provides the ability to **observe**, **govern**, and **secure** the growing number of agents within organizations:
+
+| Pillar | What It Does |
+|--------|-------------|
+| **Observe** | Centralized agent registry with real-time visibility into agent adoption, activity, and health. Role-specific dashboards for admins, security, and business leaders. |
+| **Govern** | Lifecycle management, access control, and compliance through the Agent 365 registry in M365 admin center, Microsoft Entra, and Microsoft Purview. |
+| **Secure** | End-to-end protection via Microsoft Entra (identity and risk-based access control), Microsoft Purview (data security, DLP, risk safeguards), and Microsoft Defender (threat detection and real-time runtime protection). |
+
+### How Agent 365 Integrates with This Platform
+
+- **Agent Registry Sync** — All agents deployed through the Secure Agent Factory (Foundry Prompt/Hosted agents, Functions agents, Custom Engine agents) are synced to the Agent 365 registry for unified visibility
+- **Governance Alignment** — Agent 365 lifecycle policies complement Azure Policy and API Center governance, ensuring both infrastructure and agent-level controls are enforced
+- **Security Telemetry** — Defender for AI feeds threat signals to Agent 365 for centralized risk dashboards visible to security leaders
+- **Third-Party Agent Governance** — Partner and external agents registered through Agent 365 are subject to the same observe/govern/secure controls as internal agents
+
+### Defender for AI Capabilities
 
 | Feature | What It Does |
 |---------|-------------|
@@ -591,6 +620,7 @@ This cross-cutting layer ensures every interaction is trusted and auditable:
 
 | Component | Purpose |
 |-----------|---------|
+| **Microsoft Agent 365** | Centralized agent control plane — unified registry of all agents, lifecycle governance, role-specific observe/govern/secure dashboards for admins and security leaders |
 | **Microsoft Defender** | AI agent inventory, risk assessment, and threat detection |
 | **Azure Monitor** | Metrics, logs, and distributed tracing for all agent interactions |
 | **Foundry Evaluations** | Automated quality and safety evaluation of agent outputs |
@@ -716,9 +746,9 @@ Every component is deployed with network isolation:
 | **Knowledge (IQ)** | Foundry IQ, Work IQ, Fabric IQ, Web IQ, Azure AI Search |
 | **Memory** | Cosmos DB, Azure Blob Storage, Local Storage |
 | **Networking** | Azure VNet, Private Link, Azure Firewall, App Service Environment |
-| **Security** | Microsoft Defender for AI, Azure Content Safety, Prompt Shields, Task Adherence |
-| **Observability** | Azure Monitor, Application Insights, Foundry Evaluations, OpenTelemetry |
-| **Governance** | Azure Policy, Microsoft Purview, Audit Logs, API Center Linting |
+| **Security** | Microsoft Defender for AI, Microsoft Agent 365, Azure Content Safety, Prompt Shields, Task Adherence |
+| **Observability** | Azure Monitor, Application Insights, Microsoft Agent 365 (Observe), Foundry Evaluations, OpenTelemetry |
+| **Governance** | Microsoft Agent 365 (Govern), Azure Policy, Microsoft Purview, Audit Logs, API Center Linting |
 | **IaC** | Bicep, Azure CLI, Azure Developer CLI (azd) |
 
 ---

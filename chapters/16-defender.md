@@ -10,11 +10,12 @@ Enable **Microsoft Defender for AI** to provide continuous security monitoring a
 
 ### Where This Fits
 
-Microsoft Defender for AI extends your existing **Security Operations Center (SOC)** to cover AI-specific threats. While Content Safety (Chapter 15) protects at the application level, Defender operates at the **infrastructure level** — detecting threats across the entire agent ecosystem.
+Microsoft Defender for AI extends your existing **Security Operations Center (SOC)** to cover AI-specific threats. While Content Safety (Chapter 15) protects at the application level, Defender operates at the **infrastructure level** — detecting threats across the entire agent ecosystem. Together with **Microsoft Agent 365**, these capabilities form the unified security and governance control plane for all agents in production.
 
 ### What You Will Achieve
 
 - **Automatic agent inventory** — Defender discovers all AI agents across your Azure subscriptions
+- **Microsoft Agent 365 integration** — All agents synced to the centralized registry for unified observe/govern/secure
 - **Risk scoring** — Each agent assessed for data access, tool permissions, and network exposure
 - **Active threat detection** — Monitoring for prompt injection, data exfiltration, and anomalous behavior
 - **SOC integration** — AI incidents surface in Microsoft Sentinel alongside traditional security alerts
@@ -24,6 +25,7 @@ Microsoft Defender for AI extends your existing **Security Operations Center (SO
 | Benefit | Description |
 |---------|-------------|
 | **Complete Visibility** | Automatic discovery means no "shadow agents" operating without security oversight |
+| **Unified Control Plane** | Microsoft Agent 365 provides a single registry for all agents — Foundry, third-party, and partner |
 | **AI-Specific Detection** | Purpose-built detectors for prompt injection, jailbreaks, and agent manipulation |
 | **Unified SOC** | AI security incidents handled through the same workflows as traditional threats |
 | **Attack Path Analysis** | Visualize how attackers could move through the agent mesh to reach sensitive data |
@@ -291,11 +293,87 @@ union customEvents, requests, dependencies
 - [ ] Review Defender for AI security score
 - [ ] Check for new security recommendations
 - [ ] Review agent inventory for unauthorized deployments
+- [ ] Verify Agent 365 registry is in sync (all deployed agents visible)
+- [ ] Review Agent 365 governance policies and lifecycle status
 - [ ] Analyze alert trends (false positive rate)
 - [ ] Verify content filtering is active on all deployments
 - [ ] Check that API key authentication remains disabled
 - [ ] Review RBAC assignments for least-privilege compliance
 - [ ] Run red team evaluation (Chapter 15)
+
+---
+
+## Part 8: Microsoft Agent 365 Integration
+
+### Why Agent 365 Completes the Security Picture
+
+While Defender for AI provides threat detection and risk scoring at the Azure infrastructure level, **Microsoft Agent 365** provides the enterprise-wide control plane that unifies observe, govern, and secure capabilities across all agent types:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│              AGENT SECURITY — DEFENSE IN DEPTH                       │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Microsoft Agent 365 — Enterprise Control Plane               │   │
+│  │                                                               │   │
+│  │  OBSERVE          │  GOVERN            │  SECURE              │   │
+│  │  • Agent registry │  • Lifecycle mgmt  │  • Entra ID access   │   │
+│  │  • Adoption &     │  • Access control  │    control           │   │
+│  │    activity       │  • Compliance      │  • Purview DLP &     │   │
+│  │  • Health signals │  • Audit readiness │    data protection   │   │
+│  │  • Role-specific  │  • M365 Admin      │  • Defender runtime  │   │
+│  │    oversight      │    Center          │    protection        │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Microsoft Defender for AI — Threat Detection                 │   │
+│  │  • Agent inventory • Risk scoring • Active threat detection   │   │
+│  │  • Attack path analysis • Sentinel integration                │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Content Safety + APIM Gateway — Runtime Protection           │   │
+│  │  • Prompt Shields • Task Adherence • Token quotas • DLP       │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Step 1: Enable Agent 365 Registry Sync
+
+Ensure all agents deployed through the Secure Agent Factory are visible in the Agent 365 centralized registry:
+
+1. Navigate to **Microsoft 365 Admin Center** → **Agent 365** → **Agent Registry**
+2. Verify that Foundry agents, Functions agents, and Custom Engine agents appear
+3. Configure **Registry Sync** to automatically discover agents from your Azure subscriptions
+
+### Step 2: Configure Governance Policies in Agent 365
+
+| Policy | Configuration |
+|--------|--------------|
+| **Agent Lifecycle** | All agents must be in `Active` or `Under Review` state to serve requests |
+| **Access Reviews** | Quarterly access review for all production agents |
+| **Compliance Tags** | Agents tagged with data classification (Internal, Confidential, Highly Confidential) |
+| **Third-Party Controls** | Partner agents require approval before activation in registry |
+
+### Step 3: Connect Security Signals
+
+Agent 365 aggregates security signals from multiple sources:
+
+- **Microsoft Defender for AI** → Threat alerts and risk scores
+- **Microsoft Purview** → Data sensitivity, DLP violations, compliance risks
+- **Microsoft Entra** → Identity risks, Conditional Access policy matches
+- **APIM Gateway** → Traffic anomalies, rate limit violations
+
+### Step 4: Role-Specific Oversight Configuration
+
+| Role | Agent 365 View | What They See |
+|------|---------------|---------------|
+| **AI Admin** | Full registry + all governance controls | Complete lifecycle management and policy enforcement |
+| **Security Leader** | Security-focused dashboard | Threat signals, risk scores, compliance status |
+| **Business Leader** | Value-focused dashboard | Adoption metrics, ROI indicators, usage trends |
+| **Platform Engineer** | Infrastructure health | Sync status, connectivity, performance signals |
 
 ---
 
@@ -305,6 +383,8 @@ union customEvents, requests, dependencies
 |-----------|--------|
 | Defender for AI plan enabled | ✅ |
 | AI agent inventory discovered | ✅ |
+| Microsoft Agent 365 registry synced | ✅ |
+| Agent 365 governance policies configured | ✅ |
 | Threat detection alerts configured | ✅ |
 | Custom token abuse alerts | ✅ |
 | Content filtering on all deployments | ✅ |
@@ -316,6 +396,7 @@ union customEvents, requests, dependencies
 
 ## References
 
+- [Microsoft Agent 365 Overview](https://learn.microsoft.com/en-us/microsoft-agent-365/overview)
 - [Microsoft Defender for AI Overview](https://learn.microsoft.com/en-us/defender-xdr/security-for-ai-overview)
 - [Defender for Cloud AI Security](https://learn.microsoft.com/en-us/azure/defender-for-cloud/ai-threat-protection)
 - [AI Threat Detection Alerts](https://learn.microsoft.com/en-us/defender-xdr/alerts-ai-threats)

@@ -43,6 +43,7 @@ Developer requests project → AI CoE provisions from blueprint → Platform Eng
 | Networking | VNet, private endpoints, DNS, NSGs |
 | APIM AI Gateway | Central chokepoint for all AI traffic |
 | Defender for AI | Threat detection and response |
+| Microsoft Agent 365 | Enterprise control plane — registry sync, security telemetry, infrastructure health signals |
 | Azure Monitor | Observability infrastructure |
 | Purview | Data governance and classification |
 | Key Vault | Secrets infrastructure (not individual secrets) |
@@ -65,6 +66,7 @@ Developer requests project → AI CoE provisions from blueprint → Platform Eng
 | Guardrails | Configure Content Safety, Prompt Shields per project |
 | Tool Governance | Review, approve, and publish MCP tools |
 | Model Governance | Select approved models per project |
+| Agent 365 Governance | Manage agent lifecycle, activation, and compliance in Agent 365 registry |
 | Developer Onboarding | Grant access, provide documentation |
 | Production Promotion | Approve agents for production deployment |
 | Evaluations | Define evaluation criteria and thresholds |
