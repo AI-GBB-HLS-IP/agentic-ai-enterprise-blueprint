@@ -38,18 +38,20 @@
 
 ### Part 2: Secure Agent Factory — Enterprise Governance (Chapters 17-26)
 
-| Chapter | Title | Focus |
-|---------|-------|-------|
-| [17](./chapters/17-roles-and-governance.md) | Governance Model, Roles & Separation of Duties | Three roles (Platform Eng, AI CoE, Developers), RBAC, Entra ID groups, Agent 365 governance |
-| [18](./chapters/18-azure-policy-enforcement.md) | Azure Policy — Block Non-Compliant Deployments | 8 custom policies + initiative enforcing security baseline |
-| [19](./chapters/19-network-and-gateway.md) | Network Foundation & APIM AI Gateway | VNet, subnets, NSGs blocking direct AI access, APIM internal mode |
-| [20](./chapters/20-observability-and-defender.md) | Observability & Defender Stack | Log Analytics, App Insights, Defender for AI, Microsoft Agent 365, alert rules, KQL dashboards |
-| [21](./chapters/21-foundry-project-blueprint.md) | Foundry Project Blueprint & Automated Provisioning | Bicep template for consistent project creation by AI CoE |
-| [22](./chapters/22-identity-rbac-guardrails.md) | Identity, RBAC & Guardrails by Default | Per-agent identity, Content Safety, Prompt Shield, SecureAgentRuntime |
-| [23](./chapters/23-tool-governance.md) | Tool Governance & Approved MCP Registry | API Center as tool catalog, approval workflow, APIM publication |
-| [24](./chapters/24-developer-build-experience.md) | Developer Experience — Build an Agent | Constrained sandbox, APIM-only access, local testing with guardrails |
-| [25](./chapters/25-cicd-gates.md) | CI/CD Gates — Promote to Production | 6-gate pipeline (security, prompt, red team, quality, cost, compliance) |
-| [26](./chapters/26-end-to-end-walkthrough.md) | Secure Agent Factory End-to-End Walkthrough | Complete flow from request to production, proof no bypass is possible |
+| Chapter | Title | Focus | Owner |
+|---------|-------|-------|-------|
+| [17](./chapters/17-roles-and-governance.md) | Governance Model, Roles & Separation of Duties | Three roles (Platform Eng, AI CoE, Developers), RBAC, Entra ID groups, Agent 365 governance | 🏗️ IT Platform Engineering |
+| [18](./chapters/18-azure-policy-enforcement.md) | Azure Policy — Block Non-Compliant Deployments | 8 custom policies + initiative enforcing security baseline | 🏗️ IT Platform Engineering |
+| [19](./chapters/19-network-and-gateway.md) | Network Foundation & APIM AI Gateway | VNet, subnets, NSGs blocking direct AI access, APIM internal mode | 🏗️ IT Platform Engineering |
+| [20](./chapters/20-observability-and-defender.md) | Observability & Defender Stack | Log Analytics, App Insights, Defender for AI, Microsoft Agent 365, alert rules, KQL dashboards | 🏗️ IT Platform Engineering |
+| [21](./chapters/21-foundry-project-blueprint.md) | Foundry Project Blueprint & Automated Provisioning | Bicep template for consistent project creation by AI CoE | 🧠 AI CoE |
+| [22](./chapters/22-identity-rbac-guardrails.md) | Identity, RBAC & Guardrails by Default | Per-agent identity, Content Safety, Prompt Shield, SecureAgentRuntime | 🧠 AI CoE |
+| [23](./chapters/23-tool-governance.md) | Tool Governance & Approved MCP Registry | API Center as tool catalog, approval workflow, APIM publication | 🧠 AI CoE |
+| [24](./chapters/24-developer-build-experience.md) | Developer Experience — Build an Agent | Constrained sandbox, APIM-only access, local testing with guardrails | 👩‍💻 Developer |
+| [25](./chapters/25-cicd-gates.md) | CI/CD Gates — Promote to Production | 6-gate pipeline (security, prompt, red team, quality, cost, compliance) | 🧠 AI CoE (defines) / 👩‍💻 Developer (triggers) |
+| [26](./chapters/26-end-to-end-walkthrough.md) | Secure Agent Factory End-to-End Walkthrough | Complete flow from request to production, proof no bypass is possible | All Roles (validation) |
+
+**Legend:** 🏗️ IT Platform Engineering — builds once, everyone benefits | 🧠 AI CoE — governs, provisions, approves | 👩‍💻 Developer — builds agent logic within guardrails
 
 ### Part 3: Capstone & Day-in-Life (Chapters 27-29)
 

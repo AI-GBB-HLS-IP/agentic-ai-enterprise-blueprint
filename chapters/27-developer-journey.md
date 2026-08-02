@@ -374,6 +374,87 @@ Together, they deliver an enterprise platform where developers are **productive*
 
 ---
 
+## What the Platform Does for You (Developer's Perspective)
+
+Everything below is **handled by the platform** — the developer never needs to think about it, build it, configure it, or maintain it. This is the value proposition of the Secure Agent Factory:
+
+### Infrastructure — Done for You (by IT Platform Engineering)
+
+| What You Don't Do | What Happens Instead | Chapter |
+|-------------------|---------------------|---------|
+| ❌ Create a VNet or configure subnets | VNet is pre-built with proper segmentation, NSGs, and private endpoints | 19 |
+| ❌ Set up APIM or configure gateway policies | AI Gateway is running with rate limiting, JWT validation, content filtering, and audit logging | 19 |
+| ❌ Deploy Azure Policy or compliance rules | 8 policies auto-deny non-compliant resources before they exist | 18 |
+| ❌ Set up Log Analytics or Application Insights | Observability infrastructure exists; your agent auto-emits telemetry | 20 |
+| ❌ Enable Defender for AI | Threat detection is active; your agent is monitored from deployment | 20 |
+| ❌ Configure Microsoft Agent 365 | Agent registry is synced; your agent appears in the enterprise control plane | 20 |
+| ❌ Manage DNS, private endpoints, or firewall rules | All resolved; you get a single APIM endpoint that "just works" | 19 |
+| ❌ Set up KQL dashboards or alert rules | Platform team built them; alerts fire automatically if your agent misbehaves | 20 |
+
+### Governance & Security — Done for You (by AI CoE)
+
+| What You Don't Do | What Happens Instead | Chapter |
+|-------------------|---------------------|---------|
+| ❌ Provision a Foundry project | AI CoE runs a Bicep blueprint in 5 minutes after approving your request | 21 |
+| ❌ Create a managed identity for your agent | Per-agent identity is created with least-privilege RBAC, scoped to your project | 22 |
+| ❌ Configure Content Safety or Prompt Shield | Guardrails are pre-configured in the SecureAgentRuntime wrapper you inherit | 22 |
+| ❌ Set up the CI/CD pipeline | Pipeline template is pre-built with 6 mandatory gates — you just push code | 25 |
+| ❌ Register your agent in the tool catalog | AI CoE manages API Center; approved tools are already routable via APIM | 23 |
+| ❌ Manage model deployments | Models are deployed by AI CoE; you access them through APIM routing | 21 |
+| ❌ Configure evaluation thresholds | Groundedness, relevance, safety thresholds are defined once by AI CoE | 25 |
+| ❌ Set up red teaming or adversarial tests | Red team evaluation runs automatically in your CI/CD pipeline | 25 |
+| ❌ Handle secret management or key rotation | Managed identity means zero secrets; Key Vault is managed by the platform | 22 |
+| ❌ Manage RBAC or Conditional Access | AI CoE configures per-agent Entra registration with appropriate policies | 22 |
+
+### Production Operations — Done for You (by the Platform)
+
+| What You Don't Do | What Happens Instead | Chapter |
+|-------------------|---------------------|---------|
+| ❌ Set up monitoring for your agent | OpenTelemetry + App Insights are configured in the starter template you clone | 20, 24 |
+| ❌ Build cost tracking dashboards | Token attribution is automatic via APIM `x-agent-id` header policies | 20 |
+| ❌ Respond to prompt injection attacks | Prompt Shield blocks them at the gateway; you never see the attack | 19, 22 |
+| ❌ Handle rate limiting or DDoS | APIM token quotas and rate limits are pre-configured per agent identity | 19 |
+| ❌ Investigate security incidents | Defender + Agent 365 + SOC team handle threat detection and response | 20 |
+| ❌ Perform compliance audits | Full audit trail exists in Log Analytics; Purview classifies data automatically | 20 |
+| ❌ Scale infrastructure | APIM auto-scales; Foundry manages compute; you write code, not Terraform | 19, 21 |
+| ❌ Rotate credentials | No credentials to rotate — managed identity handles auth end-to-end | 22 |
+
+### What You Actually Do (Developer's Full Scope)
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    DEVELOPER'S ACTUAL RESPONSIBILITIES                    │
+│                                                                          │
+│  1. Submit project request (GitHub Issue)              ← 5 minutes       │
+│  2. Clone starter template and configure .env         ← 10 minutes      │
+│  3. Write agent logic (prompts, tool orchestration)   ← Your expertise  │
+│  4. Write tests (unit + integration)                  ← Your expertise  │
+│  5. Test locally (guardrails active automatically)    ← Built-in        │
+│  6. Push code, create PR                              ← git push        │
+│  7. Watch CI/CD gates pass                            ← Automated       │
+│  8. Done. Agent is in production.                     ← Same day        │
+│                                                                          │
+│  Everything else? The platform handles it.                               │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Time Comparison
+
+| Activity | Without Secure Agent Factory | With Secure Agent Factory |
+|----------|------------------------------|---------------------------|
+| Get infrastructure | 3-5 days (tickets to IT) | 0 days (pre-built) |
+| Set up identity & auth | 1-2 days | 0 days (managed identity auto-created) |
+| Configure monitoring | 1 day | 0 days (pre-configured in template) |
+| Set up CI/CD pipeline | 1-2 days | 0 days (pre-built pipeline template) |
+| Security review | 2-5 days (meetings, back-and-forth) | 0 days (CI/CD gates do it automatically) |
+| Write agent logic | 1-2 days | 1-2 days (same either way) |
+| Deploy to production | 1 day | Minutes (auto-deploy after gates pass) |
+| **Total time to production** | **10-18 days** | **1-3 days** |
+
+The developer's actual unique contribution — writing agent logic — is the same either way. The platform eliminates **7-15 days of busywork** that has nothing to do with building a great agent.
+
+---
+
 ## Congratulations
 
 You have completed the full **Microsoft Secure Internet of Agents** lab guide:
