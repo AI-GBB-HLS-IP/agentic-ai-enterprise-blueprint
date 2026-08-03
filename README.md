@@ -124,7 +124,7 @@ Enterprise (Recommended)
 | Chapter | Title | Focus |
 |---------|-------|-------|
 | [17](./chapters/17-roles-and-governance.md) | Governance Model, Roles & Separation of Duties | Three roles, RBAC, Entra ID groups, Conditional Access, Agent 365 governance |
-| [21](./chapters/21-foundry-project-blueprint.md) | Foundry Project Blueprint & Automated Provisioning | Bicep template, provisioning script, intake process for developer requests |
+| [21](./chapters/21-foundry-project-blueprint.md) | Foundry Project Blueprint & Automated Provisioning | 🔬 Lab: Bicep template + provisioning script; 🏭 Production: Self-service portal UX with two-phase approval (IT → CoE) and fully automated provisioning |
 | [22](./chapters/22-identity-rbac-guardrails.md) | Identity, RBAC & Guardrails by Default | Per-agent managed identity, Content Safety, Prompt Shield, SecureAgentRuntime |
 | [23](./chapters/23-tool-governance.md) | Tool Governance & Approved MCP Registry | API Center as tool catalog, approval workflow, APIM publication |
 | [06](./chapters/06-foundry-iq-knowledge.md) | Create a Foundry IQ Knowledge Base | Enterprise knowledge indexes provisioned by CoE for agent grounding |
