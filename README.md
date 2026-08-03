@@ -22,14 +22,14 @@ This blueprint is designed as an **application landing zone** aligned with:
 | **[Cloud Adoption Framework — AI Scenario](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/scenarios/ai/)** | Covers AI Ready → Govern AI → Secure AI → Manage AI phases |
 | **[Well-Architected Framework — AI Workloads](https://learn.microsoft.com/en-us/azure/well-architected/ai/)** | Security, reliability, cost, and operational excellence design areas |
 
-The three-part structure maps to the CAF AI adoption lifecycle:
+The four-part structure maps to the CAF AI adoption lifecycle:
 
 ```
 CAF Phase:     AI Ready              Govern AI + Secure AI           Manage AI
                ────────              ─────────────────────           ─────────
-Blueprint:     Part 1                Part 2                          Part 3
-               Build the Platform    Establish the CoE               Ship Your Agent
-               (IT Platform Eng)     (AI CoE)                        (Developers)
+Blueprint:     Part 1                Part 2                Part 3               Part 4
+               Build the Platform    Establish the CoE     Automated Build-Out  Ship Your Agent
+               (IT Platform Eng)     (AI CoE)              (Self-Service)       (Developers)
 ```
 
 ---
@@ -71,7 +71,7 @@ Enterprise (Recommended)
 
 ---
 
-## Lab Structure — Three Parts, Three Personas
+## Lab Structure — Four Parts, Three Personas
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -87,7 +87,13 @@ Enterprise (Recommended)
 │  Roles + Blueprints + Identity + Tool Registry + CI/CD Gates          │
 │                                                                        │
 ├────────────────────────────────────────────────────────────────────────┤
-│  Part 3: Ship Your Agent                      👩‍💻 Developers           │
+│  Part 3: Automated Project Build-Out          🚀 Self-Service         │
+│  ═══════════════════════════════════                                   │
+│  Request a project, get everything provisioned automatically.         │
+│  Self-service portal + two-phase approval + zero-touch provisioning   │
+│                                                                        │
+├────────────────────────────────────────────────────────────────────────┤
+│  Part 4: Ship Your Agent                      👩‍💻 Developers           │
 │  ═══════════════════════                                              │
 │  Consume the platform. Build and deploy in a day.                     │
 │  Agent Framework + Knowledge + Tools + Channels + Production          │
@@ -125,7 +131,6 @@ Enterprise (Recommended)
 |---------|-------|-------|
 | [17](./chapters/17-roles-and-governance.md) | Governance Model, Roles & Separation of Duties | Three roles, RBAC, Entra ID groups, Conditional Access, Agent 365 governance |
 | [21](./chapters/21-foundry-project-blueprint.md) | Lab: Foundry Project Blueprint | Hands-on lab: Bicep template, provisioning script, intake process (learn the mechanics) |
-| [21a](./chapters/21a-self-service-portal.md) | Self-Service Portal: Automated Provisioning | Fully automated UX portal — developer requests, IT approves (infra auto-deploys), CoE approves (governance auto-deploys), zero manual steps |
 | [22](./chapters/22-identity-rbac-guardrails.md) | Identity, RBAC & Guardrails by Default | Per-agent managed identity, Content Safety, Prompt Shield, SecureAgentRuntime |
 | [23](./chapters/23-tool-governance.md) | Tool Governance & Approved MCP Registry | API Center as tool catalog, approval workflow, APIM publication |
 | [06](./chapters/06-foundry-iq-knowledge.md) | Create a Foundry IQ Knowledge Base | Enterprise knowledge indexes provisioned by CoE for agent grounding |
@@ -133,11 +138,25 @@ Enterprise (Recommended)
 | [25](./chapters/25-cicd-gates.md) | CI/CD Gates — Promote to Production | 6-gate pipeline: security, prompt safety, red team, quality, cost, compliance |
 | [28](./chapters/28-day-in-life-ai-coe.md) | Day in the Life: AI CoE | Full day walkthrough — provisioning, gate reviews, tool approvals, alerts |
 
-**What you'll have built:** A governed self-service layer where developers submit a request, get a hardened Foundry project in minutes, and have everything they need (identity, tools, models, guardrails, CI/CD) ready to go — without ever touching infrastructure.
+**What you'll have built:** A governed self-service layer with blueprints, identity guardrails, tool governance, and CI/CD gates — the rules and processes that make self-service safe.
 
 ---
 
-### Part 3: Ship Your Agent — 👩‍💻 Developers
+### Part 3: Automated Project Build-Out — 🚀 Self-Service Onboarding
+
+*A developer requests a project through the portal, selects models and tools from the approved catalog, and receives a fully provisioned environment — automatically, with zero manual steps.*
+
+| Chapter | Title | Focus |
+|---------|-------|-------|
+| [21a](./chapters/21a-self-service-portal.md) | Self-Service Portal: Automated Provisioning | Fully automated UX portal — developer requests, IT approves (infra auto-deploys), CoE approves (governance auto-deploys), zero manual steps |
+| [27](./chapters/27-developer-journey.md) | The Governed Developer Journey | End-to-end scenario: request → onboard → build → submit → production |
+| [26](./chapters/26-end-to-end-walkthrough.md) | Secure Agent Factory End-to-End Walkthrough | Complete flow from request to production, proof no bypass is possible |
+
+**What you'll have built:** A fully automated onboarding pipeline — developers request a project through a UX portal, IT and CoE approve with one click, and the platform auto-provisions the Foundry project, models, tools, memory, identity, APIM routes, CI/CD pipelines, and the onboarding package. Zero CLI, zero tickets, zero wait.
+
+---
+
+### Part 4: Ship Your Agent — 👩‍💻 Developers
 
 *Developers consume the platform — build agents, connect data sources, test locally, push to production in a day.*
 
@@ -153,7 +172,6 @@ Enterprise (Recommended)
 | [13](./chapters/13-m365-custom-engine.md) | Expose as Custom Engine Agent in M365 | Surface hosted agent in Microsoft 365 Copilot and Teams |
 | [14](./chapters/14-copilot-studio-vnet.md) | Connect Copilot Studio to APIM MCP via VNet | Private endpoint connectivity, VNet integration, low-code MCP access |
 | [24](./chapters/24-developer-build-experience.md) | Developer Experience — Build an Agent | Constrained sandbox, APIM-only access, local testing with guardrails |
-| [27](./chapters/27-developer-journey.md) | The Governed Developer Journey | End-to-end scenario: request → onboard → build → submit → production |
 
 **What you'll have built:** Production-ready agents using approved models, governed tools, and pre-configured guardrails — deployed through CI/CD gates in the same day, with zero infrastructure work.
 
@@ -163,7 +181,6 @@ Enterprise (Recommended)
 
 | Chapter | Title | Focus |
 |---------|-------|-------|
-| [26](./chapters/26-end-to-end-walkthrough.md) | Secure Agent Factory End-to-End Walkthrough | Complete flow from request to production, proof no bypass is possible |
 | [29](./chapters/29-day-in-life-it-platform.md) | Day in the Life: IT Platform Engineering | Platform health, policy enforcement, security triage, capacity planning |
 
 ---
@@ -174,8 +191,8 @@ Enterprise (Recommended)
 |---|---|---|
 | **IT Platform Engineer** | Part 1 (Chapters 00, 01, 02, 04, 15, 16, 18, 19, 20) → Chapter 29 | You build the foundation and operate it |
 | **AI CoE member** | Part 2 (Chapters 17, 21, 22, 23, 06, 12, 25) → Chapter 28 | You govern, provision, and approve |
-| **Developer** | Part 3 (Chapters 03, 07, 08, 24, 27) | You build agents within guardrails |
-| **Architect / Decision maker** | Chapter 00 → This README → Chapter 26 | You validate the architecture end-to-end |
+| **Developer** | Part 3 (Chapters 21a, 27, 26) → Part 4 (Chapters 03, 07, 08, 24) | Request a project, then build agents within guardrails |
+| **Architect / Decision maker** | Chapter 00 → This README → Part 3 (Chapter 26) | You validate the architecture end-to-end |
 
 ---
 
