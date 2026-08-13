@@ -16,17 +16,17 @@ implemented and validated independently. Maps to GitHub issues #1–#5.
 
 ## Phase 1: Setup
 
-- [ ] T001 Create `infra/modules/network/` and `infra/envs/poc/` directory structure
-- [ ] T002 [P] Confirm Azure CLI version ≥ 2.60 and `az bicep version` available in dev environment
-- [ ] T003 [P] Document required NSG allow-rules for APIM VNet-injected mode (Research Q2 in plan.md) in `infra/modules/network/README.md`
+- [X] T001 Create `infra/modules/network/` and `infra/envs/poc/` directory structure
+- [X] T002 [P] Confirm Azure CLI version ≥ 2.60 and `az bicep version` available in dev environment
+- [X] T003 [P] Document required NSG allow-rules for APIM VNet-injected mode (Research Q2 in plan.md) in `infra/modules/network/README.md`
 
 ## Phase 2: Foundational — Region & Quota (blocks Story 1)
 
 **⚠️ CRITICAL**: Region must be confirmed before subnet/DNS work proceeds (maps to Issue #4)
 
-- [ ] T004 Query Azure OpenAI/Foundry model quota (TPM) for candidate region(s) via `az cognitiveservices usage list` or Foundry quota portal
+- [X] T004 Query Azure OpenAI/Foundry model quota (TPM) for candidate region(s) via `az cognitiveservices usage list` or Foundry quota portal
 - [ ] T005 File quota increase request if insufficient; wait for approval before continuing
-- [ ] T006 Finalize region and record it in `infra/envs/poc/network.parameters.json` and spec.md Assumptions
+- [X] T006 Finalize region and record it in `infra/envs/poc/network.parameters.json` and spec.md Assumptions
 
 **Checkpoint**: Region confirmed — Story 1 implementation can begin
 
@@ -41,16 +41,16 @@ implemented and validated independently. Maps to GitHub issues #1–#5.
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Write `infra/modules/network/main.bicep` — VNet `vnet-agent-factory-poc` (10.0.0.0/16) + 6 subnets per spec.md FR-002 table
-- [ ] T008 [US1] Add `Microsoft.App/environments` delegation to `snet-foundry` in main.bicep (depends on T007)
-- [ ] T009 [P] [US1] Write `infra/modules/network/nsg.bicep` — NSG for `snet-apim` (allow rules from T003 research) and `snet-compute` (deny direct internet egress to AI services except via APIM subnet)
-- [ ] T010 [US1] Associate NSGs from T009 with their subnets in main.bicep (depends on T007, T009)
-- [ ] T011 [P] [US1] Write `infra/modules/network/private-dns.bicep` — 6 zones (Cognitive Services, OpenAI, APIM, Key Vault, Blob Storage, SQL) each VNet-linked
-- [ ] T012 [US1] Add Bicep outputs for VNet ID and all subnet resource IDs in main.bicep, for downstream Epic 2 consumption (depends on T007, T008, T010)
-- [ ] T013 [US1] Write `infra/envs/poc/main.bicep` composing the network module with `infra/envs/poc/network.parameters.json` (region, address space overrides if needed)
-- [ ] T014 [US1] Run `az bicep build` on all modules — fix any compile errors
-- [ ] T015 [US1] Run `az deployment group what-if` against POC resource group — attach output to PR
-- [ ] T016 [US1] Deploy via `az deployment group create`; verify via `az network vnet subnet list` and `az network private-dns zone list`
+- [X] T007 [P] [US1] Write `infra/modules/network/main.bicep` — VNet `vnet-agent-factory-poc` (10.0.0.0/16) + 6 subnets per spec.md FR-002 table
+- [X] T008 [US1] Add `Microsoft.App/environments` delegation to `snet-foundry` in main.bicep (depends on T007)
+- [X] T009 [P] [US1] Write `infra/modules/network/nsg.bicep` — NSG for `snet-apim` (allow rules from T003 research) and `snet-compute` (deny direct internet egress to AI services except via APIM subnet)
+- [X] T010 [US1] Associate NSGs from T009 with their subnets in main.bicep (depends on T007, T009)
+- [X] T011 [P] [US1] Write `infra/modules/network/private-dns.bicep` — 6 zones (Cognitive Services, OpenAI, APIM, Key Vault, Blob Storage, SQL) each VNet-linked
+- [X] T012 [US1] Add Bicep outputs for VNet ID and all subnet resource IDs in main.bicep, for downstream Epic 2 consumption (depends on T007, T008, T010)
+- [X] T013 [US1] Write `infra/envs/poc/main.bicep` composing the network module with `infra/envs/poc/network.parameters.json` (region, address space overrides if needed)
+- [X] T014 [US1] Run `az bicep build` on all modules — fix any compile errors
+- [X] T015 [US1] Run `az deployment group what-if` against POC resource group — attach output to PR
+- [X] T016 [US1] Deploy via `az deployment group create`; verify via `az network vnet subnet list` and `az network private-dns zone list`
 
 **Checkpoint**: Network fully provisioned and independently verifiable — Story 1 (MVP) done
 
@@ -65,8 +65,8 @@ against a private endpoint DNS name; confirm it resolves to a `10.0.x.x` address
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Write `infra/modules/network/bastion.bicep` — `AzureBastionSubnet` (10.0.6.0/26), Bastion public IP, Bastion host (Basic SKU per plan.md Research Q4)
-- [ ] T018 [US2] Wire bastion.bicep into `infra/envs/poc/main.bicep` (depends on T013, T017)
+- [X] T017 [P] [US2] Write `infra/modules/network/bastion.bicep` — Bastion public IP + Bastion host (Basic SKU per plan.md Research Q4), deployed into existing `AzureBastionSubnet` created by main.bicep
+- [X] T018 [US2] Wire bastion.bicep into `infra/envs/poc/main.bicep` (depends on T013, T017)
 - [ ] T019 [US2] Deploy a throwaway test VM (no public IP) into `snet-privateendpoints` for validation only — document as a manual/temporary step in `infra/envs/poc/README.md`, not a persistent resource
 - [ ] T020 [US2] Validate: connect via Bastion, run `nslookup` for a placeholder private DNS record, confirm private IP resolution
 - [ ] T021 [US2] Tear down the test VM after validation; document teardown command in README
@@ -88,8 +88,8 @@ prerequisite. Remaining task here is documentation/traceability only.
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T023 [P] Write `infra/modules/network/README.md` documenting module inputs/outputs for Epic 2 consumers
-- [ ] T024 [P] Write `infra/envs/poc/README.md` with the exact deployment command sequence (create RG → what-if → deploy → verify)
+- [X] T023 [P] Write `infra/modules/network/README.md` documenting module inputs/outputs for Epic 2 consumers
+- [X] T024 [P] Write `infra/envs/poc/README.md` with the exact deployment command sequence (create RG → what-if → deploy → verify)
 - [ ] T025 Update `specs/00-network-foundation/spec.md` if any deviations occurred during implementation
 - [ ] T026 Close Issues #1, #2, #3, #4, #5 with links to the merged PR(s)
 
