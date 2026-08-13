@@ -113,8 +113,9 @@ Complete these checks before deploying the POC network or starting the Foundry/A
 ### Subscription and Azure RBAC
 
 - The executing identity must be a subscription **Owner**, or have **Contributor** plus
-  **User Access Administrator**. Network deployment itself requires Contributor and
-  Network Contributor permissions on the target subscription or resource group.
+  **User Access Administrator**. For this spec's deployment via `az deployment group create`,
+  **Contributor** (or **Owner**) at the target subscription or resource group scope is sufficient;
+  it already includes the required `Microsoft.Network/*` permissions.
 - User Access Administrator is required for later managed identity, service principal, and
   group-based role assignments. It is not needed to create the VNet resources in this spec,
   but must be available before downstream Foundry/APIM and governance work begins.
