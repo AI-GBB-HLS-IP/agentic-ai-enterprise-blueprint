@@ -125,10 +125,12 @@ Complete these checks before deploying the POC network or starting the Foundry/A
 ### Microsoft Entra ID
 
 - The team must be able to create or request creation of Entra security groups for the three
-  operating roles: `platform-eng`, `ai-coe`, and `developers`.
+  operating roles (for example: `sg-agentfactory-platform-engineering`, `sg-agentfactory-ai-coe`,
+  and `sg-agentfactory-developers`).
 - Group creation may be restricted by tenant policy. If the executing identity cannot create
-  groups, an Entra Global Administrator, User Administrator, or delegated group owner must
-  create them and assign the required members before role-assignment work starts.
+  groups, an Entra Global Administrator / Groups Administrator (or other directory role permitted
+  by tenant policy) must create them and can delegate ownership/membership management before
+  role-assignment work starts.
 - Do not grant developers direct Contributor, Owner, or User Access Administrator access to
   the POC subscription. Developers consume approved endpoints and contribute agent code through
   the PR workflow.
