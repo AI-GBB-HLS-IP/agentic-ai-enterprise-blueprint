@@ -4,8 +4,15 @@
 #   gh api -X PUT orgs/AI-GBB-HLS-IP/teams/<team>/memberships/<username> -f role=member
 #
 # NOTE: When a file matches multiple patterns, only the LAST matching line applies.
-# @copilot is included on code paths for automated first-pass review (supplements,
-# does not replace, the required human approval).
+#
+# Copilot code review is NOT configured here: @copilot is not a valid CODEOWNERS
+# owner (GitHub resolves it as "Unknown owner"), and Copilot's reviews are advisory
+# and never satisfy a required approval. Automatic first-pass review is configured
+# via a repository ruleset instead ("Request pull request review from Copilot").
+#
+# POC caveat: platform-eng, ai-coe, and developers currently share the same members,
+# so these entries document intended separation of duties (Ch. 17) rather than
+# enforce it. Revisit as the team grows.
 
 # Default owners for anything not matched below
 *                               @AI-GBB-HLS-IP/platform-eng
@@ -14,10 +21,10 @@
 /chapters/                      @AI-GBB-HLS-IP/ai-coe
 
 # Infrastructure (network, Foundry, APIM, policy) — IT Platform Engineering
-/infra/                         @AI-GBB-HLS-IP/platform-eng @copilot
+/infra/                         @AI-GBB-HLS-IP/platform-eng
 
 # Governance, CI/CD gates, tool registry — AI Center of Excellence
-/pipelines/                     @AI-GBB-HLS-IP/ai-coe @copilot
+/pipelines/                     @AI-GBB-HLS-IP/ai-coe
 
 # Spec ownership follows the role that implements the capability
 /specs/00-network-foundation/   @AI-GBB-HLS-IP/platform-eng
