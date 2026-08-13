@@ -39,7 +39,7 @@ have a private, segmented network to deploy into — with no public exposure.
 without this network existing first. It is the literal foundation.
 
 **Independent Test**: Deploy the Bicep module to a fresh resource group; verify via `az network
-vnet subnet list` that all 6+ subnets exist with correct address prefixes, delegations, and NSG
+vnet subnet list` that all 6 subnets in FR-002 exist with correct address prefixes, delegations, and NSG
 associations; verify Private DNS zones are linked to the VNet.
 
 **Acceptance Scenarios**:
