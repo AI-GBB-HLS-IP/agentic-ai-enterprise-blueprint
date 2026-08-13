@@ -1,0 +1,31 @@
+# CODEOWNERS — mirrors the blueprint's separation of duties (Ch. 17)
+#
+# Teams are defined in the AI-GBB-HLS-IP org. Add members via:
+#   gh api -X PUT orgs/AI-GBB-HLS-IP/teams/<team>/memberships/<username> -f role=member
+#
+# NOTE: When a file matches multiple patterns, only the LAST matching line applies.
+# @copilot is included on code paths for automated first-pass review (supplements,
+# does not replace, the required human approval).
+
+# Default owners for anything not matched below
+*                               @AI-GBB-HLS-IP/platform-eng
+
+# Narrative blueprint chapters — reference material, reviewed by CoE
+/chapters/                      @AI-GBB-HLS-IP/ai-coe
+
+# Infrastructure (network, Foundry, APIM, policy) — IT Platform Engineering
+/infra/                         @AI-GBB-HLS-IP/platform-eng @copilot
+
+# Governance, CI/CD gates, tool registry — AI Center of Excellence
+/pipelines/                     @AI-GBB-HLS-IP/ai-coe @copilot
+
+# Spec ownership follows the role that implements the capability
+/specs/00-network-foundation/   @AI-GBB-HLS-IP/platform-eng
+/specs/01-foundry-gateway/      @AI-GBB-HLS-IP/platform-eng
+/specs/02-first-agent/          @AI-GBB-HLS-IP/developers
+/specs/03-minimal-governance/   @AI-GBB-HLS-IP/ai-coe
+/specs/04-cicd-gates/           @AI-GBB-HLS-IP/ai-coe
+
+# Repo-level workflow config — platform eng owns the guardrails themselves
+/.github/                       @AI-GBB-HLS-IP/platform-eng
+/.specify/memory/constitution.md @AI-GBB-HLS-IP/platform-eng @AI-GBB-HLS-IP/ai-coe
