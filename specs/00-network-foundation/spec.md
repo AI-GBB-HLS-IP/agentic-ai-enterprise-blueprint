@@ -106,6 +106,54 @@ quota page for the candidate region(s); confirm sufficient TPM for planned POC a
   Azure Front Door dependencies for APIM VNet-injected mode)? → Document required allow-rules
   from Microsoft's published service tags in `plan.md` before implementation.
 
+## Prerequisites
+
+Complete these checks before deploying the POC network or starting the Foundry/APIM epics.
+
+### Subscription and Azure RBAC
+
+- The executing identity must be a subscription **Owner**, or have **Contributor** plus
+  **User Access Administrator**. For this spec's deployment via `az deployment group create`,
+  **Contributor** (or **Owner**) at the target subscription or resource group scope is sufficient;
+  it already includes the required `Microsoft.Network/*` permissions.
+- User Access Administrator is required for later managed identity, service principal, and
+  group-based role assignments. It is not needed to create the VNet resources in this spec,
+  but must be available before downstream Foundry/APIM and governance work begins.
+- The target subscription must be active, have a registered `Microsoft.Network` resource
+  provider, and have sufficient regional quota for the selected POC location.
+
+### Microsoft Entra ID
+
+- The team must be able to create or request creation of Entra security groups for the three
+  operating roles (for example: `sg-agentfactory-platform-engineering`, `sg-agentfactory-ai-coe`,
+  and `sg-agentfactory-developers`).
+- Group creation may be restricted by tenant policy. If the executing identity cannot create
+  groups, an Entra Global Administrator / Groups Administrator (or other directory role permitted
+  by tenant policy) must create them and can delegate ownership/membership management before
+  role-assignment work starts.
+- Do not grant developers direct Contributor, Owner, or User Access Administrator access to
+  the POC subscription. Developers consume approved endpoints and contribute agent code through
+  the PR workflow.
+
+### Preflight checks
+
+Run these checks after `az login` and `az account set`:
+
+```bash
+az account show --query "{subscription:id,name:name,tenant:tenantId,state:state}"
+az role assignment list --assignee "$(az account show --query user.name -o tsv)" \
+  --scope "/subscriptions/$(az account show --query id -o tsv)" \
+  --include-inherited --query "[].{role:roleDefinitionName,scope:scope}" -o table
+az provider show --namespace Microsoft.Network \
+  --query "{namespace:namespace,registrationState:registrationState}" -o table
+az group exists --name rg-agent-factory-poc
+```
+
+The output must show the intended subscription and tenant, an effective Contributor/Owner
+assignment for the deployer, `Microsoft.Network` in `Registered` state, and a confirmed region
+quota decision before deployment proceeds. Entra group creation is a tenant-level check and
+must be confirmed with the tenant administrator when self-service group creation is disabled.
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
