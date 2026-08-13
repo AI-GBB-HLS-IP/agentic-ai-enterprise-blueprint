@@ -7,10 +7,13 @@ This environment composes the Network Foundation MVP module.
 - Azure CLI (`az`) with Bicep support
 - Active Azure login (`az login`)
 - Subscription selected (`az account set --subscription <SUBSCRIPTION_ID>`)
-- Subscription permissions: Owner, or Contributor plus User Access Administrator; Network
-  Contributor is sufficient when scoped to the target resource group for network resources.
-- Entra ID permission to create security groups, or a tenant administrator/group owner who can
-  create the `platform-eng`, `ai-coe`, and `developers` groups before downstream RBAC work.
+- Subscription permissions: Owner, or Contributor plus User Access Administrator (UAA is needed for
+  role assignments, not for creating the network resources themselves). For deployment via
+  `az deployment group create`, the deploying identity must have `Microsoft.Resources/deployments/*`
+  permissions (included in Contributor/Owner).
+- Entra ID permission to create security groups, or a tenant administrator (e.g., Global/Groups/User
+  Administrator, per tenant policy) who can create the `platform-eng`, `ai-coe`, and `developers`
+  groups before downstream RBAC work.
 
 Run the documented preflight checks in `specs/00-network-foundation/spec.md` before deployment.
 
