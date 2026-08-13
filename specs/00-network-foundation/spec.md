@@ -45,8 +45,9 @@ associations; verify Private DNS zones are linked to the VNet.
 **Acceptance Scenarios**:
 
 1. **Given** an empty resource group, **When** the network Bicep module is deployed, **Then** a
-   VNet with address space `10.0.0.0/16` and 7 subnets (APIM, Foundry-delegated, Compute,
-   Private Endpoints, CI/CD Agents, Management/Bastion) exists.
+   VNet with address space `10.0.0.0/16` and 6 subnets (`snet-apim`, `snet-foundry`,
+   `snet-compute`, `snet-privateendpoints`, `snet-cicd-agents`, `AzureBastionSubnet`) exists,
+   matching the FR-002 table.
 2. **Given** the VNet exists, **When** an NSG is inspected on the compute subnet, **Then** direct
    internet egress to AI services is denied except through the APIM subnet.
 3. **Given** the VNet exists, **When** Private DNS zones for Foundry/OpenAI/APIM/Key
@@ -159,8 +160,9 @@ quota page for the candidate region(s); confirm sufficient TPM for planned POC a
 
 ## Assumptions
 
-- POC runs in a single Azure region, finalized once Issue #4 (quota validation) completes; this
-  spec's Bicep parameterizes region so it is not hardcoded.
+- POC runs in `eastus2`. On 2026-08-13, the subscription quota query reported 150K TPM for
+  standard GPT-4o and 450K TPM for standard GPT-4o-mini, with no current usage. The team must
+  still compare these limits with the final POC traffic estimate before model deployment.
 - No pre-existing hub VNet, ExpressRoute, or ExpressRoute/VPN Gateway is available — confirmed
   greenfield subscription per user's original request.
 - Azure Firewall is deferred; NSGs are sufficient traffic control for POC scope. This will be

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus2"
+    },
+    "vnetName": {
+      "value": "vnet-agent-factory-poc"
+    },
+    "vnetAddressSpace": {
+      "value": "10.0.0.0/16"
+    },
+    "apimSubnetPrefix": {
+      "value": "10.0.1.0/24"
+    },
+    "foundrySubnetPrefix": {
+      "value": "10.0.2.0/24"
+    },
+    "computeSubnetPrefix": {
+      "value": "10.0.3.0/24"
+    },
+    "privateEndpointsSubnetPrefix": {
+      "value": "10.0.4.0/24"
+    },
+    "cicdAgentsSubnetPrefix": {
+      "value": "10.0.5.0/24"
+    },
+    "bastionSubnetPrefix": {
+      "value": "10.0.6.0/26"
+    },
+    "bastionName": {
+      "value": "bas-agent-factory-poc"
+    },
+    "bastionPublicIpName": {
+      "value": "pip-agent-factory-bastion"
+    },
+    "apimNsgName": {
+      "value": "nsg-apim"
+    },
+    "computeNsgName": {
+      "value": "nsg-compute"
+    },
+    "privateDnsZoneNames": {
+      "value": {
+        "cognitiveServices": "privatelink.cognitiveservices.azure.com",
+        "azureOpenAI": "privatelink.openai.azure.com",
+        "apim": "privatelink.azure-api.net",
+        "keyVault": "privatelink.vaultcore.azure.net",
+        "storageBlob": "privatelink.blob.core.windows.net",
+        "sql": "privatelink.database.windows.net"
+      }
+    }
+  }
+}
