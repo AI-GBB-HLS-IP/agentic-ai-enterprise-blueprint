@@ -30,7 +30,7 @@ on:
       model_name:
         description: Catalog model name
         required: true
-        default: gpt4.1-mini
+        default: gpt-4.1-mini
         type: string
       deployment_sku:
         description: Serving option or SKU
