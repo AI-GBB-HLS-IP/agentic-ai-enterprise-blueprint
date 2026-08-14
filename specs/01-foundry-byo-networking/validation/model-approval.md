@@ -4,11 +4,13 @@ Complete this record before enabling the model deployment task.
 
 | Field | Value |
 |---|---|
+| Foundry account name | Pending implementation |
+| Foundry project name | Pending implementation |
 | AI CoE approver | Pending |
 | Approval timestamp | Pending |
 | Model name | Pending |
 | Model version | Pending |
-| Model format | Pending |
+| Model format | Pending — usually `OpenAI` for Azure OpenAI model deployments |
 | Deployment name | Pending |
 | Serving option / SKU | Pending |
 | Capacity | Pending |
