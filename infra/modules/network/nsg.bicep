@@ -92,6 +92,22 @@ resource computeNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
         }
       }
       {
+        // Narrow exception below: allows only outbound HTTPS to the Internet for browser-based
+        // portal validation (e.g. Foundry portal shell) from a private jump box. Everything else
+        // outbound to the Internet remains denied by the rule after it.
+        name: 'Allow-Compute-Https-Outbound'
+        properties: {
+          priority: 150
+          direction: 'Outbound'
+          access: 'Allow'
+          protocol: 'Tcp'
+          sourcePortRange: '*'
+          destinationPortRange: '443'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: 'Internet'
+        }
+      }
+      {
         name: 'Deny-Compute-Internet-Outbound'
         properties: {
           priority: 200

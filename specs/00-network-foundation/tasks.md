@@ -25,7 +25,8 @@ implemented and validated independently. Maps to GitHub issues #1–#5.
 **⚠️ CRITICAL**: Region must be confirmed before subnet/DNS work proceeds (maps to Issue #4)
 
 - [X] T004 Query Azure OpenAI/Foundry model quota (TPM) for candidate region(s) via `az cognitiveservices usage list` or Foundry quota portal
-- [ ] T005 File quota increase request if insufficient; wait for approval before continuing
+- [X] T005 Quota increase request not required — confirmed eastus2 quota was sufficient for the
+  current POC estimate; revisit before model deployment if the estimate changes
 - [X] T006 Finalize region and record it in `infra/envs/poc/network.parameters.json` and spec.md Assumptions
 
 **Checkpoint**: Region confirmed — Story 1 implementation can begin
@@ -68,7 +69,9 @@ against a private endpoint DNS name; confirm it resolves to a `10.0.x.x` address
 - [X] T017 [P] [US2] Write `infra/modules/network/bastion.bicep` — Bastion public IP + Bastion host (Basic SKU per plan.md Research Q4), deployed into existing `AzureBastionSubnet` created by main.bicep
 - [X] T018 [US2] Wire bastion.bicep into `infra/envs/poc/main.bicep` (depends on T013, T017)
 - [X] T019 [US2] Deploy a throwaway test VM (no public IP) into `snet-privateendpoints` for validation only — document as a manual/temporary step in `infra/envs/poc/README.md`, not a persistent resource
-- [ ] T020 [US2] Validate: connect via Bastion (portal) and run `nslookup` for a placeholder private DNS record, confirm private IP resolution (DNS verified via Azure Run Command; portal session remains pending because Basic SKU does not support CLI/native-client tunneling)
+- [ ] T020 [US2] Validate interactive portal session: connect via Bastion and run `nslookup` for a
+  placeholder private DNS record. DNS resolution is already verified via Azure Run Command; the
+  portal session remains pending because Basic SKU does not support CLI/native-client tunneling
 - [X] T021 [US2] Tear down the test VM after validation; document teardown command in README
 
 **Checkpoint**: Private DNS resolution verified from the private subnet; Bastion portal session validation pending
@@ -82,7 +85,8 @@ prerequisite. Remaining task here is documentation/traceability only.
 
 - [X] T022 [US3] Document final quota numbers and region decision in `specs/00-network-foundation/spec.md` Assumptions section and close Issue #4
 
-**Checkpoint**: All three user stories complete
+**Checkpoint**: Stories 1 and 3 are complete; Story 2 DNS resolution is verified, with only the
+optional interactive Basic Bastion portal-session check remaining
 
 ---
 
@@ -90,8 +94,9 @@ prerequisite. Remaining task here is documentation/traceability only.
 
 - [X] T023 [P] Write `infra/modules/network/README.md` documenting module inputs/outputs for Epic 2 consumers
 - [X] T024 [P] Write `infra/envs/poc/README.md` with the exact deployment command sequence (create RG → what-if → deploy → verify)
-- [ ] T025 Update `specs/00-network-foundation/spec.md` if any deviations occurred during implementation
-- [ ] T026 Close Issues #1, #2, #3, #4, #5 with links to the merged PR(s)
+- [X] T025 Update `specs/00-network-foundation/spec.md` with the implemented Bastion naming/SKU,
+  quota decision, and Story 2 validation limitation
+- [X] T026 Close Issues #1, #2, #3, #4, #5 with links to the merged PR(s); all are closed
 
 ---
 
