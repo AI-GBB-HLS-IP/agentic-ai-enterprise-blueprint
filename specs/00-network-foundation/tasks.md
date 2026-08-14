@@ -80,7 +80,7 @@ against a private endpoint DNS name; confirm it resolves to a `10.0.x.x` address
 **Note**: This story's core work (T004–T006) is already required as a Phase 2 blocking
 prerequisite. Remaining task here is documentation/traceability only.
 
-- [X] T022 [US3] Document final quota numbers and region decision with sign-off in `specs/00-network-foundation/spec.md` Assumptions section and close Issue #4
+- [X] T022 [US3] Document final quota numbers and region decision in `specs/00-network-foundation/spec.md` Assumptions section and close Issue #4
 
 **Checkpoint**: All three user stories complete
 
