@@ -2,9 +2,9 @@ name: Foundry project request
 description: Request a governed Microsoft Foundry project and approved model deployment
 title: "[Foundry request]: "
 labels:
-  - type: infra
-  - area: foundry
-  - priority: p1
+  - "type: infra"
+  - "area: foundry"
+  - "priority: p1"
 body:
   - type: markdown
     attributes:
