@@ -10,7 +10,7 @@ RG_NAME=rg-agent-factory-poc \
 VNET_NAME=vnet-agent-factory-poc \
 LOCATION=eastus2 \
 MODEL_FORMAT=OpenAI \
-MODEL_NAME=gpt4.1-mini \
+MODEL_NAME=gpt-4.1-mini \
 DEPLOYMENT_SKU=Standard \
 REQUESTED_CAPACITY=10 \
 ./scripts/foundry/preflight.sh
