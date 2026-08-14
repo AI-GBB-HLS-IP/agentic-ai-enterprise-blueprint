@@ -84,7 +84,8 @@ Remove the temporary VM and attached resources after validation:
 
 ```bash
 VM_NAME="vm-dns-test"
-NIC_NAME="${VM_NAME}VMNic"
+NIC_ID="$(az vm show --resource-group "$RG_NAME" --name "$VM_NAME" --query 'networkProfile.networkInterfaces[0].id' -o tsv)"
+NIC_NAME="${NIC_ID##*/}"
 DISK_NAME="$(az vm show --resource-group "$RG_NAME" --name "$VM_NAME" \
   --query 'storageProfile.osDisk.name' -o tsv)"
 
