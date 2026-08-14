@@ -18,7 +18,8 @@ bodies. It assumes Azure CLI, Bicep CLI, subscription access, and a private test
 az bicep build --file infra/modules/foundry/main.bicep
 az deployment group what-if \
   --resource-group rg-agent-factory-poc \
-  --template-file infra/envs/poc/foundry.bicepparam
+  --template-file infra/envs/poc/foundry.bicep \
+  --parameters infra/envs/poc/foundry.bicepparam
 ```
 
 Expected: only declared Chapter 01 resources are created/updated; existing network and DNS
