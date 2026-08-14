@@ -13,9 +13,10 @@ if ! [[ "$REQUESTED_CAPACITY" =~ ^[0-9]+$ ]] || [ "$REQUESTED_CAPACITY" -le 0 ];
 fi
 
 quota_name="${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${MODEL_NAME}"
+quota_query="[?name.value=='${quota_name}']"
 quota_json="$(az cognitiveservices usage list \
   --location "$LOCATION" \
-  --query "[?name.value=='OpenAI.Standard.$MODEL_NAME' || name.value=='$quota_name']" \
+  --query "$quota_query" \
   -o json)"
 
 if [ "$quota_json" = "[]" ]; then
