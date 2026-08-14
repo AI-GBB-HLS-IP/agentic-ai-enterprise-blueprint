@@ -62,21 +62,16 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Validate network prerequisites
+      - name: Run provider-neutral preflight
         env:
           RG_NAME: ${{ inputs.resource_group }}
           VNET_NAME: ${{ inputs.vnet_name }}
-          LOCATION: ${{ inputs.region }}
-        run: ./specs/01-foundry-byo-networking/validation/validate.sh
-
-      - name: Validate model quota
-        env:
           LOCATION: ${{ inputs.region }}
           MODEL_FORMAT: ${{ inputs.model_format }}
           MODEL_NAME: ${{ inputs.model_name }}
           DEPLOYMENT_SKU: ${{ inputs.deployment_sku }}
           REQUESTED_CAPACITY: ${{ inputs.requested_capacity }}
-        run: ./specs/01-foundry-byo-networking/validation/model-preflight.sh | tee preflight-report.txt
+        run: ./scripts/foundry/preflight.sh | tee preflight-report.txt
 
       - name: Post report to issue
         if: ${{ inputs.issue_number != '' }}

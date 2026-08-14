@@ -99,6 +99,8 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [X] T037 [P] Add a structured Foundry request issue form at `.github/ISSUE_TEMPLATE/foundry-request.yml` for account, project, region, model, capacity, and dependency intake
 - [X] T038 [P] Add read-only model/quota preflight automation at `specs/01-foundry-byo-networking/validation/model-preflight.sh`
 - [X] T039 Add `.github/workflows/foundry-preflight.yml` to run network/model preflight with Azure OIDC and post a report to the request issue; deployment remains out of scope
+- [X] T040 [P] Add provider-neutral Foundry preflight, what-if, and explicit-deployment scripts under `scripts/foundry/`
+- [X] T041 [P] Document the shared script contract and Bitbucket adapter example in `scripts/foundry/README.md`
 
 ## Dependencies & Execution Order
 
