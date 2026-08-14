@@ -10,11 +10,10 @@ param vnetName = 'vnet-agent-factory-poc'
 param foundrySubnetName = 'snet-foundry'
 param privateEndpointSubnetName = 'snet-privateendpoints'
 
-// Keep false until AI CoE approval records the exact model version and capacity.
-param enableModelDeployment = false
-param modelDeploymentName = 'gpt4.1-mini-poc'
-param modelName = 'gpt4.1-mini'
-param modelVersion = '__PENDING_APPROVAL__'
+param enableModelDeployment = true
+param modelDeploymentName = 'gpt-4.1-mini'
+param modelName = 'gpt-4.1-mini'
+param modelVersion = '2025-04-14'
 param modelFormat = 'OpenAI'
 param modelSkuName = 'Standard'
 param modelCapacity = 10

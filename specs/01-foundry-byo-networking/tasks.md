@@ -28,7 +28,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [ ] T006 [P] Query target Foundry and dependency `privateLinkResources` to confirm private-link group IDs and authoritative DNS zones, recording results in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
 - [ ] T007 [P] Confirm whether the selected workload requires SQL and whether account properties must reference Storage, Key Vault, SQL, or managed identities; record the decision in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
 - [ ] T008 [P] Confirm private endpoint approval behavior and the authoritative delegated-subnet utilization signal, including the >=80% blocking rule, in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
-- [ ] T009 [P] Confirm live regional model availability and quota scope for the AI CoE-approved model, and populate `specs/01-foundry-byo-networking/validation/model-approval.md`
+- [X] T009 [P] Confirm live regional model availability and quota scope for the AI CoE-approved model, and populate `specs/01-foundry-byo-networking/validation/model-approval.md`
 - [X] T010 Validate the existing resource group, VNet, `snet-foundry` delegation/range, `snet-privateendpoints` range, and required private DNS zones/links with a fail-closed prerequisite check in `specs/01-foundry-byo-networking/validation/validate.sh`
 - [ ] T011 Resolve all research gates T005-T009 and document any unsupported create-time BYO VNet capability and its approved manual gate in `specs/01-foundry-byo-networking/validation/api-confirmation.md`; do not proceed to Bicep implementation while a gate is unresolved
 - [ ] T012 Define shared fail-closed parameter assertions and status values (`existing`, `deployed`, `pending`, `failed`) in `infra/modules/foundry/main.bicep` only after T011 is approved
@@ -49,7 +49,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [X] T016 [US1] Compose `location`, existing resource IDs, DNS inputs, workload flags, and account/project/supporting-resource outputs in `infra/envs/poc/foundry.bicep`
 - [X] T017 [US1] Add account/project/supporting-resource/private-endpoint outputs to `infra/modules/foundry/main.bicep` according to the Foundry Bicep interface
 - [X] T018 [US1] Build the Foundry modules and run `az deployment group what-if` using `infra/envs/poc/foundry.bicepparam`, saving preview evidence to `specs/01-foundry-byo-networking/validation/us1-what-if.md`
-- [ ] T019 [US1] Validate the US1 independent test against the target resource group and record placement, public-network, resource-inventory, and conditional-SQL results in `specs/01-foundry-byo-networking/validation/us1-foundation.md`; report pending work rather than claiming deployment completion
+- [X] T019 [US1] Validate the US1 independent test against the target resource group and record placement, public-network, resource-inventory, and conditional-SQL results in `specs/01-foundry-byo-networking/validation/us1-foundation.md`; report pending work rather than claiming deployment completion
 
 **Checkpoint**: US1 is independently reviewable when its preview and live inspection evidence pass; it does not imply private endpoint, DNS, or model readiness.
 
@@ -61,9 +61,9 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 
 ### Implementation for User Story 2
 
-- [ ] T020 [P] [US2] Implement reusable private endpoint creation for confirmed target resource IDs, group IDs, and `snet-privateendpoints` in `infra/modules/foundry/private-endpoint.bicep`
-- [ ] T021 [P] [US2] Add DNS zone groups that reference existing Cognitive Services/Foundry, Storage Blob, Key Vault, and conditional Azure OpenAI/SQL zone IDs in `infra/modules/foundry/private-endpoint.bicep`
-- [ ] T022 [US2] Wire account, project-as-required, Storage, Key Vault, and conditional SQL private endpoints into `infra/envs/poc/main.bicep` without creating VNets, subnets, DNS zones, or public IPs
+- [X] T020 [P] [US2] Implement reusable private endpoint creation for confirmed target resource IDs, group IDs, and `snet-privateendpoints` in `infra/modules/foundry/private-endpoint.bicep`
+- [X] T021 [P] [US2] Add DNS zone groups that reference existing Cognitive Services/Foundry, Storage Blob, Key Vault, and conditional Azure OpenAI/SQL zone IDs in `infra/modules/foundry/private-endpoint.bicep`
+- [X] T022 [US2] Wire account, project-as-required, Storage, Key Vault, and conditional SQL private endpoints into `infra/envs/poc/foundry.bicep` without creating VNets, subnets, DNS zones, or public IPs
 - [ ] T023 [US2] Add private endpoint approval-state, DNS-zone-group, VNet-link, subnet placement, and private-resolution checks to `infra/modules/foundry/validation.bicep`
 - [ ] T024 [US2] Extend `specs/01-foundry-byo-networking/validation/validate.sh` to inspect PE connections, DNS links, subnet utilization, and private FQDN resolution from a VNet host
 - [ ] T025 [US2] Run the private connectivity independent test and record each endpoint state, DNS mapping, resolved address, and remediation for pending/rejected/missing items in `specs/01-foundry-byo-networking/validation/us2-private-connectivity.md`
@@ -78,7 +78,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 
 ### Implementation for User Story 3
 
-- [ ] T026 [P] [US3] Implement explicit one-deployment parameters and `accounts/deployments` resource using approved model name/version/format, serving option, SKU, and capacity in `infra/modules/foundry/model-deployment.bicep`
+- [X] T026 [P] [US3] Implement explicit one-deployment parameters and `accounts/deployments` resource using approved model name/version/format, serving option, SKU, and capacity in `infra/modules/foundry/model-deployment.bicep`
 - [ ] T027 [US3] Add a preflight assertion that blocks model deployment when quota/availability evidence is absent or failed and never selects a fallback model in `infra/modules/foundry/model-deployment.bicep`
 - [ ] T028 [US3] Gate model-module invocation on successful account/project, BYO VNet, PE approval, DNS, and quota checks in `infra/envs/poc/main.bicep`
 - [ ] T029 [US3] Add model metadata, quota result, smoke-test result, and readiness aggregation to `infra/modules/foundry/validation.bicep`
