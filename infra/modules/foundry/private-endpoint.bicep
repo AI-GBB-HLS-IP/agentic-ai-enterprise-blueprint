@@ -3,6 +3,15 @@ param privateEndpointSubnetId string
 param foundryAccountId string
 param storageAccountId string
 param keyVaultId string
+param foundryPrivateEndpointGroupIds array = [
+  'account'
+]
+param storagePrivateEndpointGroupIds array = [
+  'blob'
+]
+param keyVaultPrivateEndpointGroupIds array = [
+  'vault'
+]
 param cognitiveServicesDnsZoneId string
 param openAiDnsZoneId string
 param servicesAiDnsZoneId string
@@ -21,9 +30,7 @@ resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' 
         name: 'foundry-connection'
         properties: {
           privateLinkServiceId: foundryAccountId
-          groupIds: [
-            'account'
-          ]
+          groupIds: foundryPrivateEndpointGroupIds
         }
       }
     ]
@@ -69,9 +76,7 @@ resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' 
         name: 'storage-blob-connection'
         properties: {
           privateLinkServiceId: storageAccountId
-          groupIds: [
-            'blob'
-          ]
+          groupIds: storagePrivateEndpointGroupIds
         }
       }
     ]
@@ -105,9 +110,7 @@ resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01'
         name: 'keyvault-connection'
         properties: {
           privateLinkServiceId: keyVaultId
-          groupIds: [
-            'vault'
-          ]
+          groupIds: keyVaultPrivateEndpointGroupIds
         }
       }
     ]
