@@ -54,8 +54,45 @@ az network private-dns zone list \
 ## Bastion validation
 
 The deployment includes an Azure Bastion Basic host and its required Standard static public IP.
-Create a temporary test VM without a public IP in `snet-privateendpoints`, connect through Bastion, and
-run `nslookup` for a private endpoint record. Delete the test VM after validation.
+For a full interactive Bastion validation, create a temporary test VM without a public IP in
+`snet-privateendpoints`, connect through the Azure Portal, and run `nslookup` for a private
+endpoint record. Delete the test VM and its NIC/disk after validation.
+
+The Basic SKU supports portal-based Bastion access but does not support the Azure CLI native-client
+or tunnel commands. Use Standard or Premium if CLI/SSH tunnel validation is required. For a
+non-interactive DNS-only check, Azure Run Command can execute `nslookup` inside the private VM:
+
+```bash
+az vm run-command invoke \
+  --resource-group "$RG_NAME" \
+  --name vm-dns-test \
+  --command-id RunShellScript \
+  --scripts 'nslookup validation-endpoint.privatelink.openai.azure.com'
+```
+
+The validation record is temporary and must be removed with:
+
+```bash
+az network private-dns record-set a delete \
+  --resource-group "$RG_NAME" \
+  --zone-name privatelink.openai.azure.com \
+  --name validation-endpoint \
+  --yes
+```
+
+Remove the temporary VM and attached resources after validation:
+
+```bash
+VM_NAME="vm-dns-test"
+NIC_ID="$(az vm show --resource-group "$RG_NAME" --name "$VM_NAME" --query 'networkProfile.networkInterfaces[0].id' -o tsv)"
+NIC_NAME="${NIC_ID##*/}"
+DISK_NAME="$(az vm show --resource-group "$RG_NAME" --name "$VM_NAME" \
+  --query 'storageProfile.osDisk.name' -o tsv)"
+
+az vm delete --resource-group "$RG_NAME" --name "$VM_NAME" --yes
+az network nic delete --resource-group "$RG_NAME" --name "$NIC_NAME"
+az disk delete --resource-group "$RG_NAME" --name "$DISK_NAME" --yes
+```
 
 - Parameters are in `network.parameters.json`; update `location` and names as needed.
 - Azure `what-if` may report platform-generated Bastion `dnsName`/`publicUri` fields as modified;
