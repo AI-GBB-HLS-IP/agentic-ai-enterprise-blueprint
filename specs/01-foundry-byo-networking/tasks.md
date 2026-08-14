@@ -96,6 +96,9 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [ ] T034 [P] Update `specs/01-foundry-byo-networking/quickstart.md` with the implemented module paths, evidence filenames, and exact preview/validation commands
 - [ ] T035 Run a second `az deployment group what-if` with unchanged parameters and compare it with T018 to verify idempotency and no duplicate DNS zones/endpoints/model deployments in `specs/01-foundry-byo-networking/validation/idempotency.md`
 - [ ] T036 Run `az bicep build` for every changed module, execute the full validation runner, and attach command output and unresolved limitations to `specs/01-foundry-byo-networking/validation/final-report.md`
+- [X] T037 [P] Add a structured Foundry request issue form at `.github/ISSUE_TEMPLATE/foundry-request.yml` for account, project, region, model, capacity, and dependency intake
+- [X] T038 [P] Add read-only model/quota preflight automation at `specs/01-foundry-byo-networking/validation/model-preflight.sh`
+- [X] T039 Add `.github/workflows/foundry-preflight.yml` to run network/model preflight with Azure OIDC and post a report to the request issue; deployment remains out of scope
 
 ## Dependencies & Execution Order
 

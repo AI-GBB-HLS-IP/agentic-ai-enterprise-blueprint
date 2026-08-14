@@ -19,3 +19,16 @@ modify Azure resources.
 
 Do not mark Chapter 01 ready until unresolved API, private-link, workload, and model approval
 gates have been resolved.
+
+## GitHub Actions preflight
+
+The `Foundry request preflight` workflow is manually triggered from the Actions tab with the
+request values and optional issue number. It is read-only and requires repository secrets for
+Azure workload identity federation:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+The workflow validates the existing network and model quota, then posts the result to the issue.
+It does not deploy Foundry resources.

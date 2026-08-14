@@ -1,0 +1,86 @@
+name: Foundry project request
+description: Request a governed Microsoft Foundry project and approved model deployment
+title: "[Foundry request]: "
+labels:
+  - type: infra
+  - area: foundry
+  - priority: p1
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit this form to start the Foundry preflight workflow. Submission does not deploy
+        Azure resources.
+  - type: input
+    id: account_name
+    attributes:
+      label: Foundry account name
+      placeholder: foundry-agent-factory-poc
+    validations:
+      required: true
+  - type: input
+    id: project_name
+    attributes:
+      label: Foundry project name
+      placeholder: prj-agent-factory-poc
+    validations:
+      required: true
+  - type: input
+    id: region
+    attributes:
+      label: Azure region
+      placeholder: eastus2
+      value: eastus2
+    validations:
+      required: true
+  - type: input
+    id: model_name
+    attributes:
+      label: Model name
+      placeholder: gpt4.1-mini
+    validations:
+      required: true
+  - type: input
+    id: model_version
+    attributes:
+      label: Model version
+      placeholder: Confirm from the Foundry model catalog
+    validations:
+      required: true
+  - type: input
+    id: model_format
+    attributes:
+      label: Model format
+      placeholder: OpenAI
+    validations:
+      required: true
+  - type: input
+    id: deployment_sku
+    attributes:
+      label: Serving option or SKU
+      placeholder: Standard
+    validations:
+      required: true
+  - type: input
+    id: capacity
+    attributes:
+      label: Requested capacity in quota units
+      description: For Standard deployments, this is commonly measured in thousands of TPM.
+      placeholder: "10"
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: Purpose and expected traffic
+      description: Explain the MVP use case and expected request volume.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Tools, MCP, and RAG dependencies
+      description: List planned tools, MCP servers, APIM routes, and data sources, if any.
+      placeholder: None for initial model smoke test
+    validations:
+      required: true

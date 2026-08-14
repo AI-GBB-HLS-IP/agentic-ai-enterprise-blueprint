@@ -1,0 +1,98 @@
+name: Foundry request preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: GitHub issue number to receive the preflight report
+        required: false
+        type: string
+      resource_group:
+        description: Existing resource group
+        required: true
+        default: rg-agent-factory-poc
+        type: string
+      vnet_name:
+        description: Existing VNet
+        required: true
+        default: vnet-agent-factory-poc
+        type: string
+      region:
+        description: Azure region
+        required: true
+        default: eastus2
+        type: string
+      model_format:
+        description: Model format, for example OpenAI or Meta
+        required: true
+        default: OpenAI
+        type: string
+      model_name:
+        description: Catalog model name
+        required: true
+        default: gpt4.1-mini
+        type: string
+      deployment_sku:
+        description: Serving option or SKU
+        required: true
+        default: Standard
+        type: string
+      requested_capacity:
+        description: Requested capacity in quota units
+        required: true
+        default: "10"
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate network prerequisites
+        env:
+          RG_NAME: ${{ inputs.resource_group }}
+          VNET_NAME: ${{ inputs.vnet_name }}
+          LOCATION: ${{ inputs.region }}
+        run: ./specs/01-foundry-byo-networking/validation/validate.sh
+
+      - name: Validate model quota
+        env:
+          LOCATION: ${{ inputs.region }}
+          MODEL_FORMAT: ${{ inputs.model_format }}
+          MODEL_NAME: ${{ inputs.model_name }}
+          DEPLOYMENT_SKU: ${{ inputs.deployment_sku }}
+          REQUESTED_CAPACITY: ${{ inputs.requested_capacity }}
+        run: ./specs/01-foundry-byo-networking/validation/model-preflight.sh | tee preflight-report.txt
+
+      - name: Post report to issue
+        if: ${{ inputs.issue_number != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          {
+            echo "## Foundry preflight result"
+            echo
+            echo "Status: **PASSED**"
+            echo
+            echo '```text'
+            cat preflight-report.txt
+            echo '```'
+            echo
+            echo "This was a read-only preflight. No Azure resources were deployed."
+          } > issue-report.md
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file issue-report.md
