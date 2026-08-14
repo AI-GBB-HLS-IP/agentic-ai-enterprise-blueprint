@@ -15,8 +15,8 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 
 **Purpose**: Establish the implementation and evidence structure without changing the existing network foundation.
 
-- [ ] T001 Create the planned Foundry module and POC environment paths in `infra/modules/foundry/` and `infra/envs/poc/` without modifying `infra/modules/network/`
-- [ ] T002 [P] Record target subscription, resource group, region, resource names, and existing network/DNS resource IDs in `infra/envs/poc/foundry.bicepparam`
+- [X] T001 Create the planned Foundry module and POC environment paths in `infra/modules/foundry/` and `infra/envs/poc/` without modifying `infra/modules/network/`
+- [X] T002 [P] Record target subscription, resource group, region, resource names, and existing network/DNS resource IDs in `infra/envs/poc/foundry.bicepparam`
 - [X] T003 [P] Create the Chapter 01 validation evidence directory and command runner at `specs/01-foundry-byo-networking/validation/README.md` and `specs/01-foundry-byo-networking/validation/validate.sh`
 - [X] T004 [P] Create the model approval and quota evidence template at `specs/01-foundry-byo-networking/validation/model-approval.md`, including model name, version, format, SKU, capacity, approver, and timestamp
 
@@ -24,7 +24,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 
 **Purpose**: Confirm current provider behavior and existing prerequisites before any deployment code is written.
 
-- [ ] T005 [P] Confirm the supported Microsoft Foundry account/project API version and `networkInjections`/BYO VNet schema in the target subscription, recording CLI/API responses and source links in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
+- [X] T005 [P] Confirm the supported Microsoft Foundry account/project API version and `networkInjections`/BYO VNet schema in the target subscription, recording CLI/API responses and source links in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
 - [ ] T006 [P] Query target Foundry and dependency `privateLinkResources` to confirm private-link group IDs and authoritative DNS zones, recording results in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
 - [ ] T007 [P] Confirm whether the selected workload requires SQL and whether account properties must reference Storage, Key Vault, SQL, or managed identities; record the decision in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
 - [ ] T008 [P] Confirm private endpoint approval behavior and the authoritative delegated-subnet utilization signal, including the >=80% blocking rule, in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
@@ -43,12 +43,12 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Implement Foundry account creation with `AIServices`, approved API version, disabled public access, deny-by-default ACLs, and confirmed create-time BYO VNet properties in `infra/modules/foundry/main.bicep`
-- [ ] T014 [P] [US1] Implement same-region private Storage and Key Vault resources with public access disabled, required identity/configuration inputs, and explicit `enableSql` branching in `infra/modules/foundry/supporting-resources.bicep`
-- [ ] T015 [US1] Implement Foundry project creation as a child of the account in `infra/modules/foundry/main.bicep`, preserving account-before-project ordering
-- [ ] T016 [US1] Compose `location`, existing resource IDs, DNS inputs, workload flags, and account/project/supporting-resource outputs in `infra/envs/poc/main.bicep`
-- [ ] T017 [US1] Add all required interface parameters and outputs, including account/project/supporting-resource IDs and declared status fields, to `infra/modules/foundry/main.bicep` according to `specs/01-foundry-byo-networking/contracts/foundry-bicep-interface.md`
-- [ ] T018 [US1] Build the Foundry modules and run `az deployment group what-if` using `infra/envs/poc/foundry.bicepparam`, saving preview evidence to `specs/01-foundry-byo-networking/validation/us1-what-if.md`
+- [X] T013 [P] [US1] Implement Foundry account creation with `AIServices`, confirmed API version, disabled public access, deny-by-default ACLs, and create-time BYO VNet properties in `infra/modules/foundry/main.bicep`
+- [X] T014 [P] [US1] Implement same-region private Storage and Key Vault resources with public access disabled in `infra/modules/foundry/supporting-resources.bicep`; SQL remains deferred pending workload confirmation
+- [X] T015 [US1] Implement Foundry project creation as a child of the account in `infra/modules/foundry/main.bicep`, preserving account-before-project ordering
+- [X] T016 [US1] Compose `location`, existing resource IDs, DNS inputs, workload flags, and account/project/supporting-resource outputs in `infra/envs/poc/foundry.bicep`
+- [X] T017 [US1] Add account/project/supporting-resource/private-endpoint outputs to `infra/modules/foundry/main.bicep` according to the Foundry Bicep interface
+- [X] T018 [US1] Build the Foundry modules and run `az deployment group what-if` using `infra/envs/poc/foundry.bicepparam`, saving preview evidence to `specs/01-foundry-byo-networking/validation/us1-what-if.md`
 - [ ] T019 [US1] Validate the US1 independent test against the target resource group and record placement, public-network, resource-inventory, and conditional-SQL results in `specs/01-foundry-byo-networking/validation/us1-foundation.md`; report pending work rather than claiming deployment completion
 
 **Checkpoint**: US1 is independently reviewable when its preview and live inspection evidence pass; it does not imply private endpoint, DNS, or model readiness.

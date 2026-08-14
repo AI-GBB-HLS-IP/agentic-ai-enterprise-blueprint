@@ -1,0 +1,120 @@
+param location string
+param privateEndpointSubnetId string
+param foundryAccountId string
+param storageAccountId string
+param keyVaultId string
+param cognitiveServicesDnsZoneId string
+param blobDnsZoneId string
+param keyVaultDnsZoneId string
+
+resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
+  name: 'pe-foundry'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'foundry-connection'
+        properties: {
+          privateLinkServiceId: foundryAccountId
+          groupIds: [
+            'account'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource foundryDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = {
+  name: 'foundry-dns'
+  parent: foundryPrivateEndpoint
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'cognitive-services'
+        properties: {
+          privateDnsZoneId: cognitiveServicesDnsZoneId
+        }
+      }
+    ]
+  }
+}
+
+resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
+  name: 'pe-foundry-storage'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'storage-blob-connection'
+        properties: {
+          privateLinkServiceId: storageAccountId
+          groupIds: [
+            'blob'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource storageDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = {
+  name: 'storage-dns'
+  parent: storagePrivateEndpoint
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'blob'
+        properties: {
+          privateDnsZoneId: blobDnsZoneId
+        }
+      }
+    ]
+  }
+}
+
+resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
+  name: 'pe-foundry-keyvault'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'keyvault-connection'
+        properties: {
+          privateLinkServiceId: keyVaultId
+          groupIds: [
+            'vault'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+resource keyVaultDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = {
+  name: 'keyvault-dns'
+  parent: keyVaultPrivateEndpoint
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'keyvault'
+        properties: {
+          privateDnsZoneId: keyVaultDnsZoneId
+        }
+      }
+    ]
+  }
+}
+
+output foundryPrivateEndpointId string = foundryPrivateEndpoint.id
+output storagePrivateEndpointId string = storagePrivateEndpoint.id
+output keyVaultPrivateEndpointId string = keyVaultPrivateEndpoint.id

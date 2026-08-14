@@ -6,11 +6,12 @@
 
 ## Summary
 
-Design a resource-group-scoped, parameterized Bicep implementation that consumes the existing
+Implement a resource-group-scoped, parameterized Bicep implementation that consumes the existing
 network foundation and creates a private Microsoft Foundry account/project, required Storage
 and Key Vault (optional SQL), private endpoints/DNS zone groups, create-time BYO VNet/network
-injection, and one explicitly approved model deployment. This phase stops at design artifacts;
-it does not implement infrastructure code.
+injection, and one explicitly approved model deployment. The initial account/project/supporting
+resource slice is implemented; deployment remains gated on model approval and remaining live
+private-link/workload confirmations.
 
 ## Technical Context
 
@@ -37,7 +38,8 @@ it does not implement infrastructure code.
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 - **Separation of duties:** PASS. Platform Engineering owns Bicep/networking; AI CoE supplies model approval; developers receive no infrastructure administration.
-- **Spec before infra:** PASS. This plan follows `spec.md`; no `infra/` implementation is created in this phase.
+- **Spec before infra:** PASS. This plan follows `spec.md`; the implemented slice is limited to
+  the approved account/project/supporting-resource design.
 - **Private by default/no bypass:** PASS. Public network access is disabled and validation fails closed; no public fallback is designed.
 - **Incremental/testable slices:** PASS. Foundation, private connectivity, and one model smoke test are independently verifiable.
 - **IaC/validation:** PASS. Design uses parameterized Bicep, existing-resource references, `az bicep build`, and `what-if`.
@@ -56,19 +58,19 @@ specs/01-foundry-byo-networking/
 └── contracts/foundry-bicep-interface.md
 ```
 
-### Planned source layout
+### Source layout
 
 ```text
 infra/
 ├── envs/poc/
-│   ├── main.bicep                 # existing environment composition; integrate later
-│   └── foundry.bicepparam         # planned environment parameters
+│   ├── main.bicep                 # existing network environment composition
+│   ├── foundry.bicep               # Foundry environment composition
+│   └── foundry.bicepparam          # Foundry environment parameters
 └── modules/foundry/
-    ├── main.bicep                 # planned account/project orchestration
+    ├── main.bicep                 # account/project orchestration
     ├── supporting-resources.bicep
     ├── private-endpoint.bicep
     ├── model-deployment.bicep
-    └── validation.bicep            # planned assertions/outputs
 ```
 
 **Structure Decision**: Add a focused `infra/modules/foundry/` module family and a POC

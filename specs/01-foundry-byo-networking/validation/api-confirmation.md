@@ -17,6 +17,10 @@
   - six existing private DNS zones linked to the VNet
 - The Cognitive Services provider advertises current `accounts` and `accounts/projects`
   API versions including `2026-07-01` and `2026-07-15-preview`.
+- The official Microsoft Foundry private-network Bicep sample confirms the
+  `networkInjections` shape used by this implementation: `scenario: 'agent'`,
+  `subnetArmId`, and `useMicrosoftManagedNetwork: false`, using
+  `Microsoft.CognitiveServices/accounts@2025-04-01-preview`.
 - Azure AI Services SKU `S0` is available in `eastus2`.
 
 The prerequisite commands were run through Azure CLI. Re-run `validate.sh` to reproduce the
@@ -40,3 +44,4 @@ read-only network checks.
 - https://learn.microsoft.com/en-us/azure/foundry/how-to/configure-private-link
 - https://learn.microsoft.com/en-us/azure/templates/microsoft.cognitiveservices/accounts
 - https://learn.microsoft.com/en-us/azure/templates/microsoft.cognitiveservices/accounts/projects
+- https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-bicep/16-private-network-standard-agent-apim-setup
