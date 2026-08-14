@@ -4,6 +4,8 @@ param foundryAccountId string
 param storageAccountId string
 param keyVaultId string
 param cognitiveServicesDnsZoneId string
+param openAiDnsZoneId string
+param servicesAiDnsZoneId string
 param blobDnsZoneId string
 param keyVaultDnsZoneId string
 
@@ -37,6 +39,18 @@ resource foundryDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroup
         name: 'cognitive-services'
         properties: {
           privateDnsZoneId: cognitiveServicesDnsZoneId
+        }
+      }
+      {
+        name: 'openai'
+        properties: {
+          privateDnsZoneId: openAiDnsZoneId
+        }
+      }
+      {
+        name: 'services-ai'
+        properties: {
+          privateDnsZoneId: servicesAiDnsZoneId
         }
       }
     ]

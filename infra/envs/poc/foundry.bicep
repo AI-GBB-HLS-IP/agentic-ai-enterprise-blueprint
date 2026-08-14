@@ -35,6 +35,30 @@ resource cognitiveServicesDns 'Microsoft.Network/privateDnsZones@2020-06-01' exi
   name: 'privatelink.cognitiveservices.azure.com'
 }
 
+resource openAiDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+  #disable-next-line no-hardcoded-env-urls
+  name: 'privatelink.openai.azure.com'
+}
+
+// Not part of the existing network foundation; the unified Foundry account endpoint
+// (services.ai.azure.com) requires this zone per the official BYO VNet private-link table.
+resource servicesAiDns 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink.services.ai.azure.com'
+  location: 'global'
+}
+
+resource servicesAiDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: servicesAiDns
+  name: '${vnetName}-link'
+  location: 'global'
+  properties: {
+    virtualNetwork: {
+      id: vnet.id
+    }
+    registrationEnabled: false
+  }
+}
+
 resource blobDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
   #disable-next-line no-hardcoded-env-urls
   name: 'privatelink.blob.core.windows.net'
@@ -55,6 +79,8 @@ module foundry '../../modules/foundry/main.bicep' = {
     privateEndpointSubnetId: privateEndpointSubnet.id
     privateDnsZoneIds: {
       cognitiveServices: cognitiveServicesDns.id
+      openAi: openAiDns.id
+      servicesAi: servicesAiDns.id
       blob: blobDns.id
       keyVault: keyVaultDns.id
     }

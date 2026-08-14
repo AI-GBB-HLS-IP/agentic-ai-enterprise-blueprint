@@ -113,6 +113,8 @@ module privateEndpoints './private-endpoint.bicep' = {
     storageAccountId: supportingResources.outputs.storageAccountId
     keyVaultId: supportingResources.outputs.keyVaultId
     cognitiveServicesDnsZoneId: privateDnsZoneIds.cognitiveServices
+    openAiDnsZoneId: privateDnsZoneIds.openAi
+    servicesAiDnsZoneId: privateDnsZoneIds.servicesAi
     blobDnsZoneId: privateDnsZoneIds.blob
     keyVaultDnsZoneId: privateDnsZoneIds.keyVault
   }
