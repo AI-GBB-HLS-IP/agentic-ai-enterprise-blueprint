@@ -63,3 +63,24 @@ nslookup foundry-agent-factory-poc.services.ai.azure.com
 ```
 
 All three Foundry account FQDNs now resolve to private `10.0.4.x` addresses.
+
+## US2 private connectivity validation — portal login (2026-08-14)
+
+Validated end-to-end from `vm-fnd-jbox` via Bastion:
+
+- User `testuser.quinn.shaw@MngEnvMCAP545510.onmicrosoft.com` successfully signed in to the
+  Foundry portal and reached the `prj-agent-factory-poc` project over the private path.
+- This confirms DNS resolution, private endpoint routing, and portal reachability all work as
+  designed for a VNet-connected client.
+
+### Follow-up: data-plane RBAC not yet assigned
+
+No role assignments currently exist at either the Foundry account or project scope for any
+user. Portal sign-in succeeded because Entra authentication itself doesn't require Foundry RBAC,
+but creating/using agents, threads, or model deployments requires explicit data-plane roles:
+
+- `Azure AI Developer` at the account scope (management-plane)
+- `Foundry User` (`53ca6127-db72-4b80-b1b0-d745d6d5456d`) at the project scope (data-plane)
+
+Action: assign these roles to named demo users before attempting an agent/model smoke test.
+Track this as a remaining item for T019/T025.
