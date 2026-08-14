@@ -44,3 +44,15 @@ git log --oneline -3
 
 The active branch must not be `master` for task changes, and the working tree should be clean
 after committing.
+
+## GitHub Issue Conventions
+
+- Create one tracking issue for each feature or chapter implementation before substantial work
+  begins.
+- Apply exactly one `type:` label, one `area:` label, and one `priority:` label.
+- Use the existing controlled labels:
+  - Types: `type: spec`, `type: infra`, `type: pipeline`, or `type: docs`
+  - Areas: `area: network`, `area: foundry`, `area: apim`, `area: governance`, or `area: agent`
+  - Priorities: `priority: p0`, `priority: p1`, or `priority: p2`
+- Link the issue to the branch and the relevant `spec.md`, `plan.md`, and `tasks.md` artifacts.
+- Include scope and explicit completion criteria in the issue body.
