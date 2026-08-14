@@ -17,8 +17,8 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 
 - [ ] T001 Create the planned Foundry module and POC environment paths in `infra/modules/foundry/` and `infra/envs/poc/` without modifying `infra/modules/network/`
 - [ ] T002 [P] Record target subscription, resource group, region, resource names, and existing network/DNS resource IDs in `infra/envs/poc/foundry.bicepparam`
-- [ ] T003 [P] Create the Chapter 01 validation evidence directory and command runner at `specs/01-foundry-byo-networking/validation/README.md` and `specs/01-foundry-byo-networking/validation/validate.sh`
-- [ ] T004 [P] Create the model approval and quota evidence template at `specs/01-foundry-byo-networking/validation/model-approval.md`, including model name, version, format, SKU, capacity, approver, and timestamp
+- [X] T003 [P] Create the Chapter 01 validation evidence directory and command runner at `specs/01-foundry-byo-networking/validation/README.md` and `specs/01-foundry-byo-networking/validation/validate.sh`
+- [X] T004 [P] Create the model approval and quota evidence template at `specs/01-foundry-byo-networking/validation/model-approval.md`, including model name, version, format, SKU, capacity, approver, and timestamp
 
 ## Phase 2: Foundational (Blocking Prerequisites and Research Gates)
 
@@ -29,7 +29,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [ ] T007 [P] Confirm whether the selected workload requires SQL and whether account properties must reference Storage, Key Vault, SQL, or managed identities; record the decision in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
 - [ ] T008 [P] Confirm private endpoint approval behavior and the authoritative delegated-subnet utilization signal, including the >=80% blocking rule, in `specs/01-foundry-byo-networking/validation/api-confirmation.md`
 - [ ] T009 [P] Confirm live regional model availability and quota scope for the AI CoE-approved model, and populate `specs/01-foundry-byo-networking/validation/model-approval.md`
-- [ ] T010 Validate the existing resource group, VNet, `snet-foundry` delegation/range, `snet-privateendpoints` range, and required private DNS zones/links with a fail-closed prerequisite check in `specs/01-foundry-byo-networking/validation/validate.sh`
+- [X] T010 Validate the existing resource group, VNet, `snet-foundry` delegation/range, `snet-privateendpoints` range, and required private DNS zones/links with a fail-closed prerequisite check in `specs/01-foundry-byo-networking/validation/validate.sh`
 - [ ] T011 Resolve all research gates T005-T009 and document any unsupported create-time BYO VNet capability and its approved manual gate in `specs/01-foundry-byo-networking/validation/api-confirmation.md`; do not proceed to Bicep implementation while a gate is unresolved
 - [ ] T012 Define shared fail-closed parameter assertions and status values (`existing`, `deployed`, `pending`, `failed`) in `infra/modules/foundry/main.bicep` only after T011 is approved
 
