@@ -11,7 +11,7 @@ if [ "${1:-}" != "--execute" ]; then
   exit 2
 fi
 
-"$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/what-if.sh"
+RG_NAME="$RG_NAME" TEMPLATE_FILE="$TEMPLATE_FILE" PARAMETER_FILE="$PARAMETER_FILE" DEPLOYMENT_NAME="$DEPLOYMENT_NAME" "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/what-if.sh"
 
 az deployment group create \
   --resource-group "$RG_NAME" \
