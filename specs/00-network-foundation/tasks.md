@@ -67,9 +67,9 @@ against a private endpoint DNS name; confirm it resolves to a `10.0.x.x` address
 
 - [X] T017 [P] [US2] Write `infra/modules/network/bastion.bicep` — Bastion public IP + Bastion host (Basic SKU per plan.md Research Q4), deployed into existing `AzureBastionSubnet` created by main.bicep
 - [X] T018 [US2] Wire bastion.bicep into `infra/envs/poc/main.bicep` (depends on T013, T017)
-- [ ] T019 [US2] Deploy a throwaway test VM (no public IP) into `snet-privateendpoints` for validation only — document as a manual/temporary step in `infra/envs/poc/README.md`, not a persistent resource
-- [ ] T020 [US2] Validate: connect via Bastion, run `nslookup` for a placeholder private DNS record, confirm private IP resolution
-- [ ] T021 [US2] Tear down the test VM after validation; document teardown command in README
+- [X] T019 [US2] Deploy a throwaway test VM (no public IP) into `snet-privateendpoints` for validation only — document as a manual/temporary step in `infra/envs/poc/README.md`, not a persistent resource
+- [ ] T020 [US2] Validate: connect via Bastion, run `nslookup` for a placeholder private DNS record, confirm private IP resolution (portal-based interactive validation remains pending because Basic SKU does not support CLI/native-client tunneling)
+- [X] T021 [US2] Tear down the test VM after validation; document teardown command in README
 
 **Checkpoint**: Admin connectivity and DNS resolution proven — Story 2 done
 
@@ -80,7 +80,7 @@ against a private endpoint DNS name; confirm it resolves to a `10.0.x.x` address
 **Note**: This story's core work (T004–T006) is already required as a Phase 2 blocking
 prerequisite. Remaining task here is documentation/traceability only.
 
-- [ ] T022 [US3] Document final quota numbers and region decision with sign-off in `specs/00-network-foundation/spec.md` Assumptions section and close Issue #4
+- [X] T022 [US3] Document final quota numbers and region decision with sign-off in `specs/00-network-foundation/spec.md` Assumptions section and close Issue #4
 
 **Checkpoint**: All three user stories complete
 
