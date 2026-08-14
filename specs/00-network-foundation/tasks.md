@@ -68,10 +68,10 @@ against a private endpoint DNS name; confirm it resolves to a `10.0.x.x` address
 - [X] T017 [P] [US2] Write `infra/modules/network/bastion.bicep` — Bastion public IP + Bastion host (Basic SKU per plan.md Research Q4), deployed into existing `AzureBastionSubnet` created by main.bicep
 - [X] T018 [US2] Wire bastion.bicep into `infra/envs/poc/main.bicep` (depends on T013, T017)
 - [X] T019 [US2] Deploy a throwaway test VM (no public IP) into `snet-privateendpoints` for validation only — document as a manual/temporary step in `infra/envs/poc/README.md`, not a persistent resource
-- [ ] T020 [US2] Validate: connect via Bastion, run `nslookup` for a placeholder private DNS record, confirm private IP resolution (portal-based interactive validation remains pending because Basic SKU does not support CLI/native-client tunneling)
+- [ ] T020 [US2] Validate: connect via Bastion (portal) and run `nslookup` for a placeholder private DNS record, confirm private IP resolution (DNS verified via Azure Run Command; portal session remains pending because Basic SKU does not support CLI/native-client tunneling)
 - [X] T021 [US2] Tear down the test VM after validation; document teardown command in README
 
-**Checkpoint**: Admin connectivity and DNS resolution proven — Story 2 done
+**Checkpoint**: Private DNS resolution verified from the private subnet; Bastion portal session validation pending
 
 ---
 
