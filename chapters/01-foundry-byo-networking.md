@@ -57,7 +57,7 @@ By the end of this chapter, you will have:
 
 - Azure subscription with Owner access
 - Azure CLI installed (`az --version` ≥ 2.60)
-- A resource group for the lab: `rg-internet-of-agents`
+- The completed network foundation resource group: `rg-agent-factory-poc`
 - A virtual network planned for the platform
 
 ---
@@ -110,7 +110,7 @@ When you run Foundry Agent Service with BYO VNet, two zones are involved:
 
 ### Step 1: Prepare the Delegated Subnet
 
-The subnet from Chapter 01 (`snet-foundry`, 10.0.3.0/24) is already created. Verify it:
+The subnet from the Network Foundation (`snet-foundry`, 10.0.2.0/24) is already created. Verify it:
 
 ```bash
 # Verify the Foundry subnet exists
@@ -279,8 +279,8 @@ Some network configurations are best done in the Foundry portal:
 3. Go to **Settings** → **Networking**
 4. Select **Bring your own virtual network**
 5. Configure:
-   - **Virtual Network**: `vnet-agents-platform`
-   - **Delegated Subnet**: `snet-foundry` (10.0.3.0/24)
+   - **Virtual Network**: `vnet-agent-factory-poc`
+   - **Delegated Subnet**: `snet-foundry` (10.0.2.0/24)
    - **Private Endpoint Subnet**: `snet-privateendpoints` (10.0.4.0/24)
 
 > **Important**: BYO VNet configuration must be set before creating agents. It cannot be changed after agents are deployed.

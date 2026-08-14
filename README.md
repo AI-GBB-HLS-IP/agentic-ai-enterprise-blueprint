@@ -119,6 +119,10 @@ Enterprise (Recommended)
 | [19](./chapters/19-network-and-gateway.md) | Network Foundation & APIM AI Gateway | VNet design, subnets, NSGs, Firewall/UDR, DDoS, private DNS zones |
 | [20](./chapters/20-observability-and-defender.md) | Observability & Defender Stack (Production) | Production monitoring: alert rules, KQL dashboards, Defender for AI, Agent 365 |
 
+**Current sequence:** Network Foundation is complete. The active next step is **Chapter 01 —
+Create Microsoft Foundry with BYO Networking**. Start Chapter 02 (APIM) only after Foundry,
+its private endpoints, and private DNS validation are complete.
+
 **What you'll have built:** A fully private AI platform with zero public exposure, all traffic through APIM, Azure Policy preventing non-compliant resources, Defender watching for threats, and observability capturing every call. No developer can bypass this foundation.
 
 ---

@@ -211,10 +211,19 @@ must be confirmed with the tenant administrator when self-service group creation
 - POC runs in `eastus2`. On 2026-08-13, the subscription quota query reported 150K TPM for
   standard GPT-4o and 450K TPM for standard GPT-4o-mini, with no current usage. The team must
   still compare these limits with the final POC traffic estimate before model deployment.
+- No quota increase request was filed because the confirmed available quota was sufficient for
+  the current POC estimate. Revisit this decision before model deployment if the traffic estimate
+  changes.
 - No pre-existing hub VNet, ExpressRoute, or ExpressRoute/VPN Gateway is available — confirmed
   greenfield subscription per user's original request.
 - Azure Firewall is deferred; NSGs are sufficient traffic control for POC scope. This will be
   revisited if/when this environment is promoted beyond POC (see Scope Deviation above).
+- The Bastion subnet uses Azure's required fixed name, `AzureBastionSubnet`, rather than the
+  blueprint label `snet-bastion`. Bastion uses the Basic SKU for portal-based access; CLI/native
+  client tunneling is intentionally deferred because that capability requires Standard or Premium.
+- Story 2 DNS resolution was verified with Azure Run Command from the private test VM. Interactive
+  portal-session validation remains a manual follow-up because the temporary Basic Bastion host
+  does not support CLI/native-client tunneling.
 - Subscription-level permissions (Contributor + Network Contributor at minimum) are available to
   the platform engineer executing this spec; broader Entra ID prerequisites are tracked separately
   in Issue #5.
