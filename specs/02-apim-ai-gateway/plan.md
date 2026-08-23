@@ -10,7 +10,7 @@ Implement a resource-group-scoped, parameterized Bicep module family that deploy
 internal-VNet-injected Azure API Management Premium v2 instance into the existing `snet-apim`
 subnet, delegates that subnet to `Microsoft.Web/serverFarms` as part of this feature (Network
 Foundation deliberately left it undelegated), and connects it to the existing Chapter 01 Foundry
-deployment using APIM's system-assigned managed identity — no API keys anywhere. The feature
+deployment using APIM's system-assigned managed identity — no Foundry API keys or backend secrets. The feature
 exposes exactly one client-facing, subscription-key-protected, OpenAI-compatible
 `chat/completions` API routed to the approved `gpt-4.1-mini` deployment, with token rate
 limiting, token metrics, and Application Insights/Log Analytics observability. MCP server
