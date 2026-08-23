@@ -10,7 +10,7 @@ param apimSubnetName = 'snet-apim'
 param apimSubnetPrefix = '10.0.1.0/24'
 param apimSubnetNsgName = 'nsg-apim'
 
-param foundryAccountId = '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-agent-factory-poc/providers/Microsoft.CognitiveServices/accounts/foundry-agent-factory-poc'
+param foundryAccountId = resourceId('Microsoft.CognitiveServices/accounts', 'foundry-agent-factory-poc')
 param foundryAccountName = 'foundry-agent-factory-poc'
 param modelDeploymentName = 'gpt-4.1-mini'
 
