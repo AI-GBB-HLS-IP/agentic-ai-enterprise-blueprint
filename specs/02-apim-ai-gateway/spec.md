@@ -83,8 +83,8 @@ configuration, source control, or logs.
 2. **Given** the backend policy is configured, **When** it is inspected, **Then** it uses
    `authentication-managed-identity` with the `https://cognitiveservices.azure.com` audience and
    contains no API key, connection string, or shared secret.
-3. **Given** private DNS integration is required, **When** the APIM private endpoints are
-   provisioned, **Then** their internal IP addresses resolve correctly from inside the platform
+3. **Given** private DNS integration is required, **When** the APIM internal (VNet-injected) endpoints are
+   provisioned, **Then** the APIM gateway hostname resolves to a private VNet IP from inside the platform
    VNet using the `azure-api.net` private DNS zone linked to `vnet-agent-factory-poc`.
 
 ---
