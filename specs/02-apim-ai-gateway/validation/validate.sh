@@ -45,10 +45,21 @@ bicep_files=(
   "infra/envs/poc/apim.bicep"
 )
 
-for file in "${bicep_files[@]}"; do
-  echo "Compiling $file"
-  az bicep build --file "$REPO_ROOT/$file" --stdout >/dev/null
-done
+compile_blocked=false
+if command -v az >/dev/null 2>&1; then
+  for file in "${bicep_files[@]}"; do
+    echo "Compiling $file"
+    az bicep build --file "$REPO_ROOT/$file" --stdout >/dev/null
+  done
+elif command -v bicep >/dev/null 2>&1; then
+  for file in "${bicep_files[@]}"; do
+    echo "Compiling $file"
+    bicep build "$REPO_ROOT/$file" --stdout >/dev/null
+  done
+else
+  echo "BLOCKED: Neither Azure CLI nor standalone Bicep CLI is installed; compilation skipped."
+  compile_blocked=true
+fi
 
 echo "== Static fail-closed guard checks =="
 grep -q "virtualNetworkType: 'Internal'" "$REPO_ROOT/infra/modules/apim/main.bicep"
@@ -69,7 +80,7 @@ if grep -R -n -E "/mcp/|/a2a/|service/apis/.+mcp|service/apis/.+a2a" "$REPO_ROOT
   exit 1
 fi
 
-live_blocked=false
+live_blocked="$compile_blocked"
 
 if ! command -v az >/dev/null 2>&1; then
   echo "BLOCKED: Azure CLI is not installed; live Azure prerequisite checks skipped."
@@ -128,7 +139,11 @@ else
 fi
 
 if [[ "$live_blocked" == true ]]; then
-  echo "Offline checks passed; live gates are blocked pending Azure access."
+  if [[ "$compile_blocked" == true ]]; then
+    echo "Static checks passed; Bicep compilation and live gates remain blocked."
+  else
+    echo "Offline checks passed; live gates are blocked pending Azure access."
+  fi
   exit 3
 fi
 

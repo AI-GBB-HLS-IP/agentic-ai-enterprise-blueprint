@@ -51,7 +51,6 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
   properties: {
     publisherEmail: publisherEmail
     publisherName: publisherName
-    platformVersion: 'stv2'
     publicNetworkAccess: 'Disabled'
     virtualNetworkType: 'Internal'
     virtualNetworkConfiguration: {
@@ -79,6 +78,7 @@ var publicIpAddresses = !empty(apimService.properties.publicIPAddresses) ? apimS
 var privateIpAddresses = !empty(apimService.properties.privateIPAddresses) ? apimService.properties.privateIPAddresses : []
 var hasPublicGatewayEndpoint = length(publicIpAddresses) > 0
 var gatewayHostname = '${apimServiceName}.azure-api.net'
+var foundryScopeInputMatches = toLower(foundryAccountId) == toLower(foundryAccount.id)
 
 output apimServiceId string = apimService.id
 output apimGatewayHostname string = gatewayHostname
@@ -94,7 +94,8 @@ output readiness object = {
   subnetDelegation: subnetDelegationApplied ? 'deployed' : 'failed'
   apimGateway: hasPublicGatewayEndpoint ? 'failed' : 'deployed'
   identityRole: !empty(apimService.identity.principalId) ? 'deployed' : 'pending'
-  foundryScope: foundryAccountId
+  foundryScope: foundryAccount.id
+  foundryScopeInputMatches: foundryScopeInputMatches
   mcpA2aComponents: 'absent'
-  status: subnetDelegationApplied && !hasPublicGatewayEndpoint ? 'deployed' : 'failed'
+  status: subnetDelegationApplied && !hasPublicGatewayEndpoint && foundryScopeInputMatches ? 'deployed' : 'failed'
 }
