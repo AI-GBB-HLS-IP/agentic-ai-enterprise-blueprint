@@ -10,8 +10,8 @@ parameter file. This is a design contract, not infrastructure code.
 - Existing Foundry references: `foundryAccountId`, `foundryAccountName`,
   `modelDeploymentName` (`gpt-4.1-mini`)
 - `apimSkuCapacity`
-- Observability inputs: `logAnalyticsWorkspaceId` (existing or newly created — resolved during
-  implementation per research R4), `applicationInsightsName`
+- Observability inputs: `logAnalyticsWorkspaceId` (optional; when omitted/empty, create a new
+  workspace; when provided, reuse it per research R4), `applicationInsightsName`
 
 ## Outputs
 
