@@ -27,6 +27,13 @@ param apimSubnetNsgName string = 'nsg-apim'
 @description('Existing Foundry account resource ID.')
 param foundryAccountId string
 
+@description('Public network access state. Set Enabled only for initial APIM activation, then disable it.')
+@allowed([
+  'Enabled'
+  'Disabled'
+])
+param publicNetworkAccess string = 'Disabled'
+
 @description('Existing Foundry account name.')
 param foundryAccountName string = 'foundry-agent-factory-poc'
 
@@ -122,6 +129,7 @@ module apimMain '../../modules/apim/main.bicep' = {
     apimSkuCapacity: apimSkuCapacity
     foundryAccountName: foundryAccountName
     foundryAccountId: foundryAccountId
+    publicNetworkAccess: publicNetworkAccess
   }
 }
 

@@ -10,9 +10,10 @@ param apimSubnetName = 'snet-apim'
 param apimSubnetPrefix = '10.0.1.0/24'
 param apimSubnetNsgName = 'nsg-apim'
 
-param foundryAccountId = resourceId('Microsoft.CognitiveServices/accounts', 'foundry-agent-factory-poc')
+param foundryAccountId = readEnvironmentVariable('FOUNDRY_ACCOUNT_ID', '')
 param foundryAccountName = 'foundry-agent-factory-poc'
 param modelDeploymentName = 'gpt-4.1-mini'
+param publicNetworkAccess = readEnvironmentVariable('APIM_PUBLIC_NETWORK_ACCESS', 'Disabled')
 
 param apimSkuName = 'PremiumV2'
 param apimSkuCapacity = 1

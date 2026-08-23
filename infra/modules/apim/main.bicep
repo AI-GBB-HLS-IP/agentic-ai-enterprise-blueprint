@@ -34,6 +34,13 @@ param foundryAccountName string
 @description('Existing Foundry account resource ID.')
 param foundryAccountId string
 
+@description('Public network access state. APIM requires Enabled during initial activation and can be disabled after provisioning.')
+@allowed([
+  'Enabled'
+  'Disabled'
+])
+param publicNetworkAccess string = 'Disabled'
+
 resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' existing = {
   name: foundryAccountName
 }
@@ -51,7 +58,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
   properties: {
     publisherEmail: publisherEmail
     publisherName: publisherName
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: publicNetworkAccess
     virtualNetworkType: 'Internal'
     virtualNetworkConfiguration: {
       subnetResourceId: apimSubnetId
