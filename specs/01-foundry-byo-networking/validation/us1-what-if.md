@@ -7,7 +7,7 @@ Resource and property changes are indicated with these symbols:
 
 The deployment will update the following scope:
 
-Scope: /subscriptions/6384661b-af38-401c-8609-337e5042460d/resourceGroups/rg-agent-factory-poc
+Scope: /subscriptions/<redacted-subscription-id>/resourceGroups/rg-agent-factory-poc
 
   + Microsoft.CognitiveServices/accounts/foundry-agent-factory-poc
   + Microsoft.CognitiveServices/accounts/foundry-agent-factory-poc/projects/prj-agent-factory-poc
