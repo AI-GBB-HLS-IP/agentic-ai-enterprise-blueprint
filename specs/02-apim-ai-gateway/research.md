@@ -2,8 +2,8 @@
 
 ## R1: Premium v2 VNet injection and subnet delegation
 
-**Decision**: Use `Microsoft.ApiManagement/service` with SKU `Premium` (v2 platform,
-`platformVersion: stv2`), `virtualNetworkType: Internal`, and `virtualNetworkConfiguration.
+**Decision**: Use `Microsoft.ApiManagement/service` with SKU `PremiumV2` and
+`platformVersion: stv2`, `virtualNetworkType: Internal`, and `virtualNetworkConfiguration.
 subnetResourceId` pointing at the existing `snet-apim` subnet. `snet-apim` must carry a
 `Microsoft.Web/serverFarms` subnet delegation before the APIM resource is declared.
 
