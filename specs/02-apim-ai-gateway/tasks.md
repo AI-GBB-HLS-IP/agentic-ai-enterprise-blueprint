@@ -9,7 +9,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `quickstart.md`, and `contracts/apim-bicep-interface.md`
 
-**Scope guard**: These tasks implement and validate only the private Premium v2 APIM core gateway. They must not create or modify the existing VNet, Foundry account/project/model deployment, `snet-privateendpoints`, or `privatelink.azure-api.net`, and must not add MCP, A2A, public fallback, Content Safety, semantic caching, or a secondary backend.
+**Scope guard**: These tasks implement and validate only the private classic Premium APIM core gateway. They must not create or modify the existing VNet, Foundry account/project/model deployment, `snet-privateendpoints`, or `privatelink.azure-api.net`, and must not add MCP, A2A, public fallback, Content Safety, semantic caching, or a secondary backend.
 
 ## Phase 1: Setup (Shared Infrastructure)
 
@@ -26,7 +26,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 
 **CRITICAL**: No user story implementation may proceed until the prerequisite and provider gates in this phase are resolved or explicitly approved as manual gates.
 
-- [X] T005 [P] Confirm the target `Microsoft.ApiManagement/service` API version, Premium v2/stv2 SKU syntax, internal VNet-injection schema, and private endpoint output properties with read-only Azure CLI/provider inspection, recording evidence in `specs/02-apim-ai-gateway/validation/api-confirmation.md`
+- [X] T005 [P] Confirm the target `Microsoft.ApiManagement/service` API version, classic Premium SKU syntax, internal VNet-injection schema, and private endpoint output properties with read-only Azure CLI/provider inspection, recording evidence in `specs/02-apim-ai-gateway/validation/api-confirmation.md`
 - [ ] T006 [P] Confirm the current `llm-token-limit` and `llm-emit-token-metric` policy XML schema and supported APIM policy locations, recording the exact syntax and source in `specs/02-apim-ai-gateway/validation/api-confirmation.md`
 - [X] T007 [P] Confirm whether Chapter 01 created a reusable Log Analytics workspace in `rg-agent-factory-poc` and record the selected workspace ID or create-new decision in `specs/02-apim-ai-gateway/validation/api-confirmation.md`
 - [X] T008 [P] Validate that `rg-agent-factory-poc`, `vnet-agent-factory-poc`, `snet-apim`, the existing NSG association, `snet-privateendpoints`, `foundry-agent-factory-poc`, and `gpt-4.1-mini` exist with the expected region and address range in `specs/02-apim-ai-gateway/validation/validate.sh`
@@ -39,18 +39,18 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 
 ## Phase 3: User Story 1 - Deploy a Private, VNet-Injected AI Gateway (Priority: P1) 🎯 MVP
 
-**Goal**: Delegate the existing APIM subnet and provision one Premium v2 APIM instance with internal VNet injection and no public gateway.
+**Goal**: Validate the dedicated APIM subnet and provision one classic Premium APIM instance with internal VNet injection and no public gateway.
 
-**Independent Test**: Run the resource-group what-if, inspect the deployed APIM SKU/network posture, and confirm `snet-apim` has the required delegation while its existing NSG association is preserved.
+**Independent Test**: Run the resource-group what-if, inspect the deployed APIM SKU/network posture, and confirm the dedicated `snet-apim` subnet and existing NSG association are preserved.
 
 ### Implementation for User Story 1
 
-- [X] T013 [P] [US1] Implement the existing `snet-apim` subnet reference and `Microsoft.Web/serverFarms` delegation in `infra/modules/apim/subnet-delegation.bicep`, preserving the subnet address prefix and existing NSG association
-- [X] T014 [P] [US1] Implement the Premium v2/stv2 APIM service with system-assigned identity, `virtualNetworkType: Internal`, and the confirmed `snet-apim` resource ID in `infra/modules/apim/main.bicep`
-- [X] T015 [US1] Compose the subnet-delegation and APIM modules with location, publisher metadata, SKU/capacity, VNet/subnet IDs, and Foundry inputs in `infra/envs/poc/apim.bicep`, enforcing delegation-before-APIM dependency
+- [X] T013 [P] [US1] Validate the existing dedicated `snet-apim` subnet and NSG association without adding an stv2 delegation
+- [X] T014 [P] [US1] Implement the classic Premium APIM service with system-assigned identity, `virtualNetworkType: Internal`, and the confirmed `snet-apim` resource ID in `infra/modules/apim/main.bicep`
+- [X] T015 [US1] Compose the APIM module with location, publisher metadata, SKU/capacity, VNet/subnet IDs, and Foundry inputs in `infra/envs/poc/apim.bicep`
 - [X] T016 [US1] Add APIM service ID, gateway hostname, principal ID, subnet delegation status, VNet mode, subnet ID, and public-endpoint status outputs in `infra/modules/apim/main.bicep`
 - [X] T017 [US1] Compile the subnet and APIM modules and run the resource-group what-if from `infra/envs/poc/apim.bicep` using `infra/envs/poc/apim.bicepparam`, saving the non-destructive preview to `specs/02-apim-ai-gateway/validation/us1-what-if.md`
-- [ ] T018 [US1] Run the independent network-posture validation for delegation, NSG preservation, Premium v2 SKU, internal VNet injection, subnet placement, and absence of public gateway endpoints, recording results in `specs/02-apim-ai-gateway/validation/us1-gateway.md`
+- [ ] T018 [US1] Run the independent network-posture validation for classic Premium SKU, internal VNet injection, subnet placement, NSG preservation, and absence of public gateway endpoints, recording results in `specs/02-apim-ai-gateway/validation/us1-gateway.md`
 
 **Checkpoint**: US1 is complete only when the preview and inspection show the intended APIM/subnet changes and no public gateway path.
 
@@ -63,7 +63,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 ### Implementation for User Story 2
 
 - [X] T019 [P] [US2] Implement the account-scoped `Cognitive Services OpenAI User` role assignment using APIM's principal ID and the exact Foundry account resource ID in `infra/modules/apim/main.bicep`
-- [X] T020 [P] [US2] Implement the `azure-api.net` private DNS zone, VNet link, and post-provision APIM internal endpoint A records in `infra/modules/apim/private-dns.bicep`, keeping it distinct from `privatelink.azure-api.net` and ordering records after APIM IP publication
+- [X] T020 [P] [US2] Implement the `azure-api.net` private DNS zone, VNet link, and post-provision APIM internal endpoint A records in `infra/modules/apim/private-dns.bicep`
 - [X] T021 [P] [US2] Implement the Foundry backend URL, `gpt-4.1-mini` deployment route, and `authentication-managed-identity` policy with audience `https://cognitiveservices.azure.com` in `infra/modules/apim/backend.bicep`
 - [X] T022 [US2] Compose role assignment, DNS, and backend resources in `infra/envs/poc/apim.bicep` with explicit dependencies on the APIM identity, published private IPs, and existing Foundry account
 - [X] T023 [US2] Add role assignment ID, DNS zone/link IDs, backend ID, and managed-identity readiness outputs in `infra/modules/apim/backend.bicep` and `infra/modules/apim/private-dns.bicep`
@@ -147,4 +147,4 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - Every task uses the required `- [ ] T###` checklist format; `[P]` is used only for independent work, and story tasks carry `[US1]`, `[US2]`, or `[US3]`.
 - Every implementation or evidence task names an exact repository path.
 - Live Azure commands must save their output to the named validation evidence file; compiling Bicep or producing a what-if does not itself prove deployment.
-- Existing network, DNS, and Foundry resources are immutable prerequisites except for the explicitly required `snet-apim` delegation and documented Premium v2 network rules.
+- Existing network, DNS, and Foundry resources are immutable prerequisites; classic Premium uses the existing dedicated subnet without adding v2 delegation.

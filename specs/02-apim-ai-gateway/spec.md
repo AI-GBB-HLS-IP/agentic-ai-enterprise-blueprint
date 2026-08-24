@@ -21,7 +21,8 @@ Foundry deployment is an existing prerequisite: resource group `rg-agent-factory
 currently undelegated), `snet-privateendpoints` (`10.0.4.0/24`), the Foundry account
 `foundry-agent-factory-poc`, and its `gpt-4.1-mini` model deployment are assumed to exist and be
 usable. Unlike `snet-foundry`, `snet-apim` was intentionally left undelegated by Network
-Foundation; this feature is responsible for delegating it, as required by Premium v2.
+Foundation; this feature uses it for classic Premium VNet injection. Premium v2 remains the
+preferred future tier, but is currently capacity-constrained.
 
 **Approved initial boundary (per the governing deployment plan)**: this feature covers only the
 private APIM gateway, its managed-identity authentication to Foundry, one governed
@@ -52,12 +53,11 @@ platform VNet.
 **Acceptance Scenarios**:
 
 1. **Given** the network foundation and dedicated `snet-apim` subnet exist, **When** the APIM
-   deployment is applied, **Then** a Premium v2 instance with internal VNet injection is created
+   deployment is applied, **Then** a classic Premium instance with internal VNet injection is created
    in `snet-apim` with no public gateway endpoint enabled.
 2. **Given** `snet-apim` currently has no delegation, **When** the deployment is applied,
-   **Then** it delegates `snet-apim` to `Microsoft.Web/serverFarms` (the delegation Premium v2
-   VNet injection requires) as part of this feature, and the subnet's existing NSG association
-   is preserved with only the documented Premium v2 required rules added.
+   **Then** it uses the dedicated `snet-apim` subnet without adding a v2-specific delegation,
+   and the subnet's existing NSG association is preserved with documented classic Premium rules.
 
 ---
 
@@ -118,10 +118,8 @@ APIM before reaching Foundry.
 
 ### Edge Cases
 
-- `snet-apim` must be delegated to `Microsoft.Web/serverFarms` before Premium v2 provisioning
-  begins, since VNet injection is configured at creation time and cannot be added afterward;
-  validation must confirm the delegation is present and correct, and that no conflicting
-  resource occupies the subnet, before deployment proceeds.
+- `snet-apim` must meet the classic Premium VNet injection requirements before provisioning;
+  validation must confirm it is dedicated and has no conflicting resource claim.
 - The `azure-api.net` private DNS zone must not duplicate or conflict with the existing
   `privatelink.azure-api.net` zone created in Network Foundation; validation must fail if a naming
   or record conflict is detected.
@@ -142,12 +140,11 @@ APIM before reaching Foundry.
 
 ### Functional Requirements
 
-- **FR-001**: The feature MUST deploy an Azure API Management instance on the Premium v2 tier
+- **FR-001**: The feature MUST deploy an Azure API Management instance on the classic Premium tier
   with internal VNet injection into the existing `snet-apim` subnet (`10.0.1.0/24`) in
   `rg-agent-factory-poc`.
-- **FR-001a**: The feature MUST delegate `snet-apim` to `Microsoft.Web/serverFarms` before APIM
-  is provisioned, since Premium v2 VNet injection requires this delegation and it cannot be added
-  after the instance is created.
+- **FR-001a**: The feature MUST validate that `snet-apim` meets classic Premium VNet injection
+  requirements before APIM is provisioned and MUST NOT add an App Service/v2 delegation.
 - **FR-002**: The APIM instance MUST NOT expose a public gateway endpoint; all client access
   MUST be reachable only from inside `vnet-agent-factory-poc` or its peered/authorized networks.
 - **FR-003**: The feature MUST enable APIM's system-assigned managed identity and MUST assign it
@@ -180,7 +177,7 @@ APIM before reaching Foundry.
   NOT produce unexpected resource changes or duplicate DNS zones, role assignments, APIs, or
   policies.
 - **FR-014**: The feature MUST NOT modify existing `snet-apim` NSG rules beyond the documented
-  Premium v2 required network rules, and MUST preserve existing control-plane and load-balancer
+  classic Premium required network rules, and MUST preserve existing control-plane and load-balancer
   rules.
 - **FR-015**: The feature MUST preserve separation of duties: platform engineering owns gateway
   and network configuration; AI CoE governs which model(s) and policies are approved; developers
@@ -188,7 +185,7 @@ APIM before reaching Foundry.
 
 ### Key Entities
 
-- **APIM instance**: The Premium v2, VNet-injected gateway that is the single entry point for all
+- **APIM instance**: The classic Premium, VNet-injected gateway that is the single entry point for all
   model traffic in this increment.
 - **Managed identity and role assignment**: APIM's system-assigned identity and its
   narrowly-scoped `Cognitive Services OpenAI User` grant on the Foundry account.
@@ -228,8 +225,7 @@ APIM before reaching Foundry.
   subscription.
 - The POC uses one Azure region (`eastus2`), consistent with the existing Foundry deployment.
 - `snet-apim` is currently unused and already NSG-associated, but undelegated; this feature adds
-  the `Microsoft.Web/serverFarms` delegation Premium v2 VNet injection requires, and no other
-  workload is expected to claim this subnet before that happens.
+  classic Premium VNet injection requirements, and no other workload is expected to claim this subnet.
 - The executing platform identity has sufficient subscription/resource-group permissions to
   deploy APIM, configure private DNS, and assign roles; directory role assignment follows the
   repository's governance process.

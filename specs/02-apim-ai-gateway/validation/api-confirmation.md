@@ -8,7 +8,7 @@ Status date: 2026-08-23
 - **Live status**: PARTIAL PASS (provider and workspace checks executed; policy-snippet schema
   endpoint remains unresolved and is tracked as a manual gate).
 
-## T005 — APIM API version / Premium v2 / internal VNet injection schema
+## T005 — APIM API version / classic Premium / internal VNet injection schema
 
 - Live provider check returned APIM service API versions including:
   - `2025-09-01-preview`
@@ -23,9 +23,9 @@ Status date: 2026-08-23
 - Internal mode schema used:
   - `properties.virtualNetworkType = 'Internal'`
   - `properties.virtualNetworkConfiguration.subnetResourceId = <snet-apim-id>`
-  - `sku.name = 'PremiumV2'`
-- Required delegation modeled before APIM:
-  - `Microsoft.Web/serverFarms` on `snet-apim`
+  - `sku.name = 'Premium'`
+- Classic Premium uses the dedicated `snet-apim` subnet without the stv2
+  `Microsoft.Web/serverFarms` delegation.
 
 **Live confirmation command (pending):**
 

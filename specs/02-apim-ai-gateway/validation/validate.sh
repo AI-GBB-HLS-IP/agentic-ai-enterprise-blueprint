@@ -17,7 +17,6 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
 : "${APIM_NAME:=apim-agent-factory-poc}"
 
 required_files=(
-  "infra/modules/apim/subnet-delegation.bicep"
   "infra/modules/apim/main.bicep"
   "infra/modules/apim/private-dns.bicep"
   "infra/modules/apim/backend.bicep"
@@ -36,7 +35,6 @@ for file in "${required_files[@]}"; do
 done
 
 bicep_files=(
-  "infra/modules/apim/subnet-delegation.bicep"
   "infra/modules/apim/main.bicep"
   "infra/modules/apim/private-dns.bicep"
   "infra/modules/apim/backend.bicep"

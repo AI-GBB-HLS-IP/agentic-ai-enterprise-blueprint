@@ -29,7 +29,7 @@ The module must not create the existing VNet, `snet-privateendpoints`, the exist
 `privatelink.azure-api.net` zone, or the Foundry account/project/model deployment. It must fail
 closed when:
 
-- The `snet-apim` subnet delegation to `Microsoft.Web/serverFarms` is missing or incorrect
+- The dedicated `snet-apim` subnet does not meet classic Premium VNet injection requirements
   before APIM creation is attempted.
 - The APIM instance would expose a public gateway endpoint (`virtualNetworkType` other than
   `Internal`).
