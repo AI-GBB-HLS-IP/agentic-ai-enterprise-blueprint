@@ -9,9 +9,9 @@
 ## Scope
 
 Deploy the approved Chapter 02 core gateway from `infra/envs/poc/apim.bicep` using
-`infra/envs/poc/apim.bicepparam`. This deployment delegates the existing `snet-apim` subnet
-and creates the private classic Premium APIM gateway, managed-identity Foundry authorization, private
-DNS, one governed chat completions API, token policies, and observability resources.
+`infra/envs/poc/apim.bicepparam`. This deployment creates the private classic Premium APIM gateway,
+managed-identity Foundry authorization, private DNS, one governed chat completions API, token
+policies, and observability resources.
 
 The deployment must not modify the existing Foundry account/project/model deployment,
 `snet-privateendpoints`, or `privatelink.azure-api.net`, and must not create MCP, A2A, public
