@@ -10,7 +10,7 @@ param apimSubnetName = 'snet-apim'
 param foundryAccountId = readEnvironmentVariable('FOUNDRY_ACCOUNT_ID', '')
 param foundryAccountName = 'foundry-agent-factory-poc'
 param modelDeploymentName = 'gpt-4.1-mini'
-param publicNetworkAccess = readEnvironmentVariable('APIM_PUBLIC_NETWORK_ACCESS', 'Disabled')
+param publicNetworkAccess = readEnvironmentVariable('APIM_PUBLIC_NETWORK_ACCESS', 'Enabled')
 
 param apimSkuName = 'Premium'
 param apimSkuCapacity = 1

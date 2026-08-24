@@ -71,9 +71,23 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
   private IP publication.
 - Static RBAC review confirmed `Cognitive Services OpenAI User` is scoped to the existing Foundry
   account resource only.
-- Runtime validation remains to be collected after deployment.
+- Runtime validation remains to be collected after deployment. Azure currently requires an
+  approved APIM Private Endpoint before `publicNetworkAccess` can be disabled; the internally
+  injected gateway remains private while this control-plane access flag is enabled.
 - Static RBAC review reconfirmed the account-scoped `Cognitive Services OpenAI User` role
   assignment in `infra/modules/apim/main.bicep`.
+- The private convergence deployment succeeded as
+  `apim-private-convergence-20260824183738`; APIM, API, backend, DNS, RBAC, and observability
+  resources were created.
+- Disabling `publicNetworkAccess` was rejected by Azure because this APIM service has no approved
+  Private Endpoint. The gateway is still `Premium` and `Internal`; a future lock-down step must
+  provision and approve an APIM Private Endpoint first.
+- Live diagnostic category inspection for `apim-agent-factory-private-poc` returned
+  `GatewayLogs`, `WebSocketConnectionLogs`, `DeveloperPortalAuditLogs`, `GatewayLlmLogs`,
+  `GatewayMCPLogs`, and `AllMetrics`; the unsupported `GatewayRequests` category was removed.
+- `az bicep build --file infra/envs/poc/apim.bicep --stdout` passed after moving
+  `llm-emit-token-metric` to the inbound policy section and setting the product subscription
+  limit to 1.
 
 ## Deployment attempt
 
