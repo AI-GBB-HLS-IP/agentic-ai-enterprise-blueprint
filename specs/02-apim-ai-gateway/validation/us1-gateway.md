@@ -15,8 +15,8 @@ az apim show -g rg-agent-factory-poc -n apim-agent-factory-poc \
 
 ## Pass criteria
 
-- Delegation includes `Microsoft.Web/serverFarms`
-- APIM SKU is Premium v2 (`PremiumV2`)
+- APIM SKU is classic Premium (`Premium`)
+- No v2-specific subnet delegation is configured
 - APIM `virtualNetworkType` is `Internal`
 - Public endpoint IP list is empty
 - Subnet ID equals `snet-apim`

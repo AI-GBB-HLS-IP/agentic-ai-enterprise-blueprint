@@ -1,31 +1,25 @@
 # Research: APIM AI Gateway (Core Gateway)
 
-## R1: Premium v2 VNet injection and subnet delegation
+## R1: Classic Premium VNet injection
 
-**Decision**: Use `Microsoft.ApiManagement/service` with SKU `PremiumV2`,
+**Decision**: Use `Microsoft.ApiManagement/service` with SKU `Premium`,
 `virtualNetworkType: Internal`, and `virtualNetworkConfiguration.subnetResourceId` pointing at
-the existing `snet-apim` subnet. Premium v2 uses the v2 platform, but `platformVersion` is a
-read-only provider property and is not assigned in Bicep. `snet-apim` must carry a
-`Microsoft.Web/serverFarms` subnet delegation before the APIM resource is declared.
+the existing dedicated `snet-apim` subnet. Premium v2 remains the preferred future tier, but
+classic Premium is the approved non-production architecture because it preserves the production
+VNet-injected design while Premium v2 capacity is unavailable.
 
-**Rationale**: Unlike classic (non-v2) APIM SKUs, which require internal VNet integration with
-**no** subnet delegation, the newer stv2 platform (used by Premium v2/Standard v2/Basic v2) is
-built on the App Service platform and requires the subnet to be delegated to
-`Microsoft.Web/serverFarms`. Deploying without this delegation fails with
-`VirtualNetworkSubnetHasIncorrectDelegation`. `snet-apim` was intentionally left undelegated by
-Network Foundation (unlike `snet-foundry`, which is delegated to `Microsoft.App/environments`),
-so this feature is responsible for adding it. VNet injection is configured at APIM creation time
-and cannot be changed afterward, so the delegation must exist first and must not be removed once
-APIM is provisioned.
+**Rationale**: Classic Premium VNet injection uses the dedicated APIM subnet directly and does not use the
+stv2-specific `Microsoft.Web/serverFarms` delegation. The subnet must be validated as dedicated,
+with its existing NSG association preserved, before APIM creation. VNet injection is configured
+at APIM creation time and is not interchangeable with v2 outbound integration.
 
 **Alternatives considered**:
-- *No delegation (original spec assumption)* — rejected; verified against current Microsoft
-  documentation and confirmed as an incorrect initial assumption caught during PR review.
+- *`Microsoft.Web/serverFarms` delegation* — rejected for classic Premium; it is an stv2-specific
+  requirement and is not part of this classic-tier design.
 - *External VNet mode* — rejected; exposes a public gateway endpoint, which violates the
   private-by-default constitution principle.
-- *Non-VNet-injected Premium (classic) SKU* — rejected; explicitly out of scope since the
-  blueprint chapter and this POC require private connectivity with no public entry point at all,
-  and the classic Premium tier still exposes a public control plane/developer portal by default.
+- *Premium v2* — retained as the preferred future target, but not deployable in the current
+  subscription/region due to the documented capacity restriction.
 
 ## R2: Private DNS zone naming
 

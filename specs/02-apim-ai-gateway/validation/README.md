@@ -59,7 +59,7 @@ Run from repository root:
 ## Module I/O coverage summary
 
 - `main.bicep`: APIM identity/network core + role assignment + readiness object.
-- `subnet-delegation.bicep`: `snet-apim` delegation and subnet-preservation outputs.
+- `main.bicep`: classic Premium VNet injection and subnet readiness outputs.
 - `private-dns.bicep`: `azure-api.net` zone/link/record outputs and DNS readiness state.
 - `backend.bicep`: Foundry backend + managed-identity policy snippet output.
 - `api.bicep`: single `chat/completions` API + product/policy + scope-boundary outputs.

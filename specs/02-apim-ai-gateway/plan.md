@@ -7,9 +7,8 @@
 ## Summary
 
 Implement a resource-group-scoped, parameterized Bicep module family that deploys a private,
-internal-VNet-injected Azure API Management Premium v2 instance into the existing `snet-apim`
-subnet, delegates that subnet to `Microsoft.Web/serverFarms` as part of this feature (Network
-Foundation deliberately left it undelegated), and connects it to the existing Chapter 01 Foundry
+internal-VNet-injected Azure API Management classic Premium instance into the existing dedicated
+`snet-apim` subnet, and connects it to the existing Chapter 01 Foundry
 deployment using APIM's system-assigned managed identity — no Foundry API keys or backend secrets. The feature
 exposes exactly one client-facing, subscription-key-protected, OpenAI-compatible
 `chat/completions` API routed to the approved `gpt-4.1-mini` deployment, with token rate
@@ -19,8 +18,7 @@ publication and A2A agent routing remain out of scope and are deferred to later 
 ## Technical Context
 
 **Language/Version**: Bicep (repository-supported CLI/provider API versions; confirm APIM
-`Microsoft.ApiManagement/service` API version supporting Premium v2 VNet injection during
-implementation)
+`Microsoft.ApiManagement/service` API version supporting classic Premium internal VNet injection)
 
 **Primary Dependencies**: Azure Resource Manager; `Microsoft.ApiManagement`,
 `Microsoft.Network` (subnets, private DNS, NSGs), `Microsoft.Authorization` (role assignments),
@@ -38,7 +36,7 @@ resolution checks from `vm-fnd-jbox`, subscription-key-authenticated and unauthe
 
 **Project Type**: Infrastructure-as-code modules and validation documentation
 
-**Performance Goals**: Deployment (excluding APIM Premium v2 provisioning time, which commonly
+**Performance Goals**: Deployment (excluding APIM Premium provisioning time, which commonly
 exceeds 45 minutes) validated end-to-end; at least 9/10 consecutive private `chat/completions`
 requests succeed
 
@@ -99,7 +97,6 @@ infra/
 │   └── apim.bicepparam            # NEW: APIM environment parameters
 └── modules/apim/
     ├── main.bicep                 # APIM service, VNet injection, managed identity
-    ├── subnet-delegation.bicep    # snet-apim delegation to Microsoft.Web/serverFarms
     ├── private-dns.bicep          # azure-api.net zone, VNet link, endpoint records
     ├── backend.bicep              # Foundry backend + managed-identity auth policy
     ├── api.bicep                  # client-facing chat/completions API + policies
@@ -116,11 +113,9 @@ alter `infra/modules/foundry/` at all.
 
 1. **Environment composition (`infra/envs/poc/apim.bicep`):** pass location, existing VNet/subnet
    IDs, existing Foundry account ID and model deployment name, and APIM SKU/capacity parameters.
-2. **Subnet delegation module:** delegate `snet-apim` to `Microsoft.Web/serverFarms` before the
-   APIM resource is declared, since VNet injection is set at creation time and cannot change
-   afterward; preserve the existing NSG association and only add the documented Premium v2
-   required rules.
-3. **APIM service module:** create the Premium v2 instance with `virtualNetworkType: Internal`,
+2. **APIM subnet:** validate that the dedicated `snet-apim` subnet meets classic Premium
+   injection requirements and preserve its existing NSG association; do not add v2 delegation.
+3. **APIM service module:** create the classic Premium instance with `virtualNetworkType: Internal`,
    system-assigned managed identity enabled, and no public IP/gateway.
 4. **Private DNS module:** create the new `azure-api.net` zone (distinct from the existing
    `privatelink.azure-api.net` zone), link it to `vnet-agent-factory-poc`, and create A records
@@ -140,19 +135,17 @@ alter `infra/modules/foundry/` at all.
    provisioning state and VNet injection mode, identity/role correctness, DNS zone/record/
    resolution state, and request test outcomes (authorized success, unauthorized rejection).
 
-Dependency order is: confirm `snet-apim` is still unused → delegate subnet → deploy APIM
+Dependency order is: confirm `snet-apim` is still unused → deploy APIM
 (VNet-injected) → enable managed identity → assign Foundry role → create `azure-api.net` zone
 and link → create DNS records once APIM publishes its private IP → configure backend → configure
-client-facing API/policies → configure observability → run private request tests. Subnet
-delegation must complete and be verified before the APIM resource is declared, since Premium v2
-VNet injection is immutable after creation.
+client-facing API/policies → configure observability → run private request tests. VNet injection
+is configured at creation time and must be validated before deployment.
 
 ## Validation and quota strategy
 
 - Compile every Bicep module and run resource-group `what-if`; attach output to the PR, since
   regional APIM capacity cannot be confirmed through the quota API.
-- Confirm `snet-apim` has no conflicting resource before delegating it, and confirm the
-  delegation succeeded before declaring APIM.
+- Confirm `snet-apim` has no conflicting resource and meets classic Premium subnet requirements.
 - Verify the APIM resource has no public gateway endpoint enabled and its VNet injection type is
   `Internal`.
 - Verify the managed identity's role assignment is scoped only to the Foundry account, not the
@@ -168,16 +161,16 @@ VNet injection is immutable after creation.
 ## Research questions and risks
 
 See [research.md](research.md) for sources and decisions. Implementation must confirm: the exact
-`Microsoft.ApiManagement/service` API version and Bicep schema for Premium v2 internal VNet
-injection and subnet delegation; whether an existing Log Analytics workspace from Chapter 01
+`Microsoft.ApiManagement/service` API version and Bicep schema for classic Premium internal VNet
+injection; whether an existing Log Analytics workspace from Chapter 01
 should be reused or a new one created; the exact `llm-token-limit`/`llm-emit-token-metric` policy
 XML schema for the current API version; and whether APIM Premium v2 provisioning time (often
 45+ minutes) affects the validation workflow's expected duration.
 
 ## Phase 0: Research
 
-Documented in [research.md](research.md): resolves the APIM Premium v2 VNet-injection/delegation
-model (correcting the earlier assumption in `spec.md` that no delegation was required), the
+Documented in [research.md](research.md): resolves the classic Premium VNet-injection/subnet
+model and records Premium v2 as the preferred future tier, the
 private DNS zone naming decision, and the managed-identity backend authentication pattern.
 
 ## Phase 1: Design artifacts

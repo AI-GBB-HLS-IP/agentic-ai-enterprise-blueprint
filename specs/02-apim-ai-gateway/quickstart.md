@@ -27,7 +27,6 @@ If the script reports live-gate blockers, do not mark deployment readiness as pa
 ## Validate the deployment preview
 
 ```bash
-az bicep build --file infra/modules/apim/subnet-delegation.bicep
 az bicep build --file infra/modules/apim/main.bicep
 az bicep build --file infra/modules/apim/private-dns.bicep
 az bicep build --file infra/modules/apim/backend.bicep
@@ -57,7 +56,7 @@ az apim show -g rg-agent-factory-poc -n <apim-name> \
   --query '{virtualNetworkType:virtualNetworkType,identity:identity,publicIpAddresses:publicIpAddresses}'
 ```
 
-Expected: the subnet delegation shows `Microsoft.Web/serverFarms`; the APIM instance has
+Expected: the dedicated subnet and existing NSG association are preserved; the APIM instance has
 `virtualNetworkType: Internal`, a system-assigned identity, and no public IP addresses.
 
 Save output to `specs/02-apim-ai-gateway/validation/us1-gateway.md`.

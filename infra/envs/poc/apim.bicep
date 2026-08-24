@@ -18,12 +18,6 @@ param vnetName string = 'vnet-agent-factory-poc'
 @description('Existing APIM subnet name.')
 param apimSubnetName string = 'snet-apim'
 
-@description('Existing APIM subnet CIDR.')
-param apimSubnetPrefix string = '10.0.1.0/24'
-
-@description('Existing APIM subnet NSG resource name.')
-param apimSubnetNsgName string = 'nsg-apim'
-
 @description('Existing Foundry account resource ID.')
 param foundryAccountId string
 
@@ -40,13 +34,13 @@ param foundryAccountName string = 'foundry-agent-factory-poc'
 @description('Approved Foundry model deployment name.')
 param modelDeploymentName string = 'gpt-4.1-mini'
 
-@description('APIM Premium v2 SKU name.')
+@description('APIM classic Premium SKU name. Premium v2 remains the preferred future tier.')
 @allowed([
-  'PremiumV2'
+  'Premium'
 ])
-param apimSkuName string = 'PremiumV2'
+param apimSkuName string = 'Premium'
 
-@description('APIM Premium v2 capacity.')
+@description('APIM classic Premium capacity.')
 @minValue(1)
 param apimSkuCapacity int = 1
 
@@ -102,20 +96,6 @@ resource apimSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' exist
   name: apimSubnetName
 }
 
-resource apimSubnetNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' existing = {
-  name: apimSubnetNsgName
-}
-
-module subnetDelegation '../../modules/apim/subnet-delegation.bicep' = {
-  name: 'apim-subnet-delegation'
-  params: {
-    vnetName: vnetName
-    apimSubnetName: apimSubnetName
-    apimSubnetPrefix: apimSubnetPrefix
-    apimSubnetNsgId: apimSubnetNsg.id
-  }
-}
-
 module apimMain '../../modules/apim/main.bicep' = {
   name: 'apim-core-gateway'
   params: {
@@ -124,7 +104,6 @@ module apimMain '../../modules/apim/main.bicep' = {
     publisherEmail: publisherEmail
     publisherName: publisherName
     apimSubnetId: apimSubnet.id
-    subnetDelegationApplied: subnetDelegation.outputs.delegationApplied
     apimSkuName: apimSkuName
     apimSkuCapacity: apimSkuCapacity
     foundryAccountName: foundryAccountName

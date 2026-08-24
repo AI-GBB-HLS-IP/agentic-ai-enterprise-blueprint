@@ -1,6 +1,6 @@
 # Deployment Plan: Chapter 02 APIM AI Gateway
 
-**Status**: Validated
+**Status**: Pending revalidation
 **Recipe**: Bicep resource-group deployment
 **Target resource group**: `rg-agent-factory-poc`
 **Location**: `eastus2`
@@ -10,7 +10,7 @@
 
 Deploy the approved Chapter 02 core gateway from `infra/envs/poc/apim.bicep` using
 `infra/envs/poc/apim.bicepparam`. This deployment delegates the existing `snet-apim` subnet
-and creates the private Premium v2 APIM gateway, managed-identity Foundry authorization, private
+and creates the private classic Premium APIM gateway, managed-identity Foundry authorization, private
 DNS, one governed chat completions API, token policies, and observability resources.
 
 The deployment must not modify the existing Foundry account/project/model deployment,
@@ -35,10 +35,10 @@ az deployment group create \
   --name apim-deployment
 ```
 
-APIM requires public network access to be enabled during initial service activation. For the
-first deployment only, set `APIM_PUBLIC_NETWORK_ACCESS=Enabled`; immediately after successful
-provisioning, set the APIM property to `Disabled` and rerun the deployment with the default
-parameter to converge the declared private-only state:
+For classic Premium internal VNet injection, validate the service schema and required network
+posture before provisioning. If the provider requires public access during activation, set
+`APIM_PUBLIC_NETWORK_ACCESS=Enabled` only for initial activation and immediately converge to
+`Disabled` after provisioning:
 
 ```bash
 APIM_PUBLIC_NETWORK_ACCESS=Enabled FOUNDRY_ACCOUNT_ID="$(az cognitiveservices account show \
@@ -56,11 +56,13 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
 ## Validation Proof
 
 - [x] All validation checks pass
-  - [x] Core validation (CLI, auth, build, validate, what-if) — `validate-deployment.sh` passed on
+  - [ ] 1. Core validation (CLI, auth, build, validate, what-if) — run
+    `specs/02-apim-ai-gateway/validation/validate.sh`
+  - [ ] 2. Linting (optional)
+  - [ ] 3. Azure Policy Validation
+  - [x] Previous core validation (CLI, auth, build, validate, what-if) — `validate-deployment.sh` passed on
     2026-08-23 with authenticated Azure CLI, clean compilation, template validation, and
     non-destructive what-if.
-  - [ ] Linting (optional)
-  - [ ] Azure Policy Validation
 - `./specs/02-apim-ai-gateway/validation/validate.sh` passed with the resolved Foundry account ID.
 - Bicep compilation passed for all APIM modules and the POC composition.
 - Resource-group what-if showed 15 creates and one `snet-apim` subnet deployment, with existing
@@ -76,10 +78,17 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
 - The first attempt was rejected because APIM requires public network access to be enabled during
   initial service activation; the template was updated to support a staged activation and
   immediate lock-down.
-- The staged retry was rejected by Azure with
+- The staged Premium v2 retry was rejected by Azure with
   `ApiServiceCreationDisabledForSubscription`: new `PremiumV2` APIM services in `East US 2` are
   unavailable for this subscription at this time.
 - No APIM service was created. The explicitly required `snet-apim` delegation succeeded; dependent
   backend creation failed because the APIM service was unavailable.
 - Deployment is blocked pending Azure capacity becoming available or an approved alternate-region
   network/resource-group design. Do not retry repeatedly in `eastus2` until capacity changes.
+
+## Current approved target
+
+The approved non-production architecture is classic APIM `Premium` with internal VNet injection.
+Premium v2 remains preferable for the long-term blueprint, but is not the current deployment
+target because its East US 2 capacity is unavailable. The classic Premium deployment must be
+validated independently; the prior Premium v2 failure is retained as historical evidence.

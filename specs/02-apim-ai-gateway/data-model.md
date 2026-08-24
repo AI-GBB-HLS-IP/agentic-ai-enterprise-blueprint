@@ -12,8 +12,8 @@
 
 | Entity | Key fields | Rules |
 |---|---|---|
-| Subnet delegation | subnet ID, delegation service name | Adds `Microsoft.Web/serverFarms` delegation to the existing `snet-apim` subnet; must complete before the APIM resource is declared; existing NSG association is preserved. |
-| APIM instance | name, location, SKU, `virtualNetworkType`, subnet ID, identity | Premium tier, `virtualNetworkType: Internal`, subnet is the now-delegated `snet-apim`; system-assigned managed identity enabled; no public gateway endpoint. |
+| APIM subnet | subnet ID, address range, NSG association | Existing dedicated `snet-apim` subnet; classic Premium does not use the v2 `Microsoft.Web/serverFarms` delegation. |
+| APIM instance | name, location, SKU, `virtualNetworkType`, subnet ID, identity | Classic Premium tier, `virtualNetworkType: Internal`, subnet is `snet-apim`; system-assigned managed identity enabled; no public gateway endpoint. |
 | Managed identity role assignment | principal ID, role definition ID, scope | `Cognitive Services OpenAI User` scoped only to the `foundry-agent-factory-poc` account; no resource-group or subscription scope. |
 | Private DNS zone (`azure-api.net`) | zone name, resource ID, VNet link, A records | New zone, distinct from `privatelink.azure-api.net`; linked to `vnet-agent-factory-poc`; A records created only after the APIM resource publishes its private IP. |
 | Foundry backend | name, URL, authentication policy | Points at the Foundry `gpt-4.1-mini` deployment endpoint; uses `authentication-managed-identity` with audience `https://cognitiveservices.azure.com`; no key. |
@@ -23,13 +23,12 @@
 
 ## Relationships and state transitions
 
-`Network foundation + Foundry deployment (existing) -> snet-apim delegated -> APIM instance
+`Network foundation + Foundry deployment (existing) -> snet-apim validated -> APIM instance
 (VNet-injected) -> managed identity enabled -> Foundry role assignment -> azure-api.net zone +
 link -> DNS records (post-IP-publish) -> Foundry backend (managed-identity auth) -> client-facing
 API + policies -> observability -> validation ready`
 
 The client-facing API must not be considered ready until the backend authentication, DNS
 resolution, and subscription enforcement all pass; token metrics/observability failing does not
-block core request routing but must be reported as a partial-readiness condition. Subnet
-delegation is a one-time, pre-APIM-creation step and must not be re-applied or removed once APIM
-exists in that subnet.
+block core request routing but must be reported as a partial-readiness condition. The classic
+Premium injection subnet must remain dedicated and must not be claimed by another workload.
