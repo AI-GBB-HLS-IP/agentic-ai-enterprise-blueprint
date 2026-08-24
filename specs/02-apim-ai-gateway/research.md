@@ -76,12 +76,12 @@ keys or model payloads in a diagnostic sink.
 
 ## R5: Token rate limiting and metrics policy shape
 
-**Decision**: Apply `llm-token-limit` in the inbound policy pipeline (keyed by
-`context.Subscription.Id`) and `llm-emit-token-metric` in the outbound pipeline, dimensioned by
-subscription and API, on the client-facing `chat/completions` API.
+**Decision**: Apply `llm-token-limit` and `llm-emit-token-metric` in the inbound policy pipeline
+(keyed/dimensioned by `context.Subscription.Id` and API) on the client-facing
+`chat/completions` API.
 
-**Rationale**: This matches the policy shape already documented in the blueprint chapter
-(`chapters/02-ai-gateway.md`, Part 4, Step 3) and satisfies FR-008's requirement for
+**Rationale**: APIM accepts `llm-emit-token-metric` only in the inbound section for this service.
+The policy still derives token usage from the LLM response and satisfies FR-008's requirement for
 subscription-attributable token consumption without requiring a custom logging pipeline.
 
 **Alternatives considered**:
