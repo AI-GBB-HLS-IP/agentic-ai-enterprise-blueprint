@@ -1,6 +1,6 @@
 # Deployment Plan: Chapter 02 APIM AI Gateway
 
-**Status**: Pending revalidation
+**Status**: Validated
 **Recipe**: Bicep resource-group deployment
 **Target resource group**: `rg-agent-factory-poc`
 **Location**: `eastus2`
@@ -56,8 +56,9 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
 ## Validation Proof
 
 - [x] All validation checks pass
-  - [ ] 1. Core validation (CLI, auth, build, validate, what-if) — run
-    `specs/02-apim-ai-gateway/validation/validate.sh`
+  - [x] 1. Core validation (CLI, auth, build, validate, what-if) — `FOUNDRY_ACCOUNT_ID=...`
+    `specs/02-apim-ai-gateway/validation/validate.sh` passed on 2026-08-24; what-if shows the
+    new private Premium APIM stack and ignores the retained capacity probe.
   - [ ] 2. Linting (optional)
   - [ ] 3. Azure Policy Validation
   - [x] Previous core validation (CLI, auth, build, validate, what-if) — `validate-deployment.sh` passed on
@@ -71,6 +72,8 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
 - Static RBAC review confirmed `Cognitive Services OpenAI User` is scoped to the existing Foundry
   account resource only.
 - Runtime validation remains to be collected after deployment.
+- Static RBAC review reconfirmed the account-scoped `Cognitive Services OpenAI User` role
+  assignment in `infra/modules/apim/main.bicep`.
 
 ## Deployment attempt
 
