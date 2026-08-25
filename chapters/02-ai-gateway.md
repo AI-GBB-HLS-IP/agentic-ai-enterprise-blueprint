@@ -319,7 +319,7 @@ az role assignment create \
 Apply policies for token management, caching, and content safety:
 
 ```xml
-<!-- Token rate limiting per subscription -->
+<!-- Token rate limiting per subscription and token metrics for monitoring -->
 <inbound>
     <base />
     <llm-token-limit
@@ -328,17 +328,12 @@ Apply policies for token management, caching, and content safety:
         estimate-prompt-tokens="true"
         remaining-tokens-variable-name="remainingTokens">
     </llm-token-limit>
-</inbound>
-
-<!-- Emit token metrics for monitoring -->
-<outbound>
-    <base />
     <llm-emit-token-metric namespace="ai-gateway-metrics">
         <dimension name="Subscription" value="@(context.Subscription.Id)" />
         <dimension name="API" value="@(context.Api.Id)" />
         <dimension name="Team" value="@(context.Request.Headers.GetValueOrDefault("x-team-id", "unknown"))" />
     </llm-emit-token-metric>
-</outbound>
+</inbound>
 ```
 
 ### Step 4: Configure Backend Load Balancing
