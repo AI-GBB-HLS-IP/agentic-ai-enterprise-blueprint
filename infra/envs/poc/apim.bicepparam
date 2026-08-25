@@ -1,7 +1,7 @@
 using './apim.bicep'
 
 param location = 'eastus2'
-param apimServiceName = 'apim-agent-factory-poc'
+param apimServiceName = 'apim-agent-factory-private-poc'
 param publisherEmail = 'platform-eng@example.com'
 param publisherName = 'Agent Factory Platform Engineering'
 
@@ -25,7 +25,7 @@ param tokenLimitPerMinute = 10000
 param foundryApiVersion = '2024-10-21'
 
 param privateDnsZoneName = 'azure-api.net'
-param privateDnsRecordName = 'apim-agent-factory-poc'
+param privateDnsRecordName = 'apim-agent-factory-private-poc'
 
 param applicationInsightsName = 'appi-apim-agent-factory-poc'
 param logAnalyticsWorkspaceId = ''

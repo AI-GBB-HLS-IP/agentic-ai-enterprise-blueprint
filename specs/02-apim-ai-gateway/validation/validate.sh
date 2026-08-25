@@ -14,7 +14,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
 : "${APIM_TEMPLATE_FILE:=infra/envs/poc/apim.bicep}"
 : "${APIM_PARAMETER_FILE:=infra/envs/poc/apim.bicepparam}"
 : "${APIM_DEPLOYMENT_NAME:=apim-preflight}"
-: "${APIM_NAME:=apim-agent-factory-poc}"
+: "${APIM_NAME:=apim-agent-factory-private-poc}"
 
 required_files=(
   "infra/modules/apim/main.bicep"

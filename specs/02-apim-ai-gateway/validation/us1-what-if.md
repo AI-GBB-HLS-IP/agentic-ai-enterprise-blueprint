@@ -27,5 +27,5 @@ az deployment group what-if \
 ## Observed summary (2026-08-23)
 
 - Resource changes: **15 create**, **1 deploy** (`snet-apim` delegation update), **38 ignore**.
-- Potential post-provisioning record: `azure-api.net/A/apim-agent-factory-poc` (created once APIM
+- Potential post-provisioning record: `azure-api.net/A/apim-agent-factory-private-poc` (created once APIM
   private IP is available).

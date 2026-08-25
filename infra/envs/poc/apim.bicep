@@ -4,7 +4,7 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 @description('APIM gateway service name.')
-param apimServiceName string = 'apim-agent-factory-poc'
+param apimServiceName string = 'apim-agent-factory-private-poc'
 
 @description('APIM publisher contact email.')
 param publisherEmail string

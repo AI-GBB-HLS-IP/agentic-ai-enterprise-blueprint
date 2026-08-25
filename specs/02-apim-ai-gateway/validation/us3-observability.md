@@ -8,7 +8,7 @@ Status: **BLOCKED (live Azure gate unresolved)**
 az monitor app-insights component show -g rg-agent-factory-poc -a appi-apim-agent-factory-poc
 
 az monitor diagnostic-settings list \
-  --resource /subscriptions/<sub-id>/resourceGroups/rg-agent-factory-poc/providers/Microsoft.ApiManagement/service/apim-agent-factory-poc
+  --resource /subscriptions/<sub-id>/resourceGroups/rg-agent-factory-poc/providers/Microsoft.ApiManagement/service/apim-agent-factory-private-poc
 ```
 
 KQL examples:

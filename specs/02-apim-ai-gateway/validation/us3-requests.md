@@ -12,14 +12,14 @@ Status: **BLOCKED (live Azure gate unresolved)**
 ```bash
 for i in $(seq 1 10); do
   curl -sS -o /tmp/apim-ok-$i.json -w "%{http_code}\n" \
-    "https://apim-agent-factory-poc.azure-api.net/llm/v1/chat/completions" \
+    "https://apim-agent-factory-private-poc.azure-api.net/llm/v1/chat/completions" \
     -H "Content-Type: application/json" \
     -H "Ocp-Apim-Subscription-Key: <valid-key>" \
     -d '{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"hello"}],"stream":false}'
 done
 
 curl -sS -o /tmp/apim-deny.json -w "%{http_code}\n" \
-  "https://apim-agent-factory-poc.azure-api.net/llm/v1/chat/completions" \
+  "https://apim-agent-factory-private-poc.azure-api.net/llm/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d '{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"hello"}],"stream":false}'
 ```

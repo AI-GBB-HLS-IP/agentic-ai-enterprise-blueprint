@@ -22,5 +22,5 @@ az deployment group what-if \
 ## Observed summary (2026-08-23)
 
 - Planned resources include exactly one APIM API:
-  `Microsoft.ApiManagement/service/apim-agent-factory-poc/apis/enterprise-llm-api`
+  `Microsoft.ApiManagement/service/apim-agent-factory-private-poc/apis/enterprise-llm-api`
 - Out-of-scope APIM resources (MCP/A2A) are absent from the what-if change set.
