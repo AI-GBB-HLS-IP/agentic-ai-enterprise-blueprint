@@ -26,7 +26,7 @@ param foundryAccountId string
   'Enabled'
   'Disabled'
 ])
-param publicNetworkAccess string = 'Disabled'
+param publicNetworkAccess string = 'Enabled'
 
 @description('Existing Foundry account name.')
 param foundryAccountName string = 'foundry-agent-factory-poc'
