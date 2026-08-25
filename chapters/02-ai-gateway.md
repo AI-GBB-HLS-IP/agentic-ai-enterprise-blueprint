@@ -316,7 +316,8 @@ az role assignment create \
 
 ### Step 3: Configure AI Gateway Policies
 
-Apply policies for token management, caching, and content safety:
+Apply policies for token management, caching, and content safety. Place both token-limit and
+token-metric policies in the inbound pipeline:
 
 ```xml
 <!-- Token rate limiting per subscription and token metrics for monitoring -->
