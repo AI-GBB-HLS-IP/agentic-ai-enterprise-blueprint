@@ -139,13 +139,12 @@ az network vnet create \
   --address-prefix 10.0.0.0/16 \
   --location $LOCATION
 
-# Create subnet for APIM (delegated) — /24 recommended
+# Create subnet for APIM (no delegation — classic Premium requires an undelegated subnet) — /24 recommended
 az network vnet subnet create \
   --resource-group $RESOURCE_GROUP \
   --vnet-name $VNET_NAME \
   --name snet-apim \
-  --address-prefix 10.0.1.0/24 \
-  --delegations Microsoft.ApiManagement/service
+  --address-prefix 10.0.1.0/24
 
 # Create subnet for App Services / ASE
 az network vnet subnet create \
