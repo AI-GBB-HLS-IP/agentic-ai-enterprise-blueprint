@@ -50,6 +50,31 @@ The API Center instance, APIM link, governance metadata schema, and developer po
 below are requirements for this feature; they are not claimed to be deployed by this
 specification.
 
+## Clarifications
+
+### Session 2026-08-25
+
+- Q: Who or what should technically enforce that platform engineers, the AI CoE governance
+  owner, and developers each get different access levels to the API Center instance? → A: Azure
+  RBAC role assignments — platform engineering holds control-plane Contributor/Owner on the API
+  Center resource; the AI CoE governance owner holds a scoped, metadata-editor role limited to
+  managing the governance metadata schema and catalog metadata (not resource lifecycle);
+  developers access only the developer portal via Entra ID group membership, with no
+  control-plane role.
+- Q: Should "lifecycle stage" be a required governance metadata property alongside owning team,
+  data classification, and agent protocol, or is it optional/deferred for this increment? → A:
+  Required now — "lifecycle stage" is a fourth enumerated required property defined in this
+  increment.
+- Q: After an API changes in APIM (e.g., a new API is published), how quickly must that change be
+  reflected in the API Center catalog for the sync to count as "healthy"? → A: Within 15 minutes.
+- Q: Does this increment need to record an audit trail (who changed governance metadata, when a
+  sync occurred, who accessed the portal) for AI CoE oversight, or is that out of scope until a
+  later increment? → A: Deferred — rely on default Azure Monitor/diagnostic logging only for this
+  increment; an explicit audit-trail/reporting capability is a later increment.
+- Q: Who specifically should be able to access the developer portal — all authenticated users in
+  the tenant, or only members of a designated Entra ID group/role scoped to this POC? → A:
+  Restricted to members of a designated Entra ID security group scoped to this POC.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Platform engineer creates the API Center catalog instance (Priority: P1)
@@ -123,8 +148,8 @@ any API, MCP server, or skill entry, independent of whether any entry currently 
 **Acceptance Scenarios**:
 
 1. **Given** the API Center instance exists, **When** the metadata schema is inspected, **Then**
-   it defines at minimum an "owning team", a "data classification", and an "agent protocol"
-   property, each with a constrained (enumerated) set of allowed values.
+   it defines at minimum an "owning team", a "data classification", an "agent protocol", and a
+   "lifecycle stage" property, each with a constrained (enumerated) set of allowed values.
 2. **Given** the metadata schema is defined, **When** the auto-synced `chat/completions` API
    entry is inspected, **Then** it can be annotated with the defined metadata properties without
    error, demonstrating the schema is usable against a real catalog entry.
@@ -141,17 +166,19 @@ governance metadata, without needing direct Azure control-plane access or asking
 and the metadata schema (Story 3); it demonstrates the discoverability value of this chapter, but
 naturally depends on there being an instance, a link, and metadata to browse.
 
-**Independent Test**: As an authenticated user with catalog-reader access, open the developer
-portal and search/browse for the known `chat/completions` API entry; confirm it is discoverable
-and its governance metadata is visible, without requiring Azure Resource Manager access.
+**Independent Test**: As a member of the designated Entra ID developer security group, open the
+developer portal and search/browse for the known `chat/completions` API entry; confirm it is
+discoverable and its governance metadata is visible, without requiring Azure Resource Manager
+access.
 
 **Acceptance Scenarios**:
 
-1. **Given** the developer portal is deployed, **When** an authenticated reader browses it,
-   **Then** they can find the synced `chat/completions` API and view its title, description, and
-   governance metadata.
-2. **Given** Entra ID authentication is configured for the portal, **When** an unauthenticated or
-   unauthorized user attempts to access it, **Then** access is denied.
+1. **Given** the developer portal is deployed, **When** a member of the designated Entra ID
+   developer security group browses it, **Then** they can find the synced `chat/completions` API
+   and view its title, description, and governance metadata.
+2. **Given** Entra ID authentication is configured for the portal, **When** an unauthenticated
+   user or an authenticated user who is not a member of the designated developer security group
+   attempts to access it, **Then** access is denied.
 3. **Given** no MCP server, skill, or agent entries exist in this increment, **When** a portal
    user searches for these categories, **Then** the portal correctly shows an empty result rather
    than an error, and this is not treated as a defect.
@@ -188,16 +215,19 @@ and its governance metadata is visible, without requiring Azure Resource Manager
 - **FR-003**: The feature MUST create a service link between the API Center instance and the
   existing Chapter 02 APIM instance so that APIM's APIs auto-sync into the catalog.
 - **FR-004**: The feature MUST validate that the auto-synced client-facing `chat/completions` API
-  appears in the API Center catalog without manual re-entry, and MUST NOT create a duplicate
-  manual entry for the same API.
+  appears in the API Center catalog within 15 minutes of an APIM API change, without manual
+  re-entry, and MUST NOT create a duplicate manual entry for the same API.
 - **FR-005**: The feature MUST define a governance metadata schema with, at minimum, an owning
-  team property, a data classification property, and an agent protocol property, each
-  constrained to an enumerated set of allowed values.
+  team property, a data classification property, an agent protocol property, and a lifecycle
+  stage property, each constrained to an enumerated set of allowed values.
 - **FR-006**: The feature MUST demonstrate that the defined metadata schema can be attached to the
   auto-synced `chat/completions` catalog entry without error.
 - **FR-007**: The feature MUST deploy a developer portal for the API Center instance with Entra ID
-  authentication enabled, denying access to unauthenticated or unauthorized users.
-- **FR-008**: The developer portal MUST allow an authenticated, authorized reader to browse and
+  authentication enabled, restricting access to members of a designated Entra ID security group
+  scoped to this POC and denying access to unauthenticated users or authenticated users outside
+  that group.
+- **FR-008**: The developer portal MUST allow an authenticated member of the designated developer
+  security group to browse and
   search the catalog and view an entry's title, description, and governance metadata.
 - **FR-009**: The feature MUST NOT register, or depend on the existence of, any MCP server, skill,
   or A2A agent API entry; the catalog MUST correctly reflect zero such entries for this
@@ -211,10 +241,16 @@ and its governance metadata is visible, without requiring Azure Resource Manager
 - **FR-012**: The deployment MUST be idempotent: reapplying the same declared configuration MUST
   NOT produce unexpected resource changes or duplicate API Center instances, service links, or
   metadata schema definitions.
-- **FR-013**: The feature MUST preserve separation of duties: platform engineering owns the
-  catalog instance and APIM link; the AI CoE / governance owner defines and maintains the
-  metadata schema and reviews catalog contents; developers consume the catalog through the
-  developer portal without direct infrastructure access.
+- **FR-013**: The feature MUST preserve separation of duties via distinct Azure RBAC role
+  assignments: platform engineering holds control-plane Contributor/Owner on the API Center
+  resource (instance, APIM link, portal lifecycle); the AI CoE / governance owner holds a scoped
+  role limited to defining and maintaining the governance metadata schema and annotating catalog
+  entries, without resource-lifecycle permissions; developers receive no control-plane role and
+  access the catalog only through the developer portal via Entra ID group membership.
+- **FR-014**: The feature MUST rely on default Azure Monitor / diagnostic-settings logging for
+  the API Center resource as its baseline observability for this increment; an explicit
+  governance audit trail (metadata change history, sync event history, portal access reporting)
+  is deferred to a later increment and MUST NOT be treated as a gap for this feature.
 
 ### Key Entities
 
@@ -239,13 +275,14 @@ and its governance metadata is visible, without requiring Azure Resource Manager
 - **SC-001**: A platform engineer can stand up the API Center instance and link it to the
   existing APIM gateway without manually re-entering any API that already exists in APIM.
 - **SC-002**: 100% of APIM client-facing APIs present at link time (currently one:
-  `chat/completions`) appear in the API Center catalog through auto-sync, verified without any
-  manual catalog edit.
+  `chat/completions`) appear in the API Center catalog through auto-sync within 15 minutes,
+  verified without any manual catalog edit.
 - **SC-003**: 100% of the defined governance metadata properties (owning team, data
-  classification, agent protocol) can be attached to a real catalog entry with no schema
-  validation errors.
-- **SC-004**: 100% of unauthenticated or unauthorized developer portal access attempts are denied,
-  while an authorized reader can locate the known catalog entry and its metadata in under one
+  classification, agent protocol, lifecycle stage) can be attached to a real catalog entry with
+  no schema validation errors.
+- **SC-004**: 100% of access attempts by unauthenticated users or authenticated users outside the
+  designated developer security group are denied, while a member of that group can locate the
+  known catalog entry and its metadata in under one
   minute of browsing/searching.
 - **SC-005**: Reapplying the declared configuration produces zero unexpected changes and creates
   no duplicate API Center instances, service links, or metadata schema definitions.
