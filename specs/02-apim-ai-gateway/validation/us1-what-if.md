@@ -14,8 +14,8 @@ az deployment group what-if \
 
 ## Expected allowed change set
 
-- `snet-apim` delegation to `Microsoft.Web/serverFarms`
-- APIM Premium v2 (internal VNet injection)
+- `snet-apim` remains undelegated (classic Premium requires no subnet delegation)
+- APIM classic Premium (internal VNet injection)
 - APIM-related DNS/identity/backend/API/observability resources from Chapter 02 scope
 
 ## Out-of-scope checks
@@ -24,8 +24,9 @@ az deployment group what-if \
 - No mutation to `snet-privateendpoints`
 - No reuse or mutation of existing `privatelink.azure-api.net`
 
-## Observed summary (2026-08-23)
+## Observed summary (2026-08-25)
 
-- Resource changes: **15 create**, **1 deploy** (`snet-apim` delegation update), **38 ignore**.
+- Resource changes: **15 create**, **38 ignore**; `snet-apim` is left undelegated and unchanged
+  (no `Microsoft.Web/serverFarms` delegation is applied).
 - Potential post-provisioning record: `azure-api.net/A/apim-agent-factory-private-poc` (created once APIM
   private IP is available).
