@@ -4,7 +4,7 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 @description('APIM gateway service name.')
-param apimServiceName string = 'apim-agent-factory-poc'
+param apimServiceName string = 'apim-agent-factory-private-poc'
 
 @description('APIM publisher contact email.')
 param publisherEmail string
@@ -21,12 +21,12 @@ param apimSubnetName string = 'snet-apim'
 @description('Existing Foundry account resource ID.')
 param foundryAccountId string
 
-@description('Public network access state. Set Enabled only for initial APIM activation, then disable it.')
+@description('APIM public network access. Internal VNet injection keeps the gateway private; disabling this flag requires an approved APIM Private Endpoint.')
 @allowed([
   'Enabled'
   'Disabled'
 ])
-param publicNetworkAccess string = 'Disabled'
+param publicNetworkAccess string = 'Enabled'
 
 @description('Existing Foundry account name.')
 param foundryAccountName string = 'foundry-agent-factory-poc'

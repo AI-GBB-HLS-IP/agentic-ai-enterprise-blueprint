@@ -39,7 +39,7 @@ Status: **PASS**
 
 - Implemented in API policy as:
   - inbound `llm-token-limit` keyed by `context.Subscription.Id`
-  - outbound `llm-emit-token-metric` dimensions `Subscription` and `API`
+  - inbound `llm-emit-token-metric` dimensions `Subscription` and `API`
 - Backend auth policy implemented with:
   - `authentication-managed-identity resource="https://cognitiveservices.azure.com"`
 

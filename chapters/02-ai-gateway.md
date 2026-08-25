@@ -85,22 +85,29 @@ Azure API Management offers several networking models. Understanding these is cr
 | Model | Tiers | Traffic | Use Case |
 |-------|-------|---------|----------|
 | **VNet Injection (Classic)** — External | Developer, Premium | Inbound + outbound via internet | External access to private backends |
-| **VNet Injection (Classic)** — Internal | Developer, Premium | Inbound + outbound via VNet only | Fully internal access |
-| **VNet Injection (Premium v2)** | Premium v2 | Inbound + outbound via delegated subnet | **Recommended** — full isolation with modern architecture |
+| **VNet Injection (Classic)** — Internal | Developer, Premium | Inbound + outbound via VNet only | **Our choice** — fully internal access |
+| **VNet Injection (Premium v2)** | Premium v2 | Inbound + outbound via delegated subnet | Preferred future tier — modern architecture, capacity permitting |
 | **VNet Integration (v2)** | Standard v2, Premium v2 | Outbound only | External gateway, private backends |
 | **Inbound Private Endpoint** | Most tiers | Inbound only | Secure client connections |
 
-### Our Choice: VNet Injection (Premium v2 Tier)
+### Our Choice: VNet Injection — Classic Premium (Internal)
 
-We will use **VNet injection in the Premium v2 tier** because it provides:
+We use **internal VNet injection on the classic Premium tier**. Premium v2 remains the preferred
+long-term target, but its capacity was unavailable in our region, so the deployed blueprint
+implementation uses classic Premium. Both tiers deliver the properties we need:
 
 - The API Management gateway endpoint is accessible through the VNet at a **private IP address**
 - APIM can make outbound requests to API backends that are **isolated in the network** or any peered network
 - Network connectivity to most service dependencies is **automatically managed**
-- Both inbound and outbound traffic can be allowed to the **delegated subnet**, peered VNets, ExpressRoute, and S2S VPN connections
-- The Premium v2 tier supports all AI gateway capabilities including MCP servers and A2A
+- Both inbound and outbound traffic can be allowed to the injected subnet, peered VNets, ExpressRoute, and S2S VPN connections
 
-> **Note**: VNet injection in Premium v2 is configured at creation time. You cannot add it after the instance is created.
+> **Note**: VNet injection is configured at creation time. You cannot add it after the instance is
+> created. Classic Premium requires the APIM subnet to have **no delegation**; Premium v2 requires
+> a `Microsoft.Web/serverFarms` delegation. The two are not interchangeable on the same subnet.
+
+> **Note**: `publicNetworkAccess` cannot be disabled until the service has at least one approved
+> Private Endpoint connection. Internal VNet injection already keeps the gateway private; this flag
+> only governs the control-plane surface.
 
 ### Advanced: Web Application Firewall
 
@@ -132,13 +139,12 @@ az network vnet create \
   --address-prefix 10.0.0.0/16 \
   --location $LOCATION
 
-# Create subnet for APIM (delegated) — /24 recommended
+# Create subnet for APIM (no delegation — classic Premium requires an undelegated subnet) — /24 recommended
 az network vnet subnet create \
   --resource-group $RESOURCE_GROUP \
   --vnet-name $VNET_NAME \
   --name snet-apim \
-  --address-prefix 10.0.1.0/24 \
-  --delegations Microsoft.ApiManagement/service
+  --address-prefix 10.0.1.0/24
 
 # Create subnet for App Services / ASE
 az network vnet subnet create \
@@ -178,14 +184,14 @@ az network vnet subnet create \
 ```bash
 APIM_NAME="apim-agents-gateway"
 
-# Create APIM with Premium v2 tier and VNet injection
+# Create APIM with classic Premium tier and internal VNet injection
 # Note: This takes 30-45 minutes
 az apim create \
   --resource-group $RESOURCE_GROUP \
   --name $APIM_NAME \
   --publisher-name "Enterprise AI Platform" \
   --publisher-email "ai-platform@contoso.com" \
-  --sku-name Premiumv2 \
+  --sku-name Premium \
   --location $LOCATION \
   --virtual-network-type Internal \
   --virtual-network "{\"subnetResourceId\": \"/subscriptions/<SUB_ID>/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/$VNET_NAME/subnets/snet-apim\"}"
@@ -316,10 +322,11 @@ az role assignment create \
 
 ### Step 3: Configure AI Gateway Policies
 
-Apply policies for token management, caching, and content safety:
+Apply policies for token management, caching, and content safety. Place both token-limit and
+token-metric policies in the inbound pipeline:
 
 ```xml
-<!-- Token rate limiting per subscription -->
+<!-- Token rate limiting per subscription and token metrics for monitoring -->
 <inbound>
     <base />
     <llm-token-limit
@@ -328,17 +335,12 @@ Apply policies for token management, caching, and content safety:
         estimate-prompt-tokens="true"
         remaining-tokens-variable-name="remainingTokens">
     </llm-token-limit>
-</inbound>
-
-<!-- Emit token metrics for monitoring -->
-<outbound>
-    <base />
     <llm-emit-token-metric namespace="ai-gateway-metrics">
         <dimension name="Subscription" value="@(context.Subscription.Id)" />
         <dimension name="API" value="@(context.Api.Id)" />
         <dimension name="Team" value="@(context.Request.Headers.GetValueOrDefault("x-team-id", "unknown"))" />
     </llm-emit-token-metric>
-</outbound>
+</inbound>
 ```
 
 ### Step 4: Configure Backend Load Balancing

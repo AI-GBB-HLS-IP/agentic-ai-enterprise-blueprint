@@ -9,7 +9,7 @@ az network vnet subnet show -g rg-agent-factory-poc \
   --vnet-name vnet-agent-factory-poc -n snet-apim \
   --query '{delegations:delegations[*].serviceName,nsg:networkSecurityGroup.id,addressPrefix:addressPrefix}'
 
-az apim show -g rg-agent-factory-poc -n apim-agent-factory-poc \
+az apim show -g rg-agent-factory-poc -n apim-agent-factory-private-poc \
   --query '{sku:sku.name,capacity:sku.capacity,virtualNetworkType:virtualNetworkType,publicIpAddresses:publicIPAddresses,subnetId:virtualNetworkConfiguration.subnetResourceId}'
 ```
 

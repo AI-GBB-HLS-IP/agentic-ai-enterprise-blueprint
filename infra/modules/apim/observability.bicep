@@ -126,10 +126,6 @@ resource apimDiagnosticSetting 'Microsoft.Insights/diagnosticSettings@2021-05-01
         category: 'GatewayLogs'
         enabled: true
       }
-      {
-        category: 'GatewayRequests'
-        enabled: true
-      }
     ]
     metrics: [
       {

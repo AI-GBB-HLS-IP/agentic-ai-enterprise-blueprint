@@ -5,7 +5,7 @@ Status: **BLOCKED (live Azure gate unresolved)**
 ## Live checks to capture
 
 ```bash
-APIM_PRINCIPAL_ID=$(az apim show -g rg-agent-factory-poc -n apim-agent-factory-poc --query identity.principalId -o tsv)
+APIM_PRINCIPAL_ID=$(az apim show -g rg-agent-factory-poc -n apim-agent-factory-private-poc --query identity.principalId -o tsv)
 
 az role assignment list \
   --assignee "$APIM_PRINCIPAL_ID" \
@@ -19,7 +19,7 @@ az network private-dns link vnet list -g rg-agent-factory-poc -z azure-api.net -
 From `vm-fnd-jbox`:
 
 ```bash
-nslookup apim-agent-factory-poc.azure-api.net
+nslookup apim-agent-factory-private-poc.azure-api.net
 ```
 
 ## Pass criteria

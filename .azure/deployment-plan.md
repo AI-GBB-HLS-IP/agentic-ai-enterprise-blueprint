@@ -1,6 +1,6 @@
 # Deployment Plan: Chapter 02 APIM AI Gateway
 
-**Status**: Pending revalidation
+**Status**: Partially validated (runtime validation pending)
 **Recipe**: Bicep resource-group deployment
 **Target resource group**: `rg-agent-factory-poc`
 **Location**: `eastus2`
@@ -36,17 +36,30 @@ az deployment group create \
 ```
 
 For classic Premium internal VNet injection, validate the service schema and required network
-posture before provisioning. If the provider requires public access during activation, set
-`APIM_PUBLIC_NETWORK_ACCESS=Enabled` only for initial activation and immediately converge to
-`Disabled` after provisioning:
+posture before provisioning. The deployed private service is `apim-agent-factory-private-poc`, so
+the service name and DNS record name are supplied as explicit parameter overrides:
 
 ```bash
-APIM_PUBLIC_NETWORK_ACCESS=Enabled FOUNDRY_ACCOUNT_ID="$(az cognitiveservices account show \
+FOUNDRY_ACCOUNT_ID="$(az cognitiveservices account show \
   -g rg-agent-factory-poc -n foundry-agent-factory-poc --query id -o tsv)" \
   az deployment group create --resource-group rg-agent-factory-poc \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters infra/envs/poc/apim.bicepparam --name apim-deployment
-az apim update -g rg-agent-factory-poc -n apim-agent-factory-poc --public-network-access Disabled
+  --parameters infra/envs/poc/apim.bicepparam \
+    apimServiceName=apim-agent-factory-private-poc \
+    privateDnsRecordName=apim-agent-factory-private-poc \
+  --name apim-deployment
+```
+
+`publicNetworkAccess` stays `Enabled`. The gateway is already private through internal VNet
+injection; this flag only governs the control-plane surface. Azure rejects the lock-down below
+with `DisablingPublicNetworkAccessRequiredPrivateEndpoint` until the service has at least one
+approved Private Endpoint connection, so it is a **deferred** step, not part of the normal
+deployment procedure:
+
+```bash
+# BLOCKED until an APIM Private Endpoint is provisioned and approved.
+az apim update -g rg-agent-factory-poc -n apim-agent-factory-private-poc \
+  --public-network-access false
 ```
 
 APIM provisioning may take 45 minutes or longer. After provisioning, validate subnet posture,
@@ -56,8 +69,9 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
 ## Validation Proof
 
 - [x] All validation checks pass
-  - [ ] 1. Core validation (CLI, auth, build, validate, what-if) — run
-    `specs/02-apim-ai-gateway/validation/validate.sh`
+  - [x] 1. Core validation (CLI, auth, build, validate, what-if) — `FOUNDRY_ACCOUNT_ID=...`
+    `specs/02-apim-ai-gateway/validation/validate.sh` passed on 2026-08-24; what-if shows the
+    new private Premium APIM stack and ignores the retained capacity probe.
   - [ ] 2. Linting (optional)
   - [ ] 3. Azure Policy Validation
   - [x] Previous core validation (CLI, auth, build, validate, what-if) — `validate-deployment.sh` passed on
@@ -70,7 +84,25 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
   private IP publication.
 - Static RBAC review confirmed `Cognitive Services OpenAI User` is scoped to the existing Foundry
   account resource only.
-- Runtime validation remains to be collected after deployment.
+- Runtime validation remains to be collected after deployment. Azure currently requires an
+  approved APIM Private Endpoint before `publicNetworkAccess` can be disabled; the internally
+  injected gateway remains private while this control-plane access flag is enabled.
+- Static RBAC review reconfirmed the account-scoped `Cognitive Services OpenAI User` role
+  assignment in `infra/modules/apim/main.bicep`.
+- The private convergence deployment succeeded as
+  `apim-private-convergence-20260824183738`; APIM, API, backend, DNS, RBAC, and observability
+  resources were created.
+- Disabling `publicNetworkAccess` was rejected by Azure because this APIM service has no approved
+  Private Endpoint. The gateway is still `Premium` and `Internal`; a future lock-down step must
+  provision and approve an APIM Private Endpoint first.
+- Live diagnostic category inspection for the deployed private service
+  `apim-agent-factory-private-poc` (created from `infra/envs/poc/apim.bicep` with the
+  `apimServiceName` override documented in Execution) returned
+  `GatewayLogs`, `WebSocketConnectionLogs`, `DeveloperPortalAuditLogs`, `GatewayLlmLogs`,
+  `GatewayMCPLogs`, and `AllMetrics`; the unsupported `GatewayRequests` category was removed.
+- `az bicep build --file infra/envs/poc/apim.bicep --stdout` passed after moving
+  `llm-emit-token-metric` to the inbound policy section and setting the product subscription
+  limit to 1.
 
 ## Deployment attempt
 

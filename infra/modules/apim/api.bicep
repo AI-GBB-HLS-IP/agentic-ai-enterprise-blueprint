@@ -46,7 +46,7 @@ resource governedProduct 'Microsoft.ApiManagement/service/products@2024-05-01' =
     description: 'Subscription-key-protected product exposing only the approved chat/completions API.'
     subscriptionRequired: true
     approvalRequired: false
-    subscriptionsLimit: 0
+    subscriptionsLimit: 1
     state: 'published'
   }
 }
@@ -110,6 +110,10 @@ var apiPolicyXml = concat(
   '      </when>\n',
   '    </choose>\n',
   '    <llm-token-limit counter-key="@(context.Subscription.Id)" tokens-per-minute="', string(tokenLimitPerMinute), '" estimate-prompt-tokens="true" remaining-tokens-variable-name="remainingTokens" />\n',
+  '    <llm-emit-token-metric namespace="ai-gateway-metrics">\n',
+  '      <dimension name="Subscription" value="@(context.Subscription.Id)" />\n',
+  '      <dimension name="API" value="@(context.Api.Id)" />\n',
+  '    </llm-emit-token-metric>\n',
   '    ', backendPolicyXml, '\n',
   '  </inbound>\n',
   '  <backend>\n',
@@ -117,10 +121,6 @@ var apiPolicyXml = concat(
   '  </backend>\n',
   '  <outbound>\n',
   '    <base />\n',
-  '    <llm-emit-token-metric namespace="ai-gateway-metrics">\n',
-  '      <dimension name="Subscription" value="@(context.Subscription.Id)" />\n',
-  '      <dimension name="API" value="@(context.Api.Id)" />\n',
-  '    </llm-emit-token-metric>\n',
   '  </outbound>\n',
   '  <on-error>\n',
   '    <base />\n',
