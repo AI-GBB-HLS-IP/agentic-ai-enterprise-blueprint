@@ -1,6 +1,6 @@
 # Deployment Plan: Chapter 02 APIM AI Gateway
 
-**Status**: Not Validated (mandatory live Azure gates BLOCKED — see Validation Proof)
+**Status**: Not Validated (runtime validation complete; mandatory live Azure gate artifacts still BLOCKED — see Validation Proof)
 **Recipe**: Bicep resource-group deployment
 **Target resource group**: `rg-agent-factory-poc`
 **Location**: `eastus2`
