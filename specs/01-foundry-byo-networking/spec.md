@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-14
 
-**Status**: Draft
+**Status**: Implemented and deployed; validation partially complete
 
 **Input**: User description: "Create specs/01-foundry-byo-networking/spec.md for Chapter 01, Microsoft Foundry with BYO Networking. Use the network foundation as an existing prerequisite and scope deployment, supporting resources, private connectivity, BYO VNet configuration, model deployment, and validation."
 
@@ -19,8 +19,9 @@ subnet `snet-foundry` (`10.0.2.0/24`, delegated to `Microsoft.App/environments`)
 exist and be usable.
 
 The Foundry account, project configuration, supporting resources, private endpoints, DNS
-integration, BYO VNet association, and model deployment described below are requirements for
-this feature; they are not claimed to be deployed by this specification.
+integration, BYO VNet association, and approved model deployment are deployed in the POC.
+Remaining validation and negative-path tasks continue to be tracked in `tasks.md` and the
+`validation/` evidence files.
 
 ## User Scenarios & Testing *(mandatory)*
 

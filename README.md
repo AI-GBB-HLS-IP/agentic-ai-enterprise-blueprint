@@ -111,7 +111,7 @@ Enterprise (Recommended)
 |---------|-------|-------|
 | [00](./chapters/00-overview.md) | Platform Overview & Architecture | Architecture deep-dive, topology decisions, IQ ecosystem, security philosophy |
 | [01](./chapters/01-foundry-byo-networking.md) | Create Microsoft Foundry with BYO Networking | Foundry resource with private VNet, delegated subnets, private endpoints |
-| [02](./chapters/02-ai-gateway.md) | Build the AI Gateway (APIM) | APIM as GenAI gateway, VNet injection, unified model API, MCP server hosting |
+| [02](./chapters/02-ai-gateway.md) | Build the AI Gateway (APIM) | Private APIM gateway, managed-identity Foundry access, and approved-model routing |
 | [04](./chapters/04-api-center.md) | Create Azure API Center | Centralized registry for all MCP servers, agents, skills, and APIs |
 | [15](./chapters/15-observability.md) | Observability, Evaluation & Red Teaming | Log Analytics, App Insights, dashboards, evaluators, Agent 365 registry |
 | [16](./chapters/16-defender.md) | Implement Microsoft Defender for AI | Agent inventory, risk assessment, threat detection, Agent 365 integration |
@@ -119,11 +119,16 @@ Enterprise (Recommended)
 | [19](./chapters/19-network-and-gateway.md) | Network Foundation & APIM AI Gateway | VNet design, subnets, NSGs, Firewall/UDR, DDoS, private DNS zones |
 | [20](./chapters/20-observability-and-defender.md) | Observability & Defender Stack (Production) | Production monitoring: alert rules, KQL dashboards, Defender for AI, Agent 365 |
 
-**Current sequence:** Network Foundation is complete. The active next step is **Chapter 01 —
-Create Microsoft Foundry with BYO Networking**. Start Chapter 02 (APIM) only after Foundry,
-its private endpoints, and private DNS validation are complete.
+**Current sequence:** The Network Foundation, private Foundry deployment, approved model, and
+private APIM core gateway are deployed. Chapter 04 is the next implementation phase: amend the
+POC constitution for the supported API Center region, then deploy API Center and validate APIM
+catalog synchronization and governance metadata. MCP, skill, and A2A registry population remains
+deferred until those backends exist.
 
-**What you'll have built:** A fully private AI platform with zero public exposure, all traffic through APIM, Azure Policy preventing non-compliant resources, Defender watching for threats, and observability capturing every call. No developer can bypass this foundation.
+**What you'll have built:** A private runtime data plane with model traffic governed through APIM,
+Azure Policy preventing non-compliant resources, Defender watching for threats, and observability
+capturing platform activity. Additional production hardening and later chapter capabilities remain
+separate implementation increments.
 
 ---
 

@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-23
 
-**Status**: Draft
+**Status**: Implemented and deployed; validation partially complete
 
 **Input**: User description: "Create specs/02-apim-ai-gateway/spec.md for Chapter 02, APIM AI Gateway. Use the Chapter 01 Foundry deployment as an existing prerequisite and scope a private, VNet-injected APIM gateway that exposes the approved model deployment through a governed, OpenAI-compatible API with managed identity authentication."
 

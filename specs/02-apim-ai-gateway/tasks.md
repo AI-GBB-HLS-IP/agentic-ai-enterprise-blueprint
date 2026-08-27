@@ -50,7 +50,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [X] T015 [US1] Compose the APIM module with location, publisher metadata, SKU/capacity, VNet/subnet IDs, and Foundry inputs in `infra/envs/poc/apim.bicep`
 - [X] T016 [US1] Add APIM service ID, gateway hostname, principal ID, subnet delegation status, VNet mode, subnet ID, and public-endpoint status outputs in `infra/modules/apim/main.bicep`
 - [X] T017 [US1] Compile the subnet and APIM modules and run the resource-group what-if from `infra/envs/poc/apim.bicep` using `infra/envs/poc/apim.bicepparam`, saving the non-destructive preview to `specs/02-apim-ai-gateway/validation/us1-what-if.md`
-- [ ] T018 [US1] Run the independent network-posture validation for classic Premium SKU, internal VNet injection, subnet placement, NSG preservation, and absence of public gateway endpoints, recording results in `specs/02-apim-ai-gateway/validation/us1-gateway.md`
+- [X] T018 [US1] Run the independent network-posture validation for classic Premium SKU, internal VNet injection, subnet placement, NSG preservation, and absence of public gateway endpoints, recording results in `specs/02-apim-ai-gateway/validation/us1-gateway.md`
 
 **Checkpoint**: US1 is complete only when the preview and inspection show the intended APIM/subnet changes and no public gateway path.
 
@@ -67,7 +67,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [X] T021 [P] [US2] Implement the Foundry backend URL, `gpt-4.1-mini` deployment route, and `authentication-managed-identity` policy with audience `https://cognitiveservices.azure.com` in `infra/modules/apim/backend.bicep`
 - [X] T022 [US2] Compose role assignment, DNS, and backend resources in `infra/envs/poc/apim.bicep` with explicit dependencies on the APIM identity, published private IPs, and existing Foundry account
 - [X] T023 [US2] Add role assignment ID, DNS zone/link IDs, backend ID, and managed-identity readiness outputs in `infra/modules/apim/backend.bicep` and `infra/modules/apim/private-dns.bicep`
-- [ ] T024 [US2] Validate account-only role scope, managed-identity policy content, absence of API keys/secrets, DNS zone separation, VNet link, and private hostname resolution from `vm-fnd-jbox`, recording evidence in `specs/02-apim-ai-gateway/validation/us2-identity-dns.md`
+- [X] T024 [US2] Validate account-only role scope, managed-identity policy content, absence of API keys/secrets, DNS zone separation, VNet link, and private hostname resolution from `vm-fnd-jbox`, recording evidence in `specs/02-apim-ai-gateway/validation/us2-identity-dns.md`
 
 **Checkpoint**: US2 is ready only when identity authorization and private DNS pass; a missing role, public resolution, unresolved hostname, or secret reference fails readiness.
 
