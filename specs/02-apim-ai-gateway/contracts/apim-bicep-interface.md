@@ -7,7 +7,8 @@ parameter file. This is a design contract, not infrastructure code.
 
 - `location`, `apimServiceName`, `publisherEmail`, `publisherName`
 - Existing IDs: `vnetId`, `apimSubnetId` (subnet to be delegated by this feature)
-- Existing Foundry references: `foundryAccountId`, `foundryAccountName`,
+- Existing Foundry references: `foundryAccountName`, `foundryAccountId` (optional; derived from
+  `foundryAccountName` in the target resource group when omitted),
   `approvedModels` (public model name, Foundry deployment name, and enabled state; initially
   one `gpt-4.1-mini` entry)
 - `apimSkuCapacity`
