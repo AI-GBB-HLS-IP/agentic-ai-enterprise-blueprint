@@ -1,6 +1,6 @@
 # Deployment Plan: Chapter 02 APIM AI Gateway
 
-**Status**: Partially validated (runtime validation pending)
+**Status**: Not Validated (runtime validation complete; mandatory live Azure gate artifacts still BLOCKED — see Validation Proof)
 **Recipe**: Bicep resource-group deployment
 **Target resource group**: `rg-agent-factory-poc`
 **Location**: `eastus2`
@@ -68,7 +68,28 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
 
 ## Validation Proof
 
-- [x] All validation checks pass
+- [ ] All validation checks pass — **blocked**: `us1-gateway.md`, `us2-identity-dns.md`,
+  `us3-requests.md`, and `us3-observability.md` still report **BLOCKED (live Azure gate
+  unresolved)** per the gate policy in `specs/02-apim-ai-gateway/validation/README.md`.
+  - [x] 2026-08-27 approved-model update validation — branch
+    `feat/apim-approved-models` at `74ba4e7`; Bicep template and parameter compilation,
+    resource-group validation, repository fail-closed checks, and non-destructive what-if passed.
+    The preview adds the non-secret `approved-models` named value and updates the existing APIM
+    backend/API policy configuration without changing the Foundry deployment or network
+    architecture.
+  - [x] 2026-08-27 approved-model deployment — PR #29 merged as `c379616`; scoped deployment
+    `apim-approved-models-20260827` succeeded. The live non-secret `approved-models` named value
+    contains one enabled `gpt-4.1-mini` public-name-to-deployment mapping.
+  - [x] 2026-08-27 private-client runtime validation — the APIM hostname resolved to `10.0.1.4`;
+    a request without a subscription key returned 401; the approved model returned 200 and
+    `gpt-4.1-mini-2025-04-14`; the unapproved model returned 400 with `unsupported_model`; and
+    10 of 10 consecutive approved-model requests succeeded.
+  - [x] Static RBAC review — APIM system-assigned identity retains only the
+    `Cognitive Services OpenAI User` assignment scoped to
+    `foundry-agent-factory-poc`; the deployment identity has inherited management-group Owner
+    access for the target resource group.
+  - [x] Azure Policy review — active subscription assignments are Defender provisioning
+    policies and do not deny the scoped APIM configuration update.
   - [x] 1. Core validation (CLI, auth, build, validate, what-if) — `FOUNDRY_ACCOUNT_ID=...`
     `specs/02-apim-ai-gateway/validation/validate.sh` passed on 2026-08-24; what-if shows the
     new private Premium APIM stack and ignores the retained capacity probe.
@@ -84,9 +105,9 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
   private IP publication.
 - Static RBAC review confirmed `Cognitive Services OpenAI User` is scoped to the existing Foundry
   account resource only.
-- Runtime validation remains to be collected after deployment. Azure currently requires an
-  approved APIM Private Endpoint before `publicNetworkAccess` can be disabled; the internally
-  injected gateway remains private while this control-plane access flag is enabled.
+- Runtime validation passed after deployment. Azure currently requires an approved APIM Private
+  Endpoint before `publicNetworkAccess` can be disabled; the internally injected gateway remains
+  private while this control-plane access flag is enabled.
 - Static RBAC review reconfirmed the account-scoped `Cognitive Services OpenAI User` role
   assignment in `infra/modules/apim/main.bicep`.
 - The private convergence deployment succeeded as
