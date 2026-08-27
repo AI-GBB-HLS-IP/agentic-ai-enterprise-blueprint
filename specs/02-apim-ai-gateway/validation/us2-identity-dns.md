@@ -13,7 +13,7 @@ Validation date: 2026-08-27
 - From `vm-fnd-jbox`, `apim-agent-factory-private-poc.azure-api.net` resolved to `10.0.1.4`.
 - The backend policy uses `authentication-managed-identity` with audience
   `https://cognitiveservices.azure.com`.
-- The approved-model Named Value is non-secret, and no Foundry API key is stored in the Bicep
+- The `approved-models` Named Value is non-secret, and no Foundry API key is stored in the Bicep
   parameters or APIM backend policy.
 
 ## Reproduction commands
