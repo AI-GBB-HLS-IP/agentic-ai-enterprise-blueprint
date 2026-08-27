@@ -108,7 +108,7 @@ Azure API Center provides a **centralized location** for managing your organizat
 
 ```bash
 RESOURCE_GROUP="rg-internet-of-agents"
-LOCATION="eastus2"
+LOCATION="${API_CENTER_LOCATION:-eastus}"
 API_CENTER_NAME="apic-agents-platform"
 
 # Create API Center (Standard plan for enterprise features)
@@ -117,6 +117,10 @@ az apic create \
   --name $API_CENTER_NAME \
   --location $LOCATION
 ```
+
+> **Region note**: Keep the location configurable and verify current API Center regional
+> availability before deployment. If the selected API Center location differs from the POC
+> runtime region, merge the required constitution amendment before implementation.
 
 > **Cost Tip**: If your API Center is linked to an eligible APIM instance (Standard, Standard v2, Premium, or Premium v2), the Standard plan is available at no extra cost.
 
