@@ -7,9 +7,14 @@ param publisherName = 'Agent Factory Platform Engineering'
 
 param vnetName = 'vnet-agent-factory-poc'
 param apimSubnetName = 'snet-apim'
-param foundryAccountId = readEnvironmentVariable('FOUNDRY_ACCOUNT_ID', resourceId('Microsoft.CognitiveServices/accounts', 'foundry-agent-factory-poc'))
 param foundryAccountName = 'foundry-agent-factory-poc'
-param modelDeploymentName = 'gpt-4.1-mini'
+param approvedModels = [
+  {
+    publicName: 'gpt-4.1-mini'
+    deploymentName: 'gpt-4.1-mini'
+    enabled: true
+  }
+]
 param publicNetworkAccess = readEnvironmentVariable('APIM_PUBLIC_NETWORK_ACCESS', 'Enabled')
 
 param apimSkuName = 'Premium'

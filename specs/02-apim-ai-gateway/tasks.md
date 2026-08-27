@@ -80,8 +80,8 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 ### Implementation for User Story 3
 
 - [X] T025 [P] [US3] Implement the single OpenAI-compatible `chat/completions` API, operation, Foundry backend binding, approved deployment routing, product, and subscription requirement in `infra/modules/apim/api.bicep`
-- [X] T026 [P] [US3] Implement inbound subscription-key enforcement and the confirmed `llm-token-limit` policy keyed by `context.Subscription.Id` in `infra/modules/apim/api.bicep`
-- [X] T027 [P] [US3] Implement inbound `llm-emit-token-metric` policy dimensions for subscription and API, rejecting unsupported model aliases or backend routes in `infra/modules/apim/api.bicep`
+- [X] T026 [P] [US3] Implement inbound subscription-key enforcement, approved-model configuration through an APIM named value, and the confirmed `llm-token-limit` policy keyed by `context.Subscription.Id` in `infra/modules/apim/api.bicep`
+- [X] T027 [P] [US3] Implement inbound `llm-emit-token-metric` policy dimensions for subscription and API, resolving enabled public model names to approved Foundry deployment names and rejecting unsupported model aliases or backend routes in `infra/modules/apim/api.bicep`
 - [X] T028 [P] [US3] Implement Application Insights, selected/reused Log Analytics integration, APIM logger, and diagnostic settings that exclude request/response bodies, subscription keys, and sensitive headers in `infra/modules/apim/observability.bicep`
 - [X] T029 [US3] Compose the API and observability modules in `infra/envs/poc/apim.bicep`, ensuring the only declared client-facing API is `chat/completions` and no MCP/A2A resource is introduced
 - [X] T030 [US3] Add API, product/subscription, Application Insights, Log Analytics, logger, diagnostic, token-policy, and scope-boundary outputs in `infra/modules/apim/api.bicep` and `infra/modules/apim/observability.bicep`
