@@ -1,6 +1,6 @@
 # Deployment Plan: Chapter 02 APIM AI Gateway
 
-**Status**: Validated
+**Status**: Not Validated (mandatory live Azure gates BLOCKED — see Validation Proof)
 **Recipe**: Bicep resource-group deployment
 **Target resource group**: `rg-agent-factory-poc`
 **Location**: `eastus2`
@@ -68,7 +68,9 @@ unauthenticated API requests, token metrics, secret-safe diagnostics, and idempo
 
 ## Validation Proof
 
-- [x] All validation checks pass
+- [ ] All validation checks pass — **blocked**: `us1-gateway.md`, `us2-identity-dns.md`,
+  `us3-requests.md`, and `us3-observability.md` still report **BLOCKED (live Azure gate
+  unresolved)** per the gate policy in `specs/02-apim-ai-gateway/validation/README.md`.
   - [x] 2026-08-27 approved-model update validation — branch
     `feat/apim-approved-models` at `74ba4e7`; Bicep template and parameter compilation,
     resource-group validation, repository fail-closed checks, and non-destructive what-if passed.
