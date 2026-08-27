@@ -15,6 +15,17 @@ parameter file. This is a design contract, not infrastructure code.
 - Observability inputs: `logAnalyticsWorkspaceId` (optional; when omitted/empty, create a new
   workspace; when provided, reuse it per research R4), `applicationInsightsName`
 
+## Approved-model configuration representation
+
+`approvedModels` is the environment-owned source of truth. The API module serializes this array
+as JSON, base64-encodes the JSON, and stores it in the non-secret `approved-models` APIM Named
+Value. APIM policy decodes the UTF-8 value and parses the JSON array before resolving a client
+model name to a Foundry deployment name.
+
+Base64 is used only to transport JSON safely through Named Value substitution and policy XML. It
+does not provide confidentiality and must not be used to store credentials. Operators must update
+the Bicep parameter and redeploy instead of maintaining a separate live allowlist.
+
 ## Outputs
 
 - APIM service resource ID, gateway hostname, and system-assigned managed identity principal ID

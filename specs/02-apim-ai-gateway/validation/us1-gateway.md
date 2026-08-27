@@ -1,8 +1,25 @@
 # US1 gateway posture evidence (T018)
 
-Status: **BLOCKED (live Azure gate unresolved)**
+Status: **PASS**
 
-## Live checks to capture
+Validation date: 2026-08-27
+
+## Live result
+
+```text
+APIM SKU: Premium, capacity 1
+Virtual network type: Internal
+Subnet: vnet-agent-factory-poc/snet-apim
+Subnet address prefix: 10.0.1.0/24
+Subnet delegation: none
+Subnet NSG: nsg-apim
+Public gateway IP addresses: none
+```
+
+The deployed gateway uses classic Premium internal VNet injection and preserves the dedicated
+subnet and NSG. No public gateway IP address is published.
+
+## Reproduction commands
 
 ```bash
 az network vnet subnet show -g rg-agent-factory-poc \

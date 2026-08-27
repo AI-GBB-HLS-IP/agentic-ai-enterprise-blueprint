@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-13
 
-**Status**: Draft
+**Status**: Implemented and deployed; optional interactive Bastion validation remains
 
 **Input**: Issue #1 — Write spec: Network Foundation (POC-simplified single-VNet), tracked under
 Milestone "Epic 1: Network Foundation".

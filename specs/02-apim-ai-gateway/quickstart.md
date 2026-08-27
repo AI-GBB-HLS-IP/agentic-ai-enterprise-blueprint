@@ -95,6 +95,25 @@ base64-encoded projection of the `approvedModels` array in
 `infra/envs/poc/apim.bicepparam`; do not maintain a second model allowlist directly in the
 policy.
 
+The Bicep module serializes the array to JSON and then base64-encodes it so quotes and other JSON
+characters can pass through APIM Named Value substitution into policy XML without an independent
+XML-escaping contract. The policy decodes the UTF-8 value and parses the resulting JSON array
+before resolving `publicName` to `deploymentName`. Base64 is transport encoding, not encryption;
+the Named Value intentionally has `secret: false` because this configuration contains no
+credentials.
+
+To inspect the deployed value from a Bash environment:
+
+```bash
+az rest --method get \
+  --url "https://management.azure.com/subscriptions/<subscription-id>/resourceGroups/rg-agent-factory-poc/providers/Microsoft.ApiManagement/service/apim-agent-factory-private-poc/namedValues/approved-models?api-version=2022-08-01" \
+  --query properties.value -o tsv |
+  base64 --decode | jq .
+```
+
+Treat `infra/envs/poc/apim.bicepparam` as the source of truth. Update the array through Bicep and
+redeploy rather than editing the live Named Value or policy manually.
+
 Send a request with an unlisted model name. Expected: APIM returns `400` with error code
 `unsupported_model` before forwarding the request to Foundry. Send a request with the listed
 public model name and confirm APIM resolves it to the configured Foundry deployment.
