@@ -63,8 +63,8 @@ echo "== Static fail-closed guard checks =="
 grep -q "virtualNetworkType: 'Internal'" "$REPO_ROOT/infra/modules/apim/main.bicep"
 grep -q "authentication-managed-identity" "$REPO_ROOT/infra/modules/apim/backend.bicep"
 grep -q "Microsoft.ApiManagement/service/namedValues" "$REPO_ROOT/infra/modules/apim/api.bicep"
-grep -q "approvedModels: approvedModels" "$REPO_ROOT/infra/envs/poc/apim.bicep"
-grep -q "param approvedModels = \[" "$REPO_ROOT/infra/envs/poc/apim.bicepparam"
+grep -qE "approvedModels:[[:space:]]*approvedModels" "$REPO_ROOT/infra/envs/poc/apim.bicep"
+grep -qE "param[[:space:]]+approvedModels[[:space:]]*=[[:space:]]*\\[" "$REPO_ROOT/infra/envs/poc/apim.bicepparam"
 
 if grep -R -n "approvedModelName" "$REPO_ROOT/infra/modules/apim" "$REPO_ROOT/infra/envs/poc/apim.bicep" >/dev/null; then
   echo "ERROR: hardcoded single-model policy parameter detected." >&2
