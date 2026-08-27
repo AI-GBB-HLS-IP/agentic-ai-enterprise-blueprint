@@ -9,9 +9,6 @@ param backendName string = 'foundry-openai-backend'
 @description('Existing Foundry account name used to construct the OpenAI endpoint.')
 param foundryAccountName string
 
-@description('Approved Foundry model deployment name.')
-param modelDeploymentName string = 'gpt-4.1-mini'
-
 @description('Foundry OpenAI API version.')
 param foundryApiVersion string = '2024-10-21'
 
@@ -25,8 +22,8 @@ resource foundryBackend 'Microsoft.ApiManagement/service/backends@2024-05-01' = 
   parent: apimService
   name: backendName
   properties: {
-    title: 'Foundry ${modelDeploymentName} backend'
-    description: 'Managed-identity backend for the approved Foundry deployment.'
+    title: 'Foundry approved-model backend'
+    description: 'Managed-identity backend for approved Foundry model deployments.'
     protocol: 'http'
     url: foundryBaseUrl
     tls: {
@@ -38,7 +35,7 @@ resource foundryBackend 'Microsoft.ApiManagement/service/backends@2024-05-01' = 
 
 var managedIdentityPolicyXml = concat(
   '<set-backend-service backend-id="', backendName, '" />\n',
-  '<rewrite-uri template="/openai/deployments/', modelDeploymentName, '/chat/completions" />\n',
+  '<rewrite-uri template="@(&quot;/openai/deployments/&quot; + (string)context.Variables[&quot;resolvedDeploymentName&quot;] + &quot;/chat/completions&quot;)" />\n',
   '<set-query-parameter name="api-version" exists-action="override">\n',
   '  <value>', foundryApiVersion, '</value>\n',
   '</set-query-parameter>\n',
@@ -52,6 +49,6 @@ output managedIdentityPolicyXml string = managedIdentityPolicyXml
 output managedIdentityReadiness object = {
   backend: 'deployed'
   authMode: 'authentication-managed-identity'
-  modelDeployment: modelDeploymentName
+  routingMode: 'approved-model-configuration'
   status: 'deployed'
 }

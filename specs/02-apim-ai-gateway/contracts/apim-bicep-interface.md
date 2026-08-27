@@ -7,8 +7,10 @@ parameter file. This is a design contract, not infrastructure code.
 
 - `location`, `apimServiceName`, `publisherEmail`, `publisherName`
 - Existing IDs: `vnetId`, `apimSubnetId` (subnet to be delegated by this feature)
-- Existing Foundry references: `foundryAccountId`, `foundryAccountName`,
-  `modelDeploymentName` (`gpt-4.1-mini`)
+- Existing Foundry references: `foundryAccountName`, `foundryAccountId` (optional; derived from
+  `foundryAccountName` in the target resource group when omitted),
+  `approvedModels` (public model name, Foundry deployment name, and enabled state; initially
+  one `gpt-4.1-mini` entry)
 - `apimSkuCapacity`
 - Observability inputs: `logAnalyticsWorkspaceId` (optional; when omitted/empty, create a new
   workspace; when provided, reuse it per research R4), `applicationInsightsName`
@@ -36,5 +38,8 @@ closed when:
 - The Foundry role assignment scope is broader than the single Foundry account.
 - The backend policy would reference an API key, connection string, or shared secret instead of
   `authentication-managed-identity`.
+- The requested public model is absent or disabled in the `approvedModels` configuration.
+- The backend deployment name is taken directly from an unvalidated client request instead of
+  being resolved through the approved-model configuration.
 - The client-facing API would accept a request without a valid subscription key.
 - An MCP server or A2A agent API would be created as part of this module family.

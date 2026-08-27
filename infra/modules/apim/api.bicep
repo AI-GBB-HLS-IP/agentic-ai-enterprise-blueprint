@@ -31,11 +31,25 @@ param backendPolicyXml string
 @minValue(1)
 param tokenLimitPerMinute int = 10000
 
-@description('Only this model identifier is accepted on the client-facing API.')
-param approvedModelName string = 'gpt-4.1-mini'
+@description('Approved public model names mapped to Foundry deployment names.')
+@minLength(1)
+param approvedModels array
 
 resource apimService 'Microsoft.ApiManagement/service@2024-05-01' existing = {
   name: apimServiceName
+}
+
+resource approvedModelsNamedValue 'Microsoft.ApiManagement/service/namedValues@2024-05-01' = {
+  parent: apimService
+  name: 'approved-models'
+  properties: {
+    displayName: 'approved-models'
+    value: base64(string(approvedModels))
+    secret: false
+    tags: [
+      'model-governance'
+    ]
+  }
 }
 
 resource governedProduct 'Microsoft.ApiManagement/service/products@2024-05-01' = {
@@ -100,12 +114,53 @@ var apiPolicyXml = concat(
   '  <inbound>\n',
   '    <base />\n',
   '    <check-header name="Ocp-Apim-Subscription-Key" failed-check-httpcode="401" failed-check-error-message="A valid subscription key is required." ignore-case="true" />\n',
+  '    <set-variable name="requestedModel" value="@{\n',
+  '      try {\n',
+  '        var requestBody = context.Request.Body.As<JObject>(preserveContent: true);\n',
+  '        return requestBody == null ? null : (string)requestBody[&quot;model&quot;];\n',
+  '      } catch {\n',
+  '        return null;\n',
+  '      }\n',
+  '    }" />\n',
+  '    <set-variable name="resolvedDeploymentName" value="@{\n',
+  '      var requestedModel = (string)context.Variables[&quot;requestedModel&quot;];\n',
+  '      if (string.IsNullOrEmpty(requestedModel)) {\n',
+  '        return null;\n',
+  '      }\n',
+  '      try {\n',
+  '        var encodedModels = &quot;{{approved-models}}&quot;;\n',
+  '        if (string.IsNullOrEmpty(encodedModels)) {\n',
+  '          return null;\n',
+  '        }\n',
+  '        var modelsJson = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(encodedModels));\n',
+  '        var models = Newtonsoft.Json.Linq.JArray.Parse(modelsJson);\n',
+  '        foreach (var token in models) {\n',
+  '          var model = token as Newtonsoft.Json.Linq.JObject;\n',
+  '          if (model == null) {\n',
+  '            continue;\n',
+  '          }\n',
+  '          var enabledToken = model[&quot;enabled&quot;];\n',
+  '          var isEnabled = enabledToken != null &amp;&amp; enabledToken.Type == Newtonsoft.Json.Linq.JTokenType.Boolean &amp;&amp; (bool)enabledToken;\n',
+  '          if (!isEnabled) {\n',
+  '            continue;\n',
+  '          }\n',
+  '          if (string.Equals((string)model[&quot;publicName&quot;], requestedModel, System.StringComparison.Ordinal)) {\n',
+  '            var deploymentName = (string)model[&quot;deploymentName&quot;];\n',
+  '            if (!string.IsNullOrEmpty(deploymentName)) {\n',
+  '              return deploymentName;\n',
+  '            }\n',
+  '          }\n',
+  '        }\n',
+  '      } catch {\n',
+  '      }\n',
+  '      return null;\n',
+  '    }" />\n',
   '    <choose>\n',
-  '      <when condition="@((string)context.Request.Body.As<JObject>(preserveContent: true)[&quot;model&quot;] != &quot;', approvedModelName, '&quot;)">\n',
+  '      <when condition="@(string.IsNullOrEmpty((string)context.Variables[&quot;resolvedDeploymentName&quot;]))">\n',
   '        <return-response>\n',
   '          <set-status code="400" reason="Bad Request" />\n',
   '          <set-header name="Content-Type" exists-action="override"><value>application/json</value></set-header>\n',
-  '          <set-body>{&quot;error&quot;:{&quot;code&quot;:&quot;unsupported_model&quot;,&quot;message&quot;:&quot;Unsupported model. Use ', approvedModelName, '.&quot;}}</set-body>\n',
+  '          <set-body>{&quot;error&quot;:{&quot;code&quot;:&quot;unsupported_model&quot;,&quot;message&quot;:&quot;The requested model is not approved.&quot;}}</set-body>\n',
   '        </return-response>\n',
   '      </when>\n',
   '    </choose>\n',
@@ -135,12 +190,17 @@ resource chatApiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-05-01
     format: 'rawxml'
     value: apiPolicyXml
   }
+  dependsOn: [
+    approvedModelsNamedValue
+  ]
 }
 
 output apiId string = chatApi.id
 output operationId string = chatOperation.id
 output apiPolicyId string = chatApiPolicy.id
 output productId string = governedProduct.id
+output approvedModelsNamedValueId string = approvedModelsNamedValue.id
+output approvedModelCount int = length(approvedModels)
 output backendBinding string = backendName
 output tokenPolicies object = {
   tokenLimitPolicy: 'llm-token-limit'

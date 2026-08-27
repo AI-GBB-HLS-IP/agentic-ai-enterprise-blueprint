@@ -18,9 +18,6 @@ param vnetName string = 'vnet-agent-factory-poc'
 @description('Existing APIM subnet name.')
 param apimSubnetName string = 'snet-apim'
 
-@description('Existing Foundry account resource ID.')
-param foundryAccountId string
-
 @description('APIM public network access. Internal VNet injection keeps the gateway private; disabling this flag requires an approved APIM Private Endpoint.')
 @allowed([
   'Enabled'
@@ -31,8 +28,12 @@ param publicNetworkAccess string = 'Enabled'
 @description('Existing Foundry account name.')
 param foundryAccountName string = 'foundry-agent-factory-poc'
 
-@description('Approved Foundry model deployment name.')
-param modelDeploymentName string = 'gpt-4.1-mini'
+@description('Existing Foundry account resource ID.')
+param foundryAccountId string = resourceId('Microsoft.CognitiveServices/accounts', foundryAccountName)
+
+@description('Approved public model names mapped to Foundry deployment names.')
+@minLength(1)
+param approvedModels array
 
 @description('APIM classic Premium SKU name. Premium v2 remains the preferred future tier.')
 @allowed([
@@ -129,7 +130,6 @@ module backend '../../modules/apim/backend.bicep' = {
     apimServiceName: apimServiceName
     backendName: backendName
     foundryAccountName: foundryAccountName
-    modelDeploymentName: modelDeploymentName
     foundryApiVersion: foundryApiVersion
   }
 }
@@ -147,7 +147,7 @@ module api '../../modules/apim/api.bicep' = {
     foundryServiceUrl: backend.outputs.backendUrl
     backendPolicyXml: backend.outputs.managedIdentityPolicyXml
     tokenLimitPerMinute: tokenLimitPerMinute
-    approvedModelName: modelDeploymentName
+    approvedModels: approvedModels
   }
 }
 
@@ -179,6 +179,8 @@ output privateDnsGatewayFqdn string = privateDns.outputs.apimGatewayFqdn
 output backendId string = backend.outputs.backendId
 output apiId string = api.outputs.apiId
 output productId string = api.outputs.productId
+output approvedModelsNamedValueId string = api.outputs.approvedModelsNamedValueId
+output approvedModelCount int = api.outputs.approvedModelCount
 output appInsightsId string = observability.outputs.applicationInsightsId
 output logAnalyticsWorkspaceId string = observability.outputs.logAnalyticsWorkspaceId
 output readiness object = {
@@ -189,6 +191,7 @@ output readiness object = {
   dns: privateDns.outputs.dnsReadiness.status
   backend: backend.outputs.managedIdentityReadiness.status
   api: api.outputs.tokenPolicies.status
+  approvedModels: api.outputs.approvedModelCount > 0 ? 'deployed' : 'failed'
   observability: observability.outputs.observabilityReadiness.status
   mcpA2aComponents: 'absent'
 }

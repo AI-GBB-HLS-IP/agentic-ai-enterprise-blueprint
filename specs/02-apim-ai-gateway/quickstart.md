@@ -90,6 +90,15 @@ Send ten consecutive non-streaming `chat/completions` requests from a private cl
 valid APIM subscription key, to the client-facing API path. Expected: at least 9 of 10 succeed
 and are attributable to the `gpt-4.1-mini` deployment.
 
+Confirm the `approved-models` APIM named value exists and is non-secret. Its value is a
+base64-encoded projection of the `approvedModels` array in
+`infra/envs/poc/apim.bicepparam`; do not maintain a second model allowlist directly in the
+policy.
+
+Send a request with an unlisted model name. Expected: APIM returns `400` with error code
+`unsupported_model` before forwarding the request to Foundry. Send a request with the listed
+public model name and confirm APIM resolves it to the configured Foundry deployment.
+
 Send one request with no subscription key (or an invalid one). Expected: APIM rejects it (401/
 403) and the request never reaches the Foundry backend — confirm via APIM/Foundry request logs
 that no corresponding Foundry-side call occurred.
