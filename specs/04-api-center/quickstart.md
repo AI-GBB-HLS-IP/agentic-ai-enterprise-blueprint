@@ -120,9 +120,9 @@ Save output to `specs/04-api-center/validation/us4-portal.md`.
 az apic mcp-server list -g rg-agent-factory-poc -n <api-center-name> -o table
 ```
 
-Expected: zero MCP servers, zero skills, and zero A2A agent APIs exist after this deployment —
-confirming the increment stayed within its approved core-catalog boundary and did not depend on
-or create any of the blueprint's Parts 3–5, 7, or 8 capabilities.
+Expected: `az apic mcp-server list` returns zero items.
+Also confirm the portal searches for skills and agents (recorded in
+`specs/04-api-center/validation/us4-portal.md`) return an accurate empty result.
 
 ## Validate idempotency
 
