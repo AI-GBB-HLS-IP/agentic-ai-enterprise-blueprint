@@ -9,7 +9,10 @@ subsequently linked to an eligible APIM tier (Standard, Standard v2, Premium, or
 the `2024-06-01-preview` API version only for the specific child resource types (service link,
 metadata schemas) that require it, if the stable GA version does not yet expose those child
 resource shapes in the target subscription — to be reconfirmed against the live subscription's
-resource-provider registration during implementation.
+resource-provider registration during implementation. Keep the API Center deployment location
+parameterized and validate regional provider support before deployment; use `eastus` as the
+initial POC parameter value rather than assuming the existing `eastus2` APIM runtime location is
+also supported by API Center.
 
 **Rationale**: The blueprint chapter's cost tip explicitly states the Standard plan is available
 at no extra cost when linked to an eligible APIM tier, and the Chapter 02 APIM instance is
@@ -138,7 +141,8 @@ of treating provider behavior as a research gate, not a hard-coded guess):
 
 1. The exact `Microsoft.ApiCenter/services`, `.../workspaces/apiSources`, and
    `.../metadataSchemas` API versions registered and available in the target subscription, and
-   whether any of them still require a preview API version.
+   whether any of them still require a preview API version, plus confirmation that the configured
+   `location` currently supports the selected resource type and API version.
 2. Whether the API Center instance's effective plan/tier, once linked to the classic Premium
    APIM instance, is expressed as an explicit `sku` value the module must set, or is applied
    automatically by the platform without a corresponding Bicep property.

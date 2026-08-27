@@ -35,8 +35,11 @@ configuration are properties of the API Center resource itself
 commands, portal access tests (in-group vs. out-of-group vs. unauthenticated), sync-latency
 timing against the 15-minute freshness target
 
-**Target Platform**: Single-region Azure POC subscription, resource-group deployment in
-`rg-agent-factory-poc` (`eastus2`)
+**Target Platform**: Azure POC subscription with API Center deployed to a provider-supported,
+parameterized location in `rg-agent-factory-poc`, linked to the existing APIM runtime in
+`eastus2`. Live provider validation determines whether `eastus2` can be selected; if not, the
+proposed initial value is `eastus`, and implementation remains blocked until the required
+cross-region constitution amendment is merged
 
 **Project Type**: Infrastructure-as-code modules and validation documentation
 
@@ -89,16 +92,24 @@ increment
   step is treated as a mandatory pre-deployment gate (mirroring the Chapter 02 pattern of
   distrusting quota-adjacent assumptions).
 - **Gate status:** PASS before research.
+- **POC region scope:** BLOCKED pending live provider validation. The implementation must first
+  confirm whether `eastus2` supports the required API Center resource types and API versions. If
+  it does not, the proposed `eastus` API Center location becomes a design-time control-plane/
+  catalog deviation while Foundry, APIM, networking, and model traffic remain in `eastus2`;
+  implementation must not begin until the required constitution amendment is merged.
+- **Gate status:** BLOCKED before implementation on the regional amendment; all other
+  constitution checks pass.
 
-**Post-Phase-1 re-evaluation:** PASS, unchanged. The Phase 1 design in
+**Post-Phase-1 re-evaluation:** CONDITIONALLY PASS, with the regional amendment still blocked.
+The Phase 1 design in
 [data-model.md](data-model.md), [contracts/api-center-bicep-interface.md](contracts/api-center-bicep-interface.md),
 and [quickstart.md](quickstart.md) preserves the three-role RBAC split with no new shared role,
 introduces no public endpoint or data-plane traffic path (the portal remains the sole,
 group-restricted user surface), keeps each of the four user stories independently testable via
 the Phase 1 validation result entity and quickstart scenarios, and adds no infrastructure outside
 `infra/modules/api-center/` and `infra/envs/poc/api-center.bicep`/`.bicepparam` — it does not
-alter `infra/modules/apim/` or `infra/modules/foundry/`. No constitution violation was introduced
-during design; the Complexity Tracking table below remains empty.
+alter `infra/modules/apim/` or `infra/modules/foundry/`. The only recorded constitution deviation is the proposed design-time
+API Center regional amendment documented in Complexity Tracking.
 
 ## Project Structure
 
@@ -150,9 +161,10 @@ feature's parameter file (the APIM resource ID and, if needed, its identity/tier
    designated Entra ID security group object ID, and the governance metadata schema property
    definitions as parameters.
 2. **Instance module (`main.bicep`):** create the `Microsoft.ApiCenter/services` resource (the
-   exact API version to be confirmed in `research.md`) in `rg-agent-factory-poc`/`eastus2`, plus
-   its implicit/default workspace, with no plan/tier parameter that would provision a redundant
-   paid SKU beyond what the eligible APIM link makes available at no additional cost.
+   exact API version to be confirmed in `research.md`) in `rg-agent-factory-poc` using the
+   configured, provider-supported `location` parameter, plus its implicit/default workspace,
+   with no plan/tier parameter that would provision a redundant paid SKU beyond what the
+   eligible APIM link makes available at no additional cost.
 3. **APIM service-link module (`apim-link.bicep`):** create a
    `Microsoft.ApiCenter/services/workspaces/apiSources` resource (or the equivalent current
    resource type — confirmed in research) referencing the existing APIM instance's resource ID,
@@ -209,7 +221,8 @@ validation (sync latency, metadata attachment, portal access, zero-registry chec
 
 ## Research questions and risks
 
-See [research.md](research.md) for sources and decisions. Implementation must confirm: the exact
+See [research.md](research.md) for sources and decisions. Implementation must confirm: that the
+configured deployment location supports `Microsoft.ApiCenter`; the exact
 `Microsoft.ApiCenter/services`, `.../workspaces/apiSources`, and `.../metadataSchemas` Bicep
 resource types and API versions available in the target subscription; the precise built-in or
 custom RBAC role(s) that grant the AI CoE governance owner metadata-only permissions without
@@ -238,7 +251,11 @@ Entra ID group restriction mechanism.
 
 ## Complexity Tracking
 
-No constitution violations. The module split (instance, APIM service link, metadata schema,
-RBAC, developer portal) mirrors the Chapter 02 module granularity and keeps each piece
-independently testable without altering the existing APIM or Foundry modules or introducing any
-MCP server, skill, or A2A agent registration ahead of its later increment.
+| Deviation | Why needed | Approval required |
+|---|---|---|
+| API Center control-plane resource proposed in `eastus` while POC runtime remains in `eastus2` | Current API Center regional availability must be validated and may not include `eastus2`; API Center is a design-time catalog and carries no model runtime traffic | Merged constitution amendment before implementation |
+
+The module split (instance, APIM service link, metadata schema, RBAC, developer portal) mirrors
+the Chapter 02 module granularity and keeps each piece independently testable without altering
+the existing APIM or Foundry modules or introducing any MCP server, skill, or A2A agent
+registration ahead of its later increment.

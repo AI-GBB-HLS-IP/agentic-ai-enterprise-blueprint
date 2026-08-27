@@ -35,6 +35,10 @@ The module must not create or modify the existing resource group, VNet, the Chap
 instance, or the Chapter 01 Foundry account/project/model deployment; it references the APIM
 instance and the Entra ID security group by ID only. It must fail closed when:
 
+- The configured `location` is not supported by `Microsoft.ApiCenter`; API Center location must
+  not be inferred from or forced to match the existing APIM runtime location.
+- The configured location differs from the existing POC runtime region without an approved
+  and merged constitution amendment.
 - The API Center instance would be provisioned with a paid plan/tier that duplicates a tier
   already available at no additional cost through the eligible APIM link (FR-002).
 - The APIM service link (API source) resource ID does not match the existing Chapter 02 APIM

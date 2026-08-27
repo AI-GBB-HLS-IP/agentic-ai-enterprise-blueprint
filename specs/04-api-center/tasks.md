@@ -27,11 +27,13 @@ resources.
       Foundry, and APIM module files
 - [ ] T002 [P] Create the API Center validation evidence directory and command runner at
       `specs/04-api-center/validation/README.md` and `specs/04-api-center/validation/validate.sh`
-- [ ] T003 [P] Create the parameter contract skeleton for target resource names, existing
-      resource IDs, RBAC principal/role inputs, and governance metadata enum definitions in
-      `infra/envs/poc/api-center.bicepparam`
+- [ ] T003 [P] Document the proposed target resource names, existing resource IDs, API Center
+      `location` decision gate, RBAC principal/role inputs, and governance metadata enum
+      definitions in `specs/04-api-center/validation/api-confirmation.md`; do not create
+      `infra/envs/poc/api-center.bicepparam` before T011 passes
 - [ ] T004 [P] Record the implementation-time API version research gate (R1 outstanding
-      confirmation #1) and its resolution status in
+      confirmation #1), including regional availability for the configured `location`, and its
+      resolution status in
       `specs/04-api-center/validation/api-confirmation.md`
 
 ## Phase 2: Foundational (Blocking Prerequisites and Research Gates)
@@ -40,15 +42,20 @@ resources.
 is declared.
 
 **CRITICAL**: No user story implementation may proceed until the prerequisite and provider gates
-in this phase are resolved or explicitly approved as manual gates.
+in this phase are resolved. Regional provider support and the constitution amendment are
+mandatory, non-waivable gates; other provider limitations may be documented as manual gates only
+when the specification explicitly permits them.
 
-- [ ] T005 [P] Confirm `Microsoft.ApiCenter` resource provider registration and the exact
+- [ ] T005 [P] Confirm `Microsoft.ApiCenter` resource provider registration, confirm the
+      configured `location` supports API Center, verify the required constitution amendment has
+      merged for a cross-region control-plane deployment when applicable, and confirm the exact
       `Microsoft.ApiCenter/services`, `.../workspaces/apiSources`, and `.../metadataSchemas` API
       versions available in the target subscription, recording evidence in
       `specs/04-api-center/validation/api-confirmation.md`
-- [ ] T006 [P] Confirm the existing `rg-agent-factory-poc` resource group, `eastus2` region, and
-      the Chapter 02 APIM instance's resource ID, tier, and `chat/completions` API are reachable,
-      recording evidence in `specs/04-api-center/validation/prerequisites.md`
+- [ ] T006 [P] Confirm the existing `rg-agent-factory-poc` resource group and the Chapter 02
+      APIM instance's `eastus2` location, resource ID, tier, and `chat/completions` API are
+      reachable; separately confirm the configured API Center `location` is supported, recording
+      evidence in `specs/04-api-center/validation/prerequisites.md`
 - [ ] T007 [P] Confirm the designated Entra ID security group's object ID already exists in the
       tenant (R5 outstanding confirmation #5) and record it in
       `specs/04-api-center/validation/prerequisites.md`
@@ -79,8 +86,9 @@ Center resource is provisioned.
 ## Phase 3: User Story 1 - Platform Engineer Creates the API Center Catalog Instance (Priority: P1) 🎯 MVP
 
 **Goal**: Provision a standalone Azure API Center instance and default workspace in
-`rg-agent-factory-poc`/`eastus2`, using only the plan/tier available at no additional cost through
-the eligible classic Premium APIM link, with no redundant paid tier.
+`rg-agent-factory-poc` in the configured provider-supported location, using only the plan/tier
+available at no additional cost through the eligible classic Premium APIM link, with no redundant
+paid tier.
 
 **Independent Test**: Inspect the deployed API Center resource's name, resource group, region,
 and effective plan/tier; confirm it exists independently of any linked service and is reachable
@@ -95,14 +103,15 @@ via the Azure control plane.
       plan/tier outputs in `infra/modules/api-center/main.bicep`
 - [ ] T015 [US1] Compose the instance module with location and service-name parameters in
       `infra/envs/poc/api-center.bicep`
-- [ ] T016 [US1] Define `location` and `apiCenterServiceName` parameter values in
+- [ ] T016 [US1] Define the provider-supported `location` (proposed initial POC value `eastus`,
+      pending a merged constitution amendment) and `apiCenterServiceName` parameter values in
       `infra/envs/poc/api-center.bicepparam`
 - [ ] T017 [US1] Compile `infra/modules/api-center/main.bicep` and run the resource-group
       what-if for the instance-only change from `infra/envs/poc/api-center.bicep`, saving the
       non-destructive preview to `specs/04-api-center/validation/us1-what-if.md`
-- [ ] T018 [US1] Validate the deployed instance's name, resource group, region, and effective
-      plan/tier against the no-additional-cost tier made available by the eligible classic
-      Premium APIM link (no redundant paid tier), recording evidence in
+- [ ] T018 [US1] Validate the deployed instance's name, resource group, configured supported
+      location, and effective plan/tier against the no-additional-cost tier made available by
+      the eligible classic Premium APIM link (no redundant paid tier), recording evidence in
       `specs/04-api-center/validation/us1-instance.md`
 
 **Checkpoint**: US1 is complete only when the instance exists independently of any linked
@@ -233,10 +242,14 @@ fail-closed behavior, and the complete quickstart workflow.
       MCP/skill/A2A agent entry count output (expected zero), in
       `infra/modules/api-center/main.bicep`
 - [ ] T043 [P] Extend `specs/04-api-center/validation/validate.sh` with fail-closed checks for a
-      redundant paid plan/tier, a stale/partial service link, a metadata property missing its
-      enumeration constraint or accepting an out-of-enum value, a portal reachable by an
-      unauthenticated or non-member user, a governance-owner role with resource-lifecycle rights,
-      a developer control-plane role assignment, and any MCP/skill/A2A agent entry
+      configured location unsupported by `Microsoft.ApiCenter`, a deployed location differing
+      from the parameter value, a cross-region control-plane deployment without the required
+      merged constitution amendment (no waiver, exception flag, manual override, or deployment
+      plan approval may substitute), a redundant paid plan/tier, a stale/partial service link, a
+      metadata property missing its enumeration constraint or accepting an out-of-enum value, a
+      portal reachable by an unauthenticated or non-member user, a governance-owner role with
+      resource-lifecycle rights, a developer control-plane role assignment, and any MCP/skill/A2A
+      agent entry
 - [ ] T044 [P] Update `specs/04-api-center/quickstart.md` with implemented module paths,
       validation runner usage, evidence filenames, and the required deployment-approval gate
 - [ ] T045 [P] Document module inputs/outputs, RBAC/ownership boundaries, and the explicit
@@ -254,8 +267,9 @@ fail-closed behavior, and the complete quickstart workflow.
       metadata schema definitions, recording the comparison in
       `specs/04-api-center/validation/idempotency.md`
 - [ ] T049 Run `az bicep build` for every changed API Center module, execute the full validation
-      runner, and record final readiness, pending provider operations, and remediation hints in
-      `specs/04-api-center/validation/final-report.md`
+      runner, and record final readiness, configured/deployed location comparison, provider
+      regional-support evidence, constitution-amendment status, pending provider operations,
+      and remediation hints in `specs/04-api-center/validation/final-report.md`
 
 ## Dependencies & Execution Order
 

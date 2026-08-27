@@ -11,13 +11,17 @@ deployment, and the designated Entra ID security group's object ID.
 
 ## Prerequisites
 
-1. Confirm the existing resource group (`rg-agent-factory-poc`), region (`eastus2`), and the
-   Chapter 02 APIM instance (classic Premium, private, exposing `chat/completions`) are present.
-2. Confirm the designated Entra ID security group for developer portal access already exists and
+1. Confirm the existing resource group (`rg-agent-factory-poc`) and the Chapter 02 APIM instance
+   (`eastus2`, classic Premium, private, exposing `chat/completions`) are present.
+2. Confirm the API Center `location` value in `api-center.bicepparam` is currently supported by
+   `Microsoft.ApiCenter`; the proposed initial POC value is `eastus`.
+3. Confirm the required constitution amendment is merged before using an API Center location
+   different from the existing `eastus2` runtime region.
+4. Confirm the designated Entra ID security group for developer portal access already exists and
    its object ID is available.
-3. Confirm the deployment plan has recorded approval before any step below runs against the live
+5. Confirm the deployment plan has recorded approval before any step below runs against the live
    subscription.
-4. Run the local deterministic validator first (if present under
+6. Run the local deterministic validator first (if present under
    `specs/04-api-center/validation/`), consistent with the Chapter 02 pattern; if it reports
    live-gate blockers, do not mark deployment readiness as passed.
 
@@ -49,9 +53,11 @@ az apic show -g rg-agent-factory-poc -n <api-center-name> \
   --query '{name:name,location:location,plan:properties}'
 ```
 
-Expected: the instance exists in `eastus2` within `rg-agent-factory-poc`, independent of any
-linked service, and its effective plan/tier does not duplicate a paid tier already available at
-no additional cost through the eligible classic Premium APIM link.
+Expected: the instance exists in the configured, provider-supported location within
+`rg-agent-factory-poc`, independent of any linked service, and its effective plan/tier does not
+duplicate a paid tier already available at no additional cost through the eligible classic
+Premium APIM link. The deployed location must exactly match the parameter value, and the existing
+APIM instance must remain in `eastus2`.
 
 Save output to `specs/04-api-center/validation/us1-instance.md`.
 
@@ -128,11 +134,14 @@ Save output comparison to `specs/04-api-center/validation/idempotency.md`.
 ## Failure cases
 
 The validation must fail with an affected resource and remediation hint for: a redundant paid
-plan/tier being provisioned, a service link that fails to establish or reports stale/partial
-sync, a metadata property missing its enumeration constraint or accepting an out-of-enum value, a
-developer portal reachable by an unauthenticated or non-member user, an RBAC assignment that
-grants the AI CoE governance owner resource-lifecycle rights or grants any developer a
-control-plane role, or the presence of any MCP server, skill, or A2A agent entry.
+plan/tier being provisioned, an unsupported configured location, a deployed location that differs
+from the parameter value, a cross-region control-plane deployment without the required governance
+approval delivered through a merged constitution amendment (no waiver, exception flag, manual
+override, or deployment-plan approval may substitute), a service link that fails to establish or
+reports stale/partial sync, a metadata property missing its enumeration constraint or accepting
+an out-of-enum value, a developer portal reachable by an unauthenticated or non-member user, an
+RBAC assignment that grants the AI CoE governance owner resource-lifecycle rights or grants any
+developer a control-plane role, or the presence of any MCP server, skill, or A2A agent entry.
 
 Record the consolidated readiness and blockers in
 `specs/04-api-center/validation/final-report.md`.

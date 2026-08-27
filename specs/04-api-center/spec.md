@@ -93,8 +93,10 @@ Azure control plane.
 **Acceptance Scenarios**:
 
 1. **Given** the prerequisite resource group `rg-agent-factory-poc` exists, **When** the API
-   Center deployment is applied, **Then** an API Center instance is created in `eastus2` within
-   that resource group.
+   Center deployment is applied, **Then** an API Center instance is created in the configured
+   Azure region after validation confirms that `Microsoft.ApiCenter` is available there; for
+   the initial POC, the proposed value is `eastus`, subject to approval of the documented
+   constitution amendment while runtime resources remain in `eastus2`.
 2. **Given** the API Center instance is linked to an eligible APIM tier (classic Premium, per
    Chapter 02), **When** the plan/tier is inspected, **Then** the instance uses the plan tier
    made available at no additional cost by that eligible link, and no redundant paid tier is
@@ -207,8 +209,9 @@ access.
 
 ### Functional Requirements
 
-- **FR-001**: The feature MUST create an Azure API Center instance in `rg-agent-factory-poc`
-  (`eastus2`), independent of any specific linked service.
+- **FR-001**: The feature MUST create an Azure API Center instance in
+  `rg-agent-factory-poc`, independent of any specific linked service, using a deployment
+  `location` parameter that has been validated as supporting `Microsoft.ApiCenter`.
 - **FR-002**: The feature MUST use the plan/tier made available at no additional cost through
   linking to the existing eligible (classic Premium) APIM instance, and MUST NOT provision a
   redundant paid tier.
@@ -299,8 +302,13 @@ access.
 - The Chapter 01 Foundry account (`foundry-agent-factory-poc`) is an assumed upstream
   prerequisite consistent with the Chapter 01 and Chapter 02 specifications; Foundry model
   approval (tracked separately, e.g. Issue #14) is not a dependency of this feature.
-- The POC uses one Azure region (`eastus2`) and one resource group (`rg-agent-factory-poc`),
-  consistent with the existing Network Foundation, Foundry, and APIM deployments.
+- The existing Network Foundation, Foundry, and APIM runtime resources remain in `eastus2`.
+  API Center may use a different supported Azure region, selected through the deployment
+  `location` parameter; the proposed initial POC parameter value is `eastus`.
+- Because the POC constitution currently states that the POC uses one region, deploying the
+  design-time API Center control-plane resource outside `eastus2` requires an explicit
+  constitution amendment before implementation. This amendment does not
+  move model traffic, APIM, Foundry, networking, or customer data paths out of `eastus2`.
 - No MCP server, skill, or A2A agent backend currently exists in this POC; the MCP server
   registry, skill registry, and agent (A2A) API registration described in the Chapter 04
   blueprint are deferred to a later increment once such backends exist to register, mirroring how
