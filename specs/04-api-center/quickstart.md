@@ -44,7 +44,7 @@ workspace, APIM service link, four metadata schema definitions, RBAC role assign
 portal); no changes to the existing VNet, Foundry account/project/model deployment, or the
 Chapter 02 APIM instance's own configuration.
 
-Save output to `specs/04-api-center/validation/us1-what-if.md`.
+Save output to `specs/04-api-center/validation/final-what-if.md`.
 
 ## Validate the API Center instance and plan/tier (User Story 1)
 
