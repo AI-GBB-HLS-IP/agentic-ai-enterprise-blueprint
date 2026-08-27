@@ -11,7 +11,7 @@ Tests were executed from `vm-fnd-jbox` against the private APIM hostname:
 ```text
 DNS: 10.0.1.4
 No subscription key: HTTP 401
-Approved model: HTTP 200, model gpt-4.1-mini-2025-04-14
+Approved model: HTTP 200, response model gpt-4.1-mini-2025-04-14
 Unapproved model: HTTP 400, error code unsupported_model
 Approved-model reliability: 10/10 HTTP 200
 ```
