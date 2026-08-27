@@ -24,7 +24,7 @@ not yet complete.
 
 1. Ten valid requests from private client with APIM subscription key.
 2. One invalid/unauthenticated request without APIM subscription key.
-
+3. One request with a valid subscription key but an unapproved model name (expect HTTP 400 with `unsupported_model`).
 ## Reproduction commands
 
 ```bash
