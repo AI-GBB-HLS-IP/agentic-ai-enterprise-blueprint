@@ -12,7 +12,7 @@
 
 **Governing deployment plan**: Not yet created for this chapter. Tracked under
 [Issue #26](https://github.com/AI-GBB-HLS-IP/agentic-ai-enterprise-blueprint/issues/26)
-(`type: spec`, `area: api-center`, `priority: p1`), consistent with how Chapter 02 was tracked
+(`type: spec`, `area: governance`, `priority: p1`), consistent with how Chapter 02 was tracked
 under [Issue #17](https://github.com/AI-GBB-HLS-IP/agentic-ai-enterprise-blueprint/issues/17).
 
 ## Scope and Implementation Status
@@ -318,7 +318,7 @@ access.
   catalog populated with real, non-trivial entries to provide meaningful value.
 - This feature is tracked under
   [Issue #26](https://github.com/AI-GBB-HLS-IP/agentic-ai-enterprise-blueprint/issues/26)
-  (`type: spec`, `area: api-center`, `priority: p1`), consistent with how Chapter 02 is tracked
+  (`type: spec`, `area: governance`, `priority: p1`), consistent with how Chapter 02 is tracked
   under Issue #17.
 - The executing platform identity has sufficient subscription/resource-group permissions to
   create the API Center instance, the APIM service link, metadata schema definitions, and the
