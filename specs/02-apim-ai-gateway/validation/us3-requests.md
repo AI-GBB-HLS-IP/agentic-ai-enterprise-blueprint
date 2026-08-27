@@ -25,6 +25,7 @@ not yet complete.
 1. Ten valid requests from private client with APIM subscription key.
 2. One invalid/unauthenticated request without APIM subscription key.
 3. One request with a valid subscription key but an unapproved model name (expect HTTP 400 with `unsupported_model`).
+
 ## Reproduction commands
 
 ```bash
@@ -40,6 +41,12 @@ curl -sS -o /tmp/apim-deny.json -w "%{http_code}\n" \
   "https://apim-agent-factory-private-poc.azure-api.net/llm/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d '{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"hello"}],"stream":false}'
+
+curl -sS -o /tmp/apim-unapproved.json -w "%{http_code}\n" \
+  "https://apim-agent-factory-private-poc.azure-api.net/llm/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -H "Ocp-Apim-Subscription-Key: <valid-key>" \
+  -d '{"model":"gpt-4.1","messages":[{"role":"user","content":"hello"}],"stream":false}'
 ```
 
 ## Pass criteria
