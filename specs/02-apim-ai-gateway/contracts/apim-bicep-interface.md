@@ -11,8 +11,8 @@ parameter file. This is a design contract, not infrastructure code.
   `foundryAccountName` in the target resource group when omitted),
   `approvedModels` (public model name, Foundry deployment name, and enabled state; initially
   one `gpt-4.1-mini` entry)
-- Network Foundation policy handoff: `publicNetworkAccessDisabled` and `localAuthDisabled` from
-  the validated `policyInputs` object. Both values must be present and `true`.
+- Network Foundation policy handoff: validated `policyInputs` object containing
+  `publicNetworkAccessDisabled: true` and `localAuthDisabled: true`.
 - `apimSkuCapacity`
 - Observability inputs: `logAnalyticsWorkspaceId` (optional; when omitted/empty, create a new
   workspace; when provided, reuse it per research R4), `applicationInsightsName`
