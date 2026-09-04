@@ -6,11 +6,13 @@ parameter file. This is a design contract, not infrastructure code.
 ## Required parameters
 
 - `location`, `apimServiceName`, `publisherEmail`, `publisherName`
-- Existing IDs: `vnetId`, `apimSubnetId` (subnet to be delegated by this feature)
+- Existing IDs: `vnetId`, `apimSubnetId` (dedicated subnet that must remain undelegated)
 - Existing Foundry references: `foundryAccountName`, `foundryAccountId` (optional; derived from
   `foundryAccountName` in the target resource group when omitted),
   `approvedModels` (public model name, Foundry deployment name, and enabled state; initially
   one `gpt-4.1-mini` entry)
+- Network Foundation policy handoff: validated `policyInputs` object containing
+  `publicNetworkAccessDisabled: true` and `localAuthDisabled: true`.
 - `apimSkuCapacity`
 - Observability inputs: `logAnalyticsWorkspaceId` (optional; when omitted/empty, create a new
   workspace; when provided, reuse it per research R4), `applicationInsightsName`
@@ -42,6 +44,9 @@ The module must not create the existing VNet, `snet-privateendpoints`, the exist
 `privatelink.azure-api.net` zone, or the Foundry account/project/model deployment. It must fail
 closed when:
 
+- The Network Foundation policy handoff is absent, malformed, or contains either boolean as
+  `false`; APIM must preserve private access and must not interpret a missing handoff as consent
+  to expose a public gateway or enable local authentication.
 - The dedicated `snet-apim` subnet does not meet classic Premium VNet injection requirements
   before APIM creation is attempted.
 - The APIM instance would expose a public gateway endpoint (`virtualNetworkType` other than
