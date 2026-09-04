@@ -18,6 +18,7 @@ assert_fails() {
   printf '%s\n' "$body" >"$path"
   if "$VALIDATOR" "$path" >"${workdir}/out" 2>&1; then
     echo "FAIL: expected rejection of ${description}" >&2
+    cat "${workdir}/out" >&2
     exit 1
   fi
 }
