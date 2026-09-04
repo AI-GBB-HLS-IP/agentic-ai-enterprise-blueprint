@@ -9,9 +9,9 @@ assert_passes() {
   local name="$1"
   local path="$2"
 
-  if ! "$VALIDATOR" --input "$path" >/tmp/network-policy.out 2>&1; then
+  if ! "$VALIDATOR" --input "$path" >"$workdir/network-policy.out" 2>&1; then
     echo "FAIL: $name should pass validation" >&2
-    cat /tmp/network-policy.out >&2
+    cat "$workdir/network-policy.out" >&2
     exit 1
   fi
 }
@@ -20,7 +20,7 @@ assert_fails() {
   local name="$1"
   local path="$2"
 
-  if "$VALIDATOR" --input "$path" >/tmp/network-policy.out 2>&1; then
+  if "$VALIDATOR" --input "$path" >"$workdir/network-policy.out" 2>&1; then
     echo "FAIL: $name should fail validation" >&2
     exit 1
   fi
