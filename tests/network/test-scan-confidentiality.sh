@@ -9,9 +9,9 @@ assert_fails() {
   local description="$1"
   local path="$2"
 
-  if "$VALIDATOR" "$path" >/tmp/network-confidentiality.out 2>&1; then
+  if "$VALIDATOR" "$path" >"$workdir/network-confidentiality.out" 2>&1; then
     echo "FAIL: expected confidentiality check to reject ${description}" >&2
-    cat /tmp/network-confidentiality.out >&2
+    cat "$workdir/network-confidentiality.out" >&2
     exit 1
   fi
 }
@@ -20,9 +20,9 @@ assert_passes() {
   local description="$1"
   local path="$2"
 
-  if ! "$VALIDATOR" "$path" >/tmp/network-confidentiality.out 2>&1; then
+  if ! "$VALIDATOR" "$path" >"$workdir/network-confidentiality.out" 2>&1; then
     echo "FAIL: expected confidentiality check to allow ${description}" >&2
-    cat /tmp/network-confidentiality.out >&2
+    cat "$workdir/network-confidentiality.out" >&2
     exit 1
   fi
 }
