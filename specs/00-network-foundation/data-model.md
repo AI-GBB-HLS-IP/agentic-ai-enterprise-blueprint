@@ -14,7 +14,7 @@
 | Private DNS zone reference | service role, zone resource ID, zone name, owner scope | Brownfield prerequisite; zone and records are read-only. |
 | VNet-link request | zone resource ID, VNet resource ID, link name, registration flag | Blueprint-managed child resource; registration must be disabled. |
 | Bastion selection | enabled, subnet CIDR, host name, public IP name, tags | Optional. Disabled means no Bastion-related resources. |
-| Policy inputs | arbitrary tags, allowed service/model profiles, public-network/local-auth requirements | Generic deployment-time inputs; applied only to blueprint-owned resources. |
+| Policy inputs | `publicNetworkAccessDisabled`, `localAuthDisabled`, `allowedModelSkus` | Required deployment-time object. Both booleans must be present and `true`; `allowedModelSkus` must be a non-empty array of unique, non-empty, case-sensitive SKU strings with no wildcards or patterns. This spec creates no resource exposing public-network-access or local-auth settings and no model/serving resource; it validates schema/posture, then forwards the values unchanged to Foundry/APIM, which enforce applicability. |
 | Approval evidence | stage, owner role, what-if digest, decision, timestamp, redaction status | Required before each mutating stage; committed evidence contains no customer identifiers. |
 | Deployment ownership record | deployment key, prior deployment name, managed subnet IDs, expected properties | Local/live ARM deployment output used to permit idempotent reruns without adopting customer-managed subnets. |
 | Ownership adoption approval | deployment key, approved subnet names, live-property comparison, network-owner approval | Exceptional fallback when deployment history is unavailable; accepted only for exact property matches and never implicit. |
@@ -75,4 +75,6 @@ Network Foundation readiness is true only when:
 - required Private DNS integration is `ready`;
 - optional Bastion is either disabled or independently `ready`;
 - no out-of-bound modification is present;
+- the FR-019/FR-020 generic policy-input parameters are present and well-formed
+  (`policy-compliant`), so downstream Foundry/APIM specs can enforce them;
 - the confidentiality gate passes.

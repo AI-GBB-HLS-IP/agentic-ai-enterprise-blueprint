@@ -346,9 +346,27 @@ must be confirmed with the tenant administrator when self-service group creation
   associate an approved existing route table but MUST NOT create or modify route tables or routes.
   It MUST NOT alter unrelated NSGs, route tables, or routes.
 - **FR-019**: Blueprint-owned resources MUST declaratively align with applicable policies that
-  disable public network access or local authentication where those settings are supported.
+  disable public network access or local authentication where those settings are supported. No
+  resource created directly by this spec (VNet, subnet, NSG, Private DNS zone, VNet link,
+  Bastion) currently exposes a public-network-access or local-authentication toggle; this
+  requirement governs the required boolean `publicNetworkAccessDisabled` and
+  `localAuthDisabled` policy-input parameters (see the `Policy inputs` entity in
+  `data-model.md`). Both values MUST be explicitly present and `true`; `false`, null, omitted,
+  or non-boolean values fail validation because they would weaken the private-by-default
+  baseline. This spec accepts the validated inputs and forwards them unchanged to the Foundry
+  ([01-foundry-byo-networking](../01-foundry-byo-networking/spec.md)) and APIM
+  ([02-apim-ai-gateway](../02-apim-ai-gateway/spec.md)) specs, which own the PaaS resources where
+  these settings apply. A downstream service that does not expose one of the settings MUST treat
+  the corresponding input as satisfied by design and MUST NOT introduce a public endpoint or
+  local-authentication bypass.
 - **FR-020**: Downstream model deployment parameters MUST reject serving SKUs prohibited by
-  applicable policy before resource creation.
+  applicable policy before resource creation. This spec does not create model or serving
+  resources; it MUST accept `allowedModelSkus` as a non-empty array of unique, non-empty,
+  case-sensitive SKU strings with no wildcard or pattern entries, pass it through unchanged as
+  part of the readiness output described in `plan.md`'s Downstream release step, and MUST NOT
+  release network/DNS readiness to the Foundry spec until the list is present and well-formed.
+  Enforcing that the selected deployment SKU is an exact member of this allowlist at
+  resource-creation time is owned by the Foundry spec.
 - **FR-021**: The deployment MUST accept arbitrary policy-required tags without assuming specific
   names or values and MUST apply them only to blueprint-owned resources.
 - **FR-022**: Brownfield deployment MUST require review of `az deployment group what-if`; any
@@ -396,6 +414,13 @@ must be confirmed with the tenant administrator when self-service group creation
   deployment preview.
 - **SC-009**: Confidentiality review finds zero discovery-derived customer identifiers, names,
   naming samples, or organization-specific policy names in committed repository artifacts.
+- **SC-010**: 100% of Network Foundation deployment previews are blocked before resource creation
+  unless `policyInputs` is present and valid: `publicNetworkAccessDisabled` and `localAuthDisabled`
+  are explicit `true` booleans, and `allowedModelSkus` is a non-empty array of unique, non-empty,
+  exact SKU strings with no wildcard or pattern entries. Every accepted preview reports
+  `policy-compliant: true`, and the policy-input values forwarded to Foundry/APIM are semantically
+  identical to the validated inputs without defaults, filtering, case normalization, or
+  substitution.
 
 ## Assumptions
 

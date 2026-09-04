@@ -101,6 +101,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [X] T039 Add `.github/workflows/foundry-preflight.yml` to run network/model preflight with Azure OIDC and post a report to the request issue; deployment remains out of scope
 - [X] T040 [P] Add provider-neutral Foundry preflight, what-if, and explicit-deployment scripts under `scripts/foundry/`
 - [X] T041 [P] Document the shared script contract and Bitbucket adapter example in `scripts/foundry/README.md`
+- [ ] T042 [P] Consume and validate the Network Foundation `policyInputs` handoff in `infra/modules/foundry/main.bicep` and `infra/modules/foundry/model-deployment.bicep`, requiring both private-posture booleans to be `true` and rejecting any `deploymentSku` that is not an exact member of `allowedModelSkus`
 
 ## Dependencies & Execution Order
 
@@ -118,6 +119,9 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - **US1 (P1)**: Starts after Phase 2; no model dependency.
 - **US2 (P1)**: Requires the confirmed account/project/supporting-resource target IDs and ordering from US1; its endpoint implementation can be parallelized by file after T011.
 - **US3 (P2)**: Requires successful US1 and US2 checks and approved quota/model evidence; it cannot be independently deployed before those gates.
+- **Network Foundation policy handoff**: Foundry consumes the validated `policyInputs` contract
+  before account/resource or model creation; T042 owns downstream enforcement of the private
+  posture and exact model-SKU allowlist.
 
 ### Parallel Opportunities
 

@@ -9,6 +9,48 @@ This contract defines the intended input shape. It is a design contract, not Bic
 - `location`
 - `tags`: arbitrary object applied only to blueprint-owned resources
 - `deployBastion`: boolean, default `false` for brownfield
+- `policyInputs` (FR-019/FR-020), validated by `scripts/network/validate-policy-inputs.sh` and
+  forwarded unchanged to the Foundry/APIM specs:
+  - `publicNetworkAccessDisabled`: required boolean; MUST be `true`. `false`, null, omitted, and
+    non-boolean values are rejected.
+  - `localAuthDisabled`: required boolean; MUST be `true`. `false`, null, omitted, and
+    non-boolean values are rejected.
+  - `allowedModelSkus`: required non-empty array of exact, case-sensitive SKU strings. Each entry
+    MUST be non-empty after trimming, unique, and free of wildcard or pattern characters. The
+    network feature validates only this shape; the Foundry feature rejects a selected SKU that is
+    not an exact member before model creation.
+
+The policy-input object is required in both greenfield and brownfield modes. It is a posture and
+allowlist contract, not a copy of live policy assignments; organization-specific policy names,
+values, and discovery output remain outside committed artifacts. A downstream service that lacks a
+corresponding setting must preserve the private-by-default posture rather than interpret `false`
+as permission to enable public access or local authentication.
+
+### Policy-input example
+
+```json
+{
+  "policyInputs": {
+    "publicNetworkAccessDisabled": true,
+    "localAuthDisabled": true,
+    "allowedModelSkus": [
+      "generic-model-sku-a",
+      "generic-model-sku-b"
+    ]
+  }
+}
+```
+
+The validator MUST reject the following cases:
+
+- `policyInputs` is missing, null, or not an object.
+- Either boolean is missing, null, not a JSON boolean, or `false`.
+- `allowedModelSkus` is missing, null, not an array, or empty.
+- An SKU entry is not a string, is empty after trimming, is duplicated, or contains wildcard or
+  pattern syntax.
+
+The validator MUST preserve the original accepted string values when forwarding the object; it
+must not normalize case, substitute defaults, or silently remove entries.
 
 ## Greenfield parameters
 

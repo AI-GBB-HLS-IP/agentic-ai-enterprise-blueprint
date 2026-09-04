@@ -101,6 +101,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [X] T037 [P] Document module inputs/outputs, ownership boundaries, no-secret invariant, and explicit out-of-scope MCP/A2A behavior in `specs/02-apim-ai-gateway/validation/README.md`
 - [ ] T038 Run the unchanged-parameter APIM what-if a second time and compare it with the first preview to verify idempotency and absence of duplicate zones, links, role assignments, APIs, backends, policies, or diagnostics in `specs/02-apim-ai-gateway/validation/idempotency.md`
 - [ ] T039 Run `az bicep build` for every changed APIM module, execute the full validation runner, and record final readiness, pending provider operations, and remediation hints in `specs/02-apim-ai-gateway/validation/final-report.md`
+- [ ] T040 [P] Consume and validate the Network Foundation `policyInputs` handoff in `infra/envs/poc/apim.bicep` and `infra/modules/apim/main.bicep`, requiring both private-posture booleans to be present and `true` before APIM creation and readiness
 
 ## Dependencies & Execution Order
 
@@ -118,6 +119,8 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - **User Story 1 (P1)**: Starts after Phase 2; no dependency on API or backend configuration.
 - **User Story 2 (P1)**: Requires the APIM resource and system-assigned identity from US1; role, DNS, and backend files can be developed in parallel after T011.
 - **User Story 3 (P2)**: Requires successful US1 and US2 network/identity/backend gates before live request validation; API and observability files can be developed in parallel by file.
+- **Network Foundation policy handoff**: APIM consumes the validated private-posture portion of
+  `policyInputs` before gateway creation and must fail closed if the handoff is absent or weakened.
 
 ### Parallel Opportunities
 

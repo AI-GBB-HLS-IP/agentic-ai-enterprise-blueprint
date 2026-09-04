@@ -161,6 +161,12 @@ No `NEEDS CLARIFICATION` items remain.
    - Select `greenfield` or `brownfield`.
    - Keep real brownfield names, IDs, CIDRs, and policy-required tag values in an untracked
      deployment parameter file or approved secret/configuration system.
+   - Accept the policy-input parameters defined by FR-019/FR-020 and fail closed unless
+     `publicNetworkAccessDisabled: true`, `localAuthDisabled: true`, and a non-empty
+     `allowedModelSkus` array of unique, non-empty, exact SKU strings without wildcards or pattern
+     entries are supplied. This spec creates no resource that itself exposes these settings; it
+     forwards the validated values unchanged to the Foundry and APIM specs (see Downstream release
+     below).
 
 2. **Brownfield discovery**
    - Resolve the selected VNet and inventory its address spaces, existing subnet names/CIDRs,
@@ -208,7 +214,11 @@ No `NEEDS CLARIFICATION` items remain.
      validate resolution.
 
 7. **Downstream release**
-   - Release Foundry and APIM deployment only when required network and DNS states are `ready`.
+   - Release Foundry and APIM deployment only when required network and DNS states are `ready`
+     AND the FR-019/FR-020 policy-input parameters are present and well-formed
+     (`policy-compliant`); this spec does not evaluate whether a specific SKU or resource setting
+     satisfies policy, only that the required generic inputs passed the schema and posture checks
+     for the downstream spec to enforce.
    - If DNS fails after network succeeds, preserve network resources, block progression, correct
      DNS, regenerate and approve the DNS preview, and retry only the DNS stage.
 

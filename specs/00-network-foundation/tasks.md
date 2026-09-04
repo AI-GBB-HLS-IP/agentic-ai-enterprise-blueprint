@@ -58,9 +58,11 @@ complete.
 - [ ] T013 [P] Add failing confidentiality cases for identifiers, identities, emails, CIDRs, peer data, absolute discovery paths, raw parameters, and organization-specific policy names in `tests/network/test-scan-confidentiality.sh`
 - [ ] T014 Implement the repository confidentiality gate in `scripts/network/scan-confidentiality.sh` so it fails closed on prohibited discovery-derived data while permitting approved placeholders and greenfield constants
 - [ ] T015 [P] Define generic redacted evidence fields for discovery, capacity approval, ownership, scoped what-if, deployment, idempotency, DNS resolution, recovery, and confidentiality in `specs/00-network-foundation/contracts/validation-evidence.md`
+- [ ] T072 [P] Add failing tests for SC-010 covering missing, null, non-boolean, or `false` `publicNetworkAccessDisabled` and `localAuthDisabled` values, plus missing, empty, duplicate, whitespace-only, wildcard, and pattern entries in `allowedModelSkus`, in `tests/network/test-validate-policy-inputs.sh`
+- [ ] T073 Implement the fail-closed policy-input validator in `scripts/network/validate-policy-inputs.sh` (FR-019, FR-020), requiring both policy booleans to be present and `true` and requiring `allowedModelSkus` to be a non-empty array of unique, non-empty, exact SKU strings without wildcards or patterns; do not evaluate downstream resource settings or selected SKUs
 
 **Checkpoint**: The test harness and confidentiality gate are ready, and repository artifacts have
-a generic evidence contract.
+a generic evidence contract, including the policy-input validation contract.
 
 ---
 
@@ -222,6 +224,7 @@ public-IP exception.
 - [ ] T069 Execute the greenfield, brownfield network-owner, and per-owner-scope DNS what-if workflows in `specs/00-network-foundation/quickstart.md`, validate each result with its corresponding `scripts/network/validate-*-what-if.sh` gate, and verify unchanged reruns contain no unexpected changes
 - [ ] T070 Run `scripts/network/scan-confidentiality.sh` across tracked artifacts and remove every customer-specific discovery value, identity, email, resource name, ID, CIDR, peer detail, absolute discovery path, real parameter value, and organization-specific policy name reported
 - [ ] T071 Perform the final constitution and readiness review against `.specify/memory/constitution.md` and record generic remediation instructions in `infra/envs/poc/README.md` before requesting Platform Engineering review
+- [ ] T074 [SC-010] Add failing assertions for a readiness output produced without a `policy-compliant` status or with policy-input values changed during handoff, add a `policy-compliant` field to the structured readiness outputs in `infra/envs/poc/main.bicep` and `infra/envs/poc/brownfield-network.bicep`, and block the downstream-release step in `specs/00-network-foundation/quickstart.md` until network, DNS, and policy-input status are all `ready`/`policy-compliant`
 
 ---
 
@@ -236,7 +239,10 @@ public-IP exception.
 - **User Story 1** depends on Phases 1 and 2.
 - **User Story 4** depends on Phases 1 and 2 and shares reconciled subnet and NSG modules with US1.
 - **User Story 2** depends on the applicable US1 or US4 composition.
-- **Phase 7** depends on all stories included in the release.
+- **Phase 2** includes T072-T073, the generic FR-019/FR-020 policy-input tests and validator; they
+  can run with the other foundational validation work and before user-story implementation.
+- **Phase 7** depends on all stories included in the release. T074 completes the readiness-output
+  wiring and must finish after T028 (US1) and T054 (US4) add their respective structured outputs.
 
 ### User Story Dependency Graph
 
@@ -339,6 +345,10 @@ T058 -> T059 -> T060, T061, T062 in parallel -> T063
 - `[P]` identifies work that can proceed in parallel because it targets different files and does
   not depend on incomplete implementation in the same file.
 - `[US1]`, `[US2]`, `[US3]`, and `[US4]` map tasks to specification user stories.
+- T072-T074 map to FR-019/FR-020 and are cross-cutting (no user-story tag) because they validate a
+  generic policy-input parameter contract this spec forwards to the Foundry/APIM specs rather than
+  enforcing on a resource this spec creates. T072-T073 are foundational; T074 is final
+  integration wiring. T072 and T074 provide the measurable test coverage for SC-010.
 - All tasks remain unchecked because the current infrastructure changes are unapproved prototypes.
 - Tests defining deterministic validation must be added first and shown to fail before
   corresponding implementation receives credit.
