@@ -3,6 +3,9 @@
 This guide validates both Network Foundation modes without containing real customer identifiers or
 deployment values.
 
+For the ordered end-to-end sequence against a live subscription, including which steps are not yet
+automated, see [`RUNBOOK.md`](RUNBOOK.md).
+
 ## Prerequisites
 
 1. Install Azure CLI with Bicep support and `jq`.
@@ -11,6 +14,26 @@ deployment values.
 4. Obtain network/IPAM approval for every requested brownfield subnet name and CIDR.
 5. Obtain approved existing NSG, route-table, and Private DNS zone resource IDs where required.
 6. Confirm the responsible network and DNS owners for the separate approval stages.
+
+## Policy-input validation
+
+Validate the FR-019/FR-020 handoff before either mode is previewed. Keep the input file untracked.
+
+```bash
+./scripts/network/validate-policy-inputs.sh --input "<untracked-policy-inputs>"
+```
+
+Expected: `publicNetworkAccessDisabled` and `localAuthDisabled` are present and `true`, and
+`allowedModelSkus` is a non-empty array of unique, non-empty, exact SKU strings with no wildcard or
+pattern entries. Any other shape fails closed and blocks deployment.
+
+## Deterministic validation suite
+
+```bash
+./tests/network/run-tests.sh
+```
+
+Expected: every `tests/network/test-*.sh` case passes.
 
 ## Greenfield validation
 

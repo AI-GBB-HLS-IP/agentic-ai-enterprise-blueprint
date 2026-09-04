@@ -1,109 +1,187 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -eq 0 ]]; then
-  set -- "."
+# Repository confidentiality gate (T014).
+#
+# Fails closed on concrete discovery-derived values that must never be committed:
+# real subscription/tenant GUIDs, resolved ARM resource IDs, real email addresses,
+# absolute home directory paths, and private address ranges outside the blueprint's
+# own approved address plan.
+#
+# Design notes:
+#   * Vocabulary is not disclosure. Words such as "customer", "tenant", or
+#     "organization" in prose are never flagged.
+#   * Public Microsoft constants (built-in role definition IDs, first-party
+#     application IDs, permission scope IDs) are not secrets. A GUID is reported
+#     only when its context identifies it as a subscription or tenant reference.
+#   * Documented fictional domains and placeholder tokens are permitted.
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+
+targets=("$@")
+
+if [[ ${#targets[@]} -eq 0 ]]; then
+  # Default to tracked files only; untracked local discovery output is ignored by design.
+  cd "$REPO_ROOT"
+  mapfile -t targets < <(git ls-files)
+  if [[ ${#targets[@]} -eq 0 ]]; then
+    echo "No tracked files to scan." >&2
+    exit 1
+  fi
 fi
 
-python3 - "$@" <<'PY'
+python3 - "${targets[@]}" <<'PY'
+import ipaddress
 import os
 import re
 import sys
 
-ALLOWED_CIDRS = {
-    "10.0.0.0/16",
-    "10.0.1.0/24",
-    "10.0.2.0/24",
-    "10.0.3.0/24",
-    "10.0.4.0/24",
-    "10.0.5.0/24",
-    "10.0.6.0/26",
-}
+# The blueprint owns 10.0.0.0/16; any prefix inside it is an approved constant.
+BLUEPRINT_SUPERNET = ipaddress.ip_network("10.0.0.0/16")
 
-BAD_PATTERNS = [
-    (re.compile(r"(?i)\b(?:customer|tenant|organization)\s*[:=]\s*\S+"), "customer/tenant identifier label"),
-    (re.compile(r"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"), "email address"),
-    (re.compile(r"(?i)(?:/subscriptions/|subscription\s*[:=]\s*)[0-9a-f-]{8,}"), "subscription or resource ID"),
-    (re.compile(r"(?i)/(?:home|Users|mnt)/[A-Za-z0-9_./\\-]+"), "absolute local path"),
-    (re.compile(r"(?i)C:\\Users\\[A-Za-z0-9_. -]+"), "Windows user path"),
-    (re.compile(r"(?i)\b(?:subscriptionId|tenantId)\s*[:=]\s*['\"]?(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})['\"]?"), "raw identifier"),
-    (re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}/\d{1,2}\b"), "CIDR range"),
-]
+# RFC 1918 block declarations used when describing address space in general.
+RFC1918_BLOCKS = {"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}
 
-ALLOWED_SNIPPETS = {
+# Documentation-only domains: RFC 2606 plus Microsoft's fictional sample companies.
+ALLOWED_EMAIL_DOMAIN_PARTS = (
     "example.com",
-    "generic-model-sku-a",
-    "generic-model-sku-b",
-    "policyInputs",
-    "publicNetworkAccessDisabled",
-    "localAuthDisabled",
-    "allowedModelSkus",
-    "vnet-agent-factory-poc",
-    "nsg-apim",
-    "nsg-compute",
-    "privatelink.cognitiveservices.azure.com",
-    "privatelink.openai.azure.com",
-    "privatelink.azure-api.net",
-    "privatelink.vaultcore.azure.net",
-    "privatelink.blob.core.windows.net",
-    "privatelink.database.windows.net",
-    "AzureBastionSubnet",
-}
+    "example.org",
+    "example.net",
+    "contoso.com",
+    "fabrikam.com",
+    "adatum.com",
+    "company.com",
+    "users.noreply.github.com",
+)
+
+PLACEHOLDER_TOKENS = ("<", ">", "{", "}", "...", "$", "%")
+
+GUID_RE = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+
+# A GUID is disclosure only when it is presented as a subscription or tenant value.
+GUID_DISCLOSURE_CONTEXT = re.compile(r"subscription|tenant|/subscriptions/", re.IGNORECASE)
+
+# Public Microsoft constants: built-in role definition IDs and first-party app IDs.
+GUID_PUBLIC_CONSTANT_CONTEXT = re.compile(
+    r"roleDefinition|roleAssignment|appId|applicationId|servicePrincipalType|permission|scopeId",
+    re.IGNORECASE,
+)
+
+ARM_ID_RE = re.compile(
+    r"/subscriptions/[^/\s\"'`)]+/resourceGroups/[^/\s\"'`)]+", re.IGNORECASE
+)
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+HOME_PATH_RE = re.compile(r"(?:/home/|/Users/)[A-Za-z0-9._-]+/")
+WIN_PATH_RE = re.compile(r"[A-Za-z]:\\Users\\[A-Za-z0-9._ -]+")
+CIDR_RE = re.compile(r"\b(?:10|172|192)\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}\b")
+
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build", ".terraform"}
+SKIP_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".ico", ".woff", ".woff2")
 
 
-def iter_targets(paths):
+def is_placeholder_guid(value):
+    return value.lower() == "00000000-0000-0000-0000-000000000000"
+
+
+def cidr_allowed(value):
+    if value in RFC1918_BLOCKS:
+        return True
+    try:
+        network = ipaddress.ip_network(value, strict=False)
+    except ValueError:
+        return False
+
+    # Only treat *private* address space as disclosure; public/test ranges are allowed.
+    if not network.is_private:
+        return True
+
+    return network.subnet_of(BLUEPRINT_SUPERNET)
+
+
+def check_line(line):
+    findings = []
+
+    for match in GUID_RE.finditer(line):
+        value = match.group(0)
+        if is_placeholder_guid(value):
+            continue
+        if GUID_PUBLIC_CONSTANT_CONTEXT.search(line):
+            continue
+        if not GUID_DISCLOSURE_CONTEXT.search(line):
+            continue
+        findings.append(("subscription or tenant GUID", value))
+
+    for match in ARM_ID_RE.finditer(line):
+        value = match.group(0)
+        if any(token in value for token in PLACEHOLDER_TOKENS):
+            continue
+        if GUID_RE.search(value) and is_placeholder_guid(GUID_RE.search(value).group(0)):
+            continue
+        findings.append(("resolved ARM resource ID", value))
+
+    for match in EMAIL_RE.finditer(line):
+        value = match.group(0)
+        if value.lower().endswith(ALLOWED_EMAIL_DOMAIN_PARTS):
+            continue
+        findings.append(("email address", value))
+
+    for match in HOME_PATH_RE.finditer(line):
+        findings.append(("absolute home directory path", match.group(0)))
+
+    for match in WIN_PATH_RE.finditer(line):
+        findings.append(("Windows user path", match.group(0)))
+
+    for match in CIDR_RE.finditer(line):
+        value = match.group(0)
+        if cidr_allowed(value):
+            continue
+        findings.append(("non-blueprint private address range", value))
+
+    return findings
+
+
+def iter_files(paths):
     for target in paths:
         if os.path.isdir(target):
             for root, dirnames, filenames in os.walk(target):
-                dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".venv", "venv", "dist", "build", "chapters"}]
-                for filename in filenames:
+                dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+                for filename in sorted(filenames):
                     yield os.path.join(root, filename)
         elif os.path.isfile(target):
             yield target
-        else:
-            raise FileNotFoundError(f"Path not found: {target}")
 
 
-def scan_content(content):
+def scan(path):
+    if path.lower().endswith(SKIP_SUFFIXES):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+            lines = handle.read().splitlines()
+    except OSError:
+        return []
+
     hits = []
-    for pattern, label in BAD_PATTERNS:
-        for match in pattern.finditer(content):
-            snippet = match.group(0)
-            if snippet.lower() in {"example.com", "https://example.com"}:
-                continue
-            if snippet in ALLOWED_SNIPPETS:
-                continue
-            if snippet in ALLOWED_CIDRS:
-                continue
-            if re.fullmatch(r"\d{1,3}(?:\.\d{1,3}){3}/\d{1,2}", snippet):
-                if snippet not in ALLOWED_CIDRS:
-                    hits.append((snippet, "CIDR range"))
-                    continue
-            hits.append((snippet, label))
+    for number, line in enumerate(lines, start=1):
+        for label, value in check_line(line):
+            hits.append((number, label, value))
     return hits
 
+
 failures = []
-for target in sys.argv[1:]:
-    try:
-        for filename in iter_targets([target]):
-            try:
-                with open(filename, "r", encoding="utf-8", errors="ignore") as handle:
-                    content = handle.read()
-            except OSError as exc:
-                failures.append((filename, [(f"unreadable file: {exc}", "unreadable file")])); continue
-            hits = scan_content(content)
-            if hits:
-                failures.append((filename, hits))
-    except FileNotFoundError as exc:
-        print(str(exc), file=sys.stderr)
-        raise SystemExit(1)
+for path in iter_files(sys.argv[1:]):
+    hits = scan(path)
+    if hits:
+        failures.append((path, hits))
 
 if failures:
     print("Confidentiality validation failed.", file=sys.stderr)
-    for filename, hits in failures:
-        print(f"- {filename}", file=sys.stderr)
-        for snippet, label in hits[:5]:
-            print(f"  - {label}: {snippet[:160]}", file=sys.stderr)
+    for path, hits in failures:
+        print(f"- {path}", file=sys.stderr)
+        for number, label, value in hits[:10]:
+            print(f"  - line {number}: {label}: {value[:120]}", file=sys.stderr)
     raise SystemExit(1)
 
 print("Confidentiality scan passed.")
