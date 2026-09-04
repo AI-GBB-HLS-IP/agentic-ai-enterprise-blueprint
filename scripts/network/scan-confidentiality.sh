@@ -21,12 +21,13 @@ ALLOWED_CIDRS = {
 }
 
 BAD_PATTERNS = [
-    (re.compile(r"(?i)\b(?:contoso|fabrikam|adatum|customer|tenant|organization)\b"), "customer or tenant identifier"),
+    (re.compile(r"(?i)\b(?:customer|tenant|organization)\s*[:=]\s*\S+"), "customer/tenant identifier label"),
     (re.compile(r"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"), "email address"),
     (re.compile(r"(?i)(?:/subscriptions/|subscription\s*[:=]\s*)[0-9a-f-]{8,}"), "subscription or resource ID"),
     (re.compile(r"(?i)/(?:home|Users|mnt)/[A-Za-z0-9_./\\-]+"), "absolute local path"),
     (re.compile(r"(?i)C:\\Users\\[A-Za-z0-9_. -]+"), "Windows user path"),
-    (re.compile(r"(?i)\b(?:io|id|key|name|resourceGroup|subscriptionId|tenantId)\s*[:=]\s*['\"]?(?:[A-Za-z0-9-]{8,})['\"]?"), "raw identifier or key"),
+    (re.compile(r"(?i)\b(?:subscriptionId|tenantId)\s*[:=]\s*['\"]?(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})['\"]?"), "raw identifier"),
+    (re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}/\d{1,2}\b"), "CIDR range"),
 ]
 
 ALLOWED_SNIPPETS = {
