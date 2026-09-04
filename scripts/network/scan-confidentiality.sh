@@ -83,7 +83,7 @@ SKIP_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".ico", ".woff
 
 
 def is_placeholder_guid(value):
-    return len(set(value.replace("-", ""))) == 1
+    return value.lower() == "00000000-0000-0000-0000-000000000000"
 
 
 def cidr_allowed(value):
