@@ -44,6 +44,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -n "$input_path" && -n "$json_payload" ]]; then
+  echo "Provide exactly one of --input or --json." >&2
+  usage
+  exit 1
+fi
+
 if [[ -z "$input_path" && -z "$json_payload" ]]; then
   echo "A JSON payload or input file is required." >&2
   usage
