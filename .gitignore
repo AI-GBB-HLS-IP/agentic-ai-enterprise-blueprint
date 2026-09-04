@@ -9,6 +9,18 @@
 *.tfstate.*
 *.bicepparam.local.json
 
+# Network validation and local evidence
+**/network-discovery-*.json
+**/network-*.what-if.txt
+**/dns-*.what-if.txt
+**/*-approval*.md
+**/live-*.json
+**/tmp/**
+**/*.discovery.*
+**/*.local-evidence.*
+**/brownfield-*.bicepparam
+!**/brownfield-*.bicepparam.example
+
 # OS/editor cruft
 .DS_Store
 Thumbs.db
