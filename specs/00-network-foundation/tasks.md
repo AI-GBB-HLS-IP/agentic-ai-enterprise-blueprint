@@ -52,14 +52,14 @@ stories.
 **CRITICAL**: No user-story implementation receives credit until this phase and Phase 1 are
 complete.
 
-- [ ] T010 Create the deterministic network test runner in `tests/network/run-tests.sh` and configure it to execute every `tests/network/test-*.sh` file with fail-fast exit handling
-- [ ] T011 [P] Add ignore rules for local discovery output, real brownfield parameters, live approval evidence, and temporary what-if output in `.gitignore`
-- [ ] T012 [P] Create generic redacted success and failure fixture guidance in `tests/network/fixtures/README.md`, permitting placeholders and documentation-only address examples but no discovery-derived values
-- [ ] T013 [P] Add failing confidentiality cases for identifiers, identities, emails, CIDRs, peer data, absolute discovery paths, raw parameters, and organization-specific policy names in `tests/network/test-scan-confidentiality.sh`
-- [ ] T014 Implement the repository confidentiality gate in `scripts/network/scan-confidentiality.sh` so it fails closed on prohibited discovery-derived data while permitting approved placeholders and greenfield constants
-- [ ] T015 [P] Define generic redacted evidence fields for discovery, capacity approval, ownership, scoped what-if, deployment, idempotency, DNS resolution, recovery, and confidentiality in `specs/00-network-foundation/contracts/validation-evidence.md`
-- [ ] T072 [P] Add failing tests for SC-010 covering missing, null, non-boolean, or `false` `publicNetworkAccessDisabled` and `localAuthDisabled` values, plus missing, empty, duplicate, whitespace-only, wildcard, and pattern entries in `allowedModelSkus`, in `tests/network/test-validate-policy-inputs.sh`
-- [ ] T073 Implement the fail-closed policy-input validator in `scripts/network/validate-policy-inputs.sh` (FR-019, FR-020), requiring both policy booleans to be present and `true` and requiring `allowedModelSkus` to be a non-empty array of unique, non-empty, exact SKU strings without wildcards or patterns; do not evaluate downstream resource settings or selected SKUs
+- [X] T010 Create the deterministic network test runner in `tests/network/run-tests.sh` and configure it to execute every `tests/network/test-*.sh` file with fail-fast exit handling
+- [X] T011 [P] Add ignore rules for local discovery output, real brownfield parameters, live approval evidence, and temporary what-if output in `.gitignore`
+- [X] T012 [P] Create generic redacted success and failure fixture guidance in `tests/network/fixtures/README.md`, permitting placeholders and documentation-only address examples but no discovery-derived values
+- [X] T013 [P] Add failing confidentiality cases for identifiers, identities, emails, CIDRs, peer data, absolute discovery paths, raw parameters, and organization-specific policy names in `tests/network/test-scan-confidentiality.sh`
+- [X] T014 Implement the repository confidentiality gate in `scripts/network/scan-confidentiality.sh` so it fails closed on prohibited discovery-derived data while permitting approved placeholders and greenfield constants
+- [X] T015 [P] Define generic redacted evidence fields for discovery, capacity approval, ownership, scoped what-if, deployment, idempotency, DNS resolution, recovery, and confidentiality in `specs/00-network-foundation/contracts/validation-evidence.md`
+- [X] T072 [P] Add failing tests for SC-010 covering missing, null, non-boolean, or `false` `publicNetworkAccessDisabled` and `localAuthDisabled` values, plus missing, empty, duplicate, whitespace-only, wildcard, and pattern entries in `allowedModelSkus`, in `tests/network/test-validate-policy-inputs.sh`
+- [X] T073 Implement the fail-closed policy-input validator in `scripts/network/validate-policy-inputs.sh` (FR-019, FR-020), requiring both policy booleans to be present and `true` and requiring `allowedModelSkus` to be a non-empty array of unique, non-empty, exact SKU strings without wildcards or patterns; do not evaluate downstream resource settings or selected SKUs
 
 **Checkpoint**: The test harness and confidentiality gate are ready, and repository artifacts have
 a generic evidence contract, including the policy-input validation contract.

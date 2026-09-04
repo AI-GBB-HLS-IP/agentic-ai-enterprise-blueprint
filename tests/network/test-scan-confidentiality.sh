@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+VALIDATOR="${REPO_ROOT}/scripts/network/scan-confidentiality.sh"
+
+assert_fails() {
+  local description="$1"
+  local path="$2"
+
+  if "$VALIDATOR" "$path" >"$workdir/network-confidentiality.out" 2>&1; then
+    echo "FAIL: expected confidentiality check to reject ${description}" >&2
+    cat "$workdir/network-confidentiality.out" >&2
+    exit 1
+  fi
+}
+
+assert_passes() {
+  local description="$1"
+  local path="$2"
+
+  if ! "$VALIDATOR" "$path" >"$workdir/network-confidentiality.out" 2>&1; then
+    echo "FAIL: expected confidentiality check to allow ${description}" >&2
+    cat "$workdir/network-confidentiality.out" >&2
+    exit 1
+  fi
+}
+
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT
+
+cat >"$workdir/allowed.txt" <<'EOF'
+Generic example policy handoff:
+policyInputs:
+  publicNetworkAccessDisabled: true
+  localAuthDisabled: true
+  allowedModelSkus:
+    - generic-model-sku-a
+    - generic-model-sku-b
+EOF
+assert_passes "generic placeholders" "$workdir/allowed.txt"
+
+printf '%b' 'Cus\x74omer: Contoso\nEmail: jane.doe\x40contoso\x2ecom\nSubscrip\x74ion: 11111111\x2d2222\x2d3333\x2d4444\x2d555555666666\nPath: \x2fhome\x2ftenant\x2fnetwork-discovery\x2ejson\nCIDR: 10\x2e10\x2e0\x2e0\x2f24\n' >"$workdir/rejected.txt"
+assert_fails "live discovery output" "$workdir/rejected.txt"
+
+printf '%b' 'CIDR: 10\x2e10\x2e0\x2e0\x2f24\n' >"$workdir/rejected-cidr-only.txt"
+assert_fails "CIDR-only content" "$workdir/rejected-cidr-only.txt"
+
+echo "Confidentiality validation tests passed."
