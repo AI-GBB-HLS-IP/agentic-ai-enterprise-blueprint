@@ -1,5 +1,10 @@
 # Repository Contribution Instructions
 
+## Response Language
+
+- Respond only in English unless the user explicitly requests another language.
+- Before sending a response, check for unintended non-English words or mixed-language text.
+
 ## Branch Safety
 
 - Never make feature, documentation, infrastructure, or specification changes directly on
