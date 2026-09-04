@@ -29,10 +29,10 @@ implementation credit is given.
 **Purpose**: Reconcile every uncommitted infrastructure prototype before implementation work is
 credited.
 
-- [ ] T001 [P] Compare the prototype deployment instructions in `infra/envs/poc/README.md` with `specs/00-network-foundation/plan.md` and replace or update every conflicting greenfield, brownfield, ownership, approval, recovery, and confidentiality instruction
+- [X] T001 [P] Compare the prototype deployment instructions in `infra/envs/poc/README.md` with `specs/00-network-foundation/plan.md` and replace or update every conflicting greenfield, brownfield, ownership, approval, recovery, and confidentiality instruction
 - [ ] T002 [P] Compare the prototype composition in `infra/envs/poc/main.bicep` with the approved greenfield boundaries and replace or update it without treating any existing resource declaration as complete
 - [ ] T003 [P] Compare the prototype network-related changes in `infra/modules/foundry/supporting-resources.bicep` with the Network Foundation ownership boundary and remove or update assumptions not approved by `specs/00-network-foundation/plan.md`
-- [ ] T004 [P] Compare the prototype module documentation in `infra/modules/network/README.md` with the approved mode, scope, ownership, sizing, DNS, NSG, route-table, and Bastion contracts and replace or update conflicting content
+- [X] T004 [P] Compare the prototype module documentation in `infra/modules/network/README.md` with the approved mode, scope, ownership, sizing, DNS, NSG, route-table, and Bastion contracts and replace or update conflicting content
 - [ ] T005 [P] Compare the prototype Bastion implementation in `infra/modules/network/bastion.bicep` with the optional-Bastion requirements for both modes and replace or update it before claiming implementation credit
 - [ ] T006 [P] Compare the prototype greenfield network module in `infra/modules/network/main.bicep` with the fixed greenfield contract and shared-module boundaries and replace or update every nonconforming declaration
 - [ ] T007 [P] Compare `infra/envs/poc/existing-vnet.bicep` with the approved network-owner stage, then replace it with or migrate it into `infra/envs/poc/brownfield-network.bicep` so the obsolete prototype is not retained as an alternative deployment path

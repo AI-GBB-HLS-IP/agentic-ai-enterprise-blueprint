@@ -17,6 +17,23 @@ This environment composes the Network Foundation MVP module.
 
 Run the documented preflight checks in `specs/00-network-foundation/spec.md` before deployment.
 
+For the full ordered sequence, including validation gates, known deviations, and which steps are
+not yet automated, follow
+[`specs/00-network-foundation/RUNBOOK.md`](../../../specs/00-network-foundation/RUNBOOK.md).
+
+## Validate before deploying
+
+```bash
+# FR-019/FR-020 policy inputs (keep the input file untracked)
+./scripts/network/validate-policy-inputs.sh --input policy-inputs.local.json
+
+# Repository confidentiality gate
+./scripts/network/scan-confidentiality.sh
+
+# Deterministic validation suite
+./tests/network/run-tests.sh
+```
+
 ## Deploy
 
 ```bash
@@ -49,11 +66,22 @@ az network private-dns zone list \
   --resource-group "$RG_NAME" \
   --query "[].name" \
   --output table
+
+# Private-by-default check: expect no public IP unless Bastion is intentionally enabled
+az network public-ip list --resource-group "$RG_NAME" --query "[].name" --output table
 ```
 
 ## Bastion validation
 
-The deployment includes an Azure Bastion Basic host and its required Standard static public IP.
+Azure Bastion is **optional and disabled by default** in the approved design. When it is disabled,
+the deployment must contain no `AzureBastionSubnet`, no Bastion host, and no public IP, and this
+section does not apply.
+
+> **Current deviation**: `main.bicep` still deploys Bastion unconditionally and exposes no
+> `deployBastion` parameter. Making Bastion conditional is tracked by tasks T025 and T059-T063.
+
+When Bastion is intentionally enabled, the deployment includes an Azure Bastion Basic host and its
+required Standard static public IP.
 For a full interactive Bastion validation, create a temporary test VM without a public IP in
 `snet-privateendpoints`, connect through the Azure Portal, and run `nslookup` for a private
 endpoint record. Delete the test VM and its NIC/disk after validation.
