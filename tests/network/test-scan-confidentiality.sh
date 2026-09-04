@@ -50,4 +50,9 @@ CIDR: 10.10.0.0/24
 EOF
 assert_fails "live discovery output" "$workdir/rejected.txt"
 
+cat >"$workdir/rejected-cidr-only.txt" <<'EOF'
+CIDR: 10.10.0.0/24
+EOF
+assert_fails "CIDR-only content" "$workdir/rejected-cidr-only.txt"
+
 echo "Confidentiality validation tests passed."
