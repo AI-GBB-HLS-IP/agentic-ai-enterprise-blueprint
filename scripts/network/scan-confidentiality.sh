@@ -89,8 +89,8 @@ for target in sys.argv[1:]:
             try:
                 with open(filename, "r", encoding="utf-8", errors="ignore") as handle:
                     content = handle.read()
-            except OSError:
-                continue
+            except OSError as exc:
+                failures.append((filename, [(f"unreadable file: {exc}", "unreadable file")])); continue
             hits = scan_content(content)
             if hits:
                 failures.append((filename, hits))
