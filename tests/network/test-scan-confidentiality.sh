@@ -8,6 +8,14 @@ VALIDATOR="${REPO_ROOT}/scripts/network/scan-confidentiality.sh"
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 counter=0
+subscription_guid='7f3a91c2-4b8e-4d15-''9a67-2c5e8b0d4f1a'
+tenant_guid='4d2c8a17-9e30-41b6-''8f52-0ab7c9d13e64'
+owner_email='network.owner''@northwind-industries.io'
+tenant_email='testuser.sample''@MngEnvSample123456.onmicrosoft.com'
+home_path='/home/''engineer1/vnet-discovery.json'
+windows_path='C:\Users\''engineer1\discovery'
+hub_cidr='172.21.''48.0/20'
+outside_cidr='10.240.''12.0/22'
 
 assert_fails() {
   local description="$1"
@@ -40,31 +48,31 @@ assert_passes() {
 # --- Prohibited disclosure ---------------------------------------------------
 
 assert_fails "subscription GUID" \
-  'subscriptionId: 7f3a91c2-4b8e-4d15-9a67-2c5e8b0d4f1a'
+  "subscriptionId: ${subscription_guid}"
 
 assert_fails "tenant GUID" \
-  'tenantId = 4d2c8a17-9e30-41b6-8f52-0ab7c9d13e64'
+  "tenantId = ${tenant_guid}"
 
 assert_fails "resolved ARM resource ID" \
-  'id: /subscriptions/7f3a91c2-4b8e-4d15-9a67-2c5e8b0d4f1a/resourceGroups/rg-shared-network'
+  "id: /subscriptions/${subscription_guid}/resourceGroups/rg-shared-network"
 
 assert_fails "real email address" \
-  'approver: network.owner@northwind-industries.io'
+  "approver: ${owner_email}"
 
 assert_fails "onmicrosoft tenant identity" \
-  'signed in as testuser.sample@MngEnvSample123456.onmicrosoft.com'
+  "signed in as ${tenant_email}"
 
 assert_fails "absolute home path" \
-  'discovery written to /home/engineer1/vnet-discovery.json'
+  "discovery written to ${home_path}"
 
 assert_fails "Windows user path" \
-  'source: C:\Users\engineer1\discovery'
+  "source: ${windows_path}"
 
 assert_fails "peered hub address range" \
-  'existing hub prefix: 172.21.48.0/20'
+  "existing hub prefix: ${hub_cidr}"
 
 assert_fails "address range outside the blueprint plan" \
-  'peer subnet: 10.240.12.0/22'
+  "peer subnet: ${outside_cidr}"
 
 # --- Permitted placeholders, constants, and public identifiers ---------------
 

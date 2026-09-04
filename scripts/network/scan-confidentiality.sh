@@ -80,8 +80,6 @@ CIDR_RE = re.compile(r"\b(?:10|172|192)\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}\b")
 
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "dist", "build", ".terraform"}
 SKIP_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".ico", ".woff", ".woff2")
-# The gate's own test fixture intentionally contains synthetic disclosure samples.
-SKIP_BASENAMES = {"test-scan-confidentiality.sh"}
 
 
 def is_placeholder_guid(value):
@@ -158,8 +156,6 @@ def iter_files(paths):
 
 def scan(path):
     if path.lower().endswith(SKIP_SUFFIXES):
-        return []
-    if os.path.basename(path) in SKIP_BASENAMES:
         return []
     try:
         with open(path, "r", encoding="utf-8", errors="ignore") as handle:
