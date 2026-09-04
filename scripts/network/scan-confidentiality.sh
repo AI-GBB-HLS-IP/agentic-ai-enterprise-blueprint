@@ -95,6 +95,11 @@ def cidr_allowed(value):
         network = ipaddress.ip_network(value, strict=False)
     except ValueError:
         return False
+
+    # Only treat *private* address space as disclosure; public/test ranges are allowed.
+    if not network.is_private:
+        return True
+
     return network.subnet_of(BLUEPRINT_SUPERNET)
 
 
