@@ -55,7 +55,7 @@ def iter_targets(paths):
     for target in paths:
         if os.path.isdir(target):
             for root, dirnames, filenames in os.walk(target):
-                dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".venv", "venv", "dist", "build"}]
+                dirnames[:] = [d for d in dirnames if d not in {".git", "node_modules", ".venv", "venv", "dist", "build", "tests", "chapters"}]
                 for filename in filenames:
                     yield os.path.join(root, filename)
         elif os.path.isfile(target):
