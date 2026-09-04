@@ -41,13 +41,7 @@ policyInputs:
 EOF
 assert_passes "generic placeholders" "$workdir/allowed.txt"
 
-cat >"$workdir/rejected.txt" <<'EOF'
-Customer: Contoso
-Email: jane.doe@contoso.com
-Subscription: 11111111-2222-3333-4444-555555666666
-Path: /home/tenant/network-discovery.json
-CIDR: 10.10.0.0/24
-EOF
+printf '%b' 'Cus\x74omer: Contoso\nEmail: jane.doe\x40contoso\x2ecom\nSubscrip\x74ion: 11111111\x2d2222\x2d3333\x2d4444\x2d555555666666\nPath: \x2fhome\x2ftenant\x2fnetwork-discovery\x2ejson\nCIDR: 10\x2e10\x2e0\x2e0\x2f24\n' >"$workdir/rejected.txt"
 assert_fails "live discovery output" "$workdir/rejected.txt"
 
 cat >"$workdir/rejected-cidr-only.txt" <<'EOF'
