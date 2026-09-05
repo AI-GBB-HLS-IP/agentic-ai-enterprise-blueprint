@@ -187,6 +187,7 @@ output foundryRoleAssignmentId string = apimMain.outputs.foundryRoleAssignmentId
 output privateDnsZoneId string = privateDns.outputs.privateDnsZoneId
 output privateDnsLinkId string = privateDns.outputs.privateDnsLinkId
 output privateDnsGatewayFqdn string = privateDns.outputs.apimGatewayFqdn
+output privateDnsAdditionalEndpointFqdns array = privateDns.outputs.additionalEndpointFqdns
 output backendId string = backend.outputs.backendId
 output apiId string = api.outputs.apiId
 output productId string = api.outputs.productId
