@@ -140,6 +140,9 @@ module backend '../../modules/apim/backend.bicep' = {
     foundryAccountName: foundryAccountName
     foundryApiVersion: foundryApiVersion
   }
+  dependsOn: [
+    apimMain
+  ]
 }
 
 module api '../../modules/apim/api.bicep' = {
