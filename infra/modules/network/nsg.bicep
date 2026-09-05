@@ -4,10 +4,10 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 @description('Name of the APIM subnet NSG. Mirrors the customer VPCx hybrid-NSG naming convention (hybrid-nsg-{subscription_name}-{region}).')
-param apimNsgName string = 'hybrid-nsg-agent-blueprint-eastus2-apim'
+param apimNsgName string = 'hybrid-nsg-agent-blueprint-${toLower(replace(location, ' ', ''))}-apim'
 
 @description('Name of the compute subnet NSG. Mirrors the customer VPCx hybrid-NSG naming convention (hybrid-nsg-{subscription_name}-{region}).')
-param computeNsgName string = 'hybrid-nsg-agent-blueprint-eastus2-compute'
+param computeNsgName string = 'hybrid-nsg-agent-blueprint-${toLower(replace(location, ' ', ''))}-compute'
 
 @description('APIM subnet prefix used by compute outbound allow rule.')
 param apimSubnetPrefix string = '10.0.1.0/24'
