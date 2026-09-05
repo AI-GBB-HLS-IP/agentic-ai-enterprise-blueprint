@@ -36,9 +36,24 @@ not yet automated, follow
 
 ## Deploy
 
-This environment now splits across three resource groups: network, Foundry, and APIM. Create and
-deploy each in order (network first, since foundry/apim reference its vnet/subnets/DNS zones
-cross-resource-group).
+Resource-group topology is fully configurable, not fixed at three. Each template independently
+accepts the resource group name(s) of the resources it depends on
+(`networkResourceGroupName` on `foundry.bicep`/`apim.bicep`, `foundryResourceGroupName` on
+`apim.bicep`), each defaulting to `resourceGroup().name` — i.e. "the RG I'm being deployed into."
+That means the same three templates support any of these topologies (and combinations in between)
+by choosing which RG name(s) you pass to `az group create`/`az deployment group create` and which
+override params you set:
+
+| Topology | RGs | How |
+|---|---|---|
+| Single RG | 1 | Deploy `main.bicep`, `foundry.bicep`, `apim.bicep` all into the same RG. Leave `networkResourceGroupName`/`foundryResourceGroupName` at their defaults. |
+| Network isolated | 2 | Network in its own RG; Foundry + APIM share a second RG. Set `networkResourceGroupName` on both `foundry.bicepparam` and `apim.bicepparam` to the network RG name; deploy `foundry.bicep` and `apim.bicep` into the shared second RG (`foundryResourceGroupName` on apim defaults correctly since it equals apim's own RG). |
+| Foundry isolated | 2 | Network + APIM share one RG; Foundry gets its own. Deploy `main.bicep` and `apim.bicep` into the shared RG (network default works); set `foundryResourceGroupName` on `apim.bicepparam` to the Foundry RG name, and `networkResourceGroupName` on `foundry.bicepparam` to the shared RG name. |
+| Fully separated | 3 | Network, Foundry, and APIM each in their own RG (example below). Set both override params on `foundry.bicepparam`/`apim.bicepparam`. |
+
+None of this requires touching the module code — only which RG name(s) you deploy each template
+into and which of the two override params you set in the `.bicepparam` files. The example below
+uses the fully-separated (3 RG) topology; adapt the RG names/count per the table above.
 
 ```bash
 LOCATION="eastus2"
@@ -83,10 +98,6 @@ az deployment group create \
   --template-file infra/envs/poc/apim.bicep \
   --parameters infra/envs/poc/apim.bicepparam
 ```
-
-Single-resource-group deployments remain supported: omit `networkResourceGroupName` /
-`foundryResourceGroupName` overrides (they default to `resourceGroup().name`) and deploy all three
-templates against one resource group, as before.
 
 ## Verify
 

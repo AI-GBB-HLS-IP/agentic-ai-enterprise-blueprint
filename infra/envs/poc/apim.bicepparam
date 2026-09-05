@@ -1,5 +1,9 @@
 using './apim.bicep'
 
+// Example topology: fully-separated (3 RG) — network, Foundry, and APIM each in their own
+// resource group. See ../README.md "Deploy" for other supported topologies (1 or 2 RGs); for
+// those, adjust or remove networkResourceGroupName/foundryResourceGroupName below to match the
+// RG(s) you actually deploy into.
 param location = 'eastus2'
 param apimServiceName = 'apim-agent-factory-private-poc'
 param publisherEmail = 'platform-eng@example.com'
