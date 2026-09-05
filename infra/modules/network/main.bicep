@@ -27,11 +27,11 @@ param cicdAgentsSubnetPrefix string = '10.0.5.0/24'
 @description('Bastion subnet CIDR (AzureBastionSubnet requires at least /26).')
 param bastionSubnetPrefix string = '10.0.6.0/26'
 
-@description('APIM NSG name.')
-param apimNsgName string = 'nsg-apim'
+@description('APIM NSG name. Mirrors the customer VPCx hybrid-NSG convention (hybrid-nsg-{subscription_name}-{region}), scoped per-subnet since APIM and compute have distinct rule sets.')
+param apimNsgName string = 'hybrid-nsg-agent-blueprint-eastus2-apim'
 
-@description('Compute NSG name.')
-param computeNsgName string = 'nsg-compute'
+@description('Compute NSG name. Mirrors the customer VPCx hybrid-NSG convention (hybrid-nsg-{subscription_name}-{region}), scoped per-subnet since APIM and compute have distinct rule sets.')
+param computeNsgName string = 'hybrid-nsg-agent-blueprint-eastus2-compute'
 
 @description('Private DNS zone names required for private endpoints.')
 param privateDnsZoneNames object
@@ -59,7 +59,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
 }
 
 resource snetApim 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'snet-apim'
+  name: 'hybridsubnet-apim'
   parent: vnet
   properties: {
     addressPrefix: apimSubnetPrefix
@@ -71,7 +71,7 @@ resource snetApim 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
 }
 
 resource snetFoundry 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'snet-foundry'
+  name: 'hybridsubnet-foundry'
   parent: vnet
   properties: {
     addressPrefix: foundrySubnetPrefix
@@ -88,7 +88,7 @@ resource snetFoundry 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
 }
 
 resource snetCompute 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'snet-compute'
+  name: 'hybridsubnet-compute'
   parent: vnet
   properties: {
     addressPrefix: computeSubnetPrefix
@@ -100,7 +100,7 @@ resource snetCompute 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
 }
 
 resource snetPrivateEndpoints 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'snet-privateendpoints'
+  name: 'hybridsubnet-privateendpoints'
   parent: vnet
   properties: {
     addressPrefix: privateEndpointsSubnetPrefix
@@ -109,7 +109,7 @@ resource snetPrivateEndpoints 'Microsoft.Network/virtualNetworks/subnets@2023-11
 }
 
 resource snetCicdAgents 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'snet-cicd-agents'
+  name: 'hybridsubnet-cicdagents'
   parent: vnet
   properties: {
     addressPrefix: cicdAgentsSubnetPrefix

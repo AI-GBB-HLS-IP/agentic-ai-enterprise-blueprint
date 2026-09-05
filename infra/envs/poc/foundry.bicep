@@ -1,14 +1,18 @@
 targetScope = 'resourceGroup'
 
 param location string = resourceGroup().location
+
+@description('Resource group containing the network foundation (vnet, subnets, private DNS zones). Defaults to this resource group for single-RG deployments.')
+param networkResourceGroupName string = resourceGroup().name
+
 param foundryAccountName string = 'foundry-agent-factory-poc'
 param projectName string = 'prj-agent-factory-poc'
 param projectDisplayName string = 'Agent Factory POC'
 param storageAccountName string = 'stagentfactorypoc'
 param keyVaultName string = 'kv-agent-factory-poc'
 param vnetName string = 'vnet-agent-factory-poc'
-param foundrySubnetName string = 'snet-foundry'
-param privateEndpointSubnetName string = 'snet-privateendpoints'
+param foundrySubnetName string = 'hybridsubnet-foundry'
+param privateEndpointSubnetName string = 'hybridsubnet-privateendpoints'
 param enableModelDeployment bool = false
 param modelDeploymentName string = 'gpt4.1-mini-poc'
 param modelName string = 'gpt4.1-mini'
@@ -18,6 +22,7 @@ param modelSkuName string = 'Standard'
 param modelCapacity int = 10
 
 resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' existing = {
+  scope: resourceGroup(networkResourceGroupName)
   name: vnetName
 }
 
@@ -32,10 +37,12 @@ resource privateEndpointSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-1
 }
 
 resource cognitiveServicesDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+  scope: resourceGroup(networkResourceGroupName)
   name: 'privatelink.cognitiveservices.azure.com'
 }
 
 resource openAiDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+  scope: resourceGroup(networkResourceGroupName)
   #disable-next-line no-hardcoded-env-urls
   name: 'privatelink.openai.azure.com'
 }
@@ -60,11 +67,13 @@ resource servicesAiDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLink
 }
 
 resource blobDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+  scope: resourceGroup(networkResourceGroupName)
   #disable-next-line no-hardcoded-env-urls
   name: 'privatelink.blob.core.windows.net'
 }
 
 resource keyVaultDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
+  scope: resourceGroup(networkResourceGroupName)
   name: 'privatelink.vaultcore.azure.net'
 }
 

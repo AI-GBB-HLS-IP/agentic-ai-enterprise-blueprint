@@ -36,10 +36,10 @@
       "value": "pip-agent-factory-bastion"
     },
     "apimNsgName": {
-      "value": "nsg-apim"
+      "value": "hybrid-nsg-agent-blueprint-eastus2-apim"
     },
     "computeNsgName": {
-      "value": "nsg-compute"
+      "value": "hybrid-nsg-agent-blueprint-eastus2-compute"
     },
     "privateDnsZoneNames": {
       "value": {

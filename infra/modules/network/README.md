@@ -3,13 +3,17 @@
 This module provisions the Network Foundation MVP for the POC:
 
 - VNet `vnet-agent-factory-poc` (`10.0.0.0/16` by default)
-- 5 fixed workload subnets:
-  - `snet-apim` (`10.0.1.0/24`)
-  - `snet-foundry` (`10.0.2.0/24`, delegated to `Microsoft.App/environments`)
-  - `snet-compute` (`10.0.3.0/24`)
-  - `snet-privateendpoints` (`10.0.4.0/24`, private endpoint network policies disabled)
-  - `snet-cicd-agents` (`10.0.5.0/24`)
-- NSGs for APIM and compute subnets
+- 5 fixed workload subnets (named after the customer's VPCx `hybridsubnet-*` convention — these
+  are internal-only subnets; there is no `dmzsubnet-*` yet since nothing in this POC is
+  internet-facing):
+  - `hybridsubnet-apim` (`10.0.1.0/24`)
+  - `hybridsubnet-foundry` (`10.0.2.0/24`, delegated to `Microsoft.App/environments`)
+  - `hybridsubnet-compute` (`10.0.3.0/24`)
+  - `hybridsubnet-privateendpoints` (`10.0.4.0/24`, private endpoint network policies disabled)
+  - `hybridsubnet-cicdagents` (`10.0.5.0/24`)
+- NSGs for APIM and compute subnets, named after the customer's VPCx
+  `hybrid-nsg-{subscription_name}-{region}` convention (one NSG per subnet purpose, since APIM and
+  compute have distinct rule sets)
 - Private DNS zones + VNet links for:
   - `privatelink.cognitiveservices.azure.com`
   - `privatelink.openai.azure.com`
@@ -34,15 +38,16 @@ permitted public IP in the blueprint.
 
 ## NSG rules for APIM VNet-injected mode (Research Q2)
 
-`nsg-apim` includes the minimum baseline rules required for APIM control-plane connectivity:
+`apimNsgName` (APIM subnet NSG) includes the minimum baseline rules required for APIM
+control-plane connectivity:
 
 - Allow inbound TCP `3443` from service tag `ApiManagement`
 - Allow inbound from `AzureLoadBalancer`
 - Allow outbound TCP `443` to `Internet`
 
-`nsg-compute` enforces private-by-default egress:
+`hybrid-nsg-agent-blueprint-eastus2-compute` enforces private-by-default egress:
 
-- Allow outbound TCP `443` only to APIM subnet (`snet-apim`)
+- Allow outbound TCP `443` only to APIM subnet (`hybridsubnet-apim`)
 - Allow east-west virtual network traffic
 - Deny direct outbound to `Internet`
 
