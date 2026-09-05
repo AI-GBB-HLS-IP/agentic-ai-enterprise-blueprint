@@ -38,7 +38,7 @@ permitted public IP in the blueprint.
 
 ## NSG rules for APIM VNet-injected mode (Research Q2)
 
-`hybrid-nsg-agent-blueprint-eastus2-apim` includes the minimum baseline rules required for APIM
+`apimNsgName` (APIM subnet NSG) includes the minimum baseline rules required for APIM
 control-plane connectivity:
 
 - Allow inbound TCP `3443` from service tag `ApiManagement`
