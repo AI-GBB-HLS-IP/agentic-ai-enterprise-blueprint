@@ -12,11 +12,14 @@ param publisherEmail string
 @description('APIM publisher display name.')
 param publisherName string
 
+@description('Resource group containing the network foundation (vnet, subnets). Defaults to this resource group for single-RG deployments.')
+param networkResourceGroupName string = resourceGroup().name
+
 @description('Existing virtual network name.')
 param vnetName string = 'vnet-agent-factory-poc'
 
 @description('Existing APIM subnet name.')
-param apimSubnetName string = 'snet-apim'
+param apimSubnetName string = 'hybridsubnet-apim'
 
 @description('APIM public network access. Internal VNet injection keeps the gateway private; disabling this flag requires an approved APIM Private Endpoint.')
 @allowed([
@@ -25,11 +28,14 @@ param apimSubnetName string = 'snet-apim'
 ])
 param publicNetworkAccess string = 'Enabled'
 
+@description('Resource group containing the Foundry account. Defaults to this resource group for single-RG deployments.')
+param foundryResourceGroupName string = resourceGroup().name
+
 @description('Existing Foundry account name.')
 param foundryAccountName string = 'foundry-agent-factory-poc'
 
 @description('Existing Foundry account resource ID.')
-param foundryAccountId string = resourceId('Microsoft.CognitiveServices/accounts', foundryAccountName)
+param foundryAccountId string = resourceId(foundryResourceGroupName, 'Microsoft.CognitiveServices/accounts', foundryAccountName)
 
 @description('Approved public model names mapped to Foundry deployment names.')
 @minLength(1)
@@ -89,6 +95,7 @@ param logAnalyticsWorkspaceName string = 'law-agent-factory-poc'
 param diagnosticSettingName string = 'diag-apim-gateway'
 
 resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' existing = {
+  scope: resourceGroup(networkResourceGroupName)
   name: vnetName
 }
 
@@ -107,6 +114,7 @@ module apimMain '../../modules/apim/main.bicep' = {
     apimSubnetId: apimSubnet.id
     apimSkuName: apimSkuName
     apimSkuCapacity: apimSkuCapacity
+    foundryResourceGroupName: foundryResourceGroupName
     foundryAccountName: foundryAccountName
     foundryAccountId: foundryAccountId
     publicNetworkAccess: publicNetworkAccess

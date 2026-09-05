@@ -28,6 +28,9 @@ param apimSkuCapacity int = 1
 @description('Existing Foundry account name.')
 param foundryAccountName string
 
+@description('Resource group containing the Foundry account. Defaults to this resource group for single-RG deployments.')
+param foundryResourceGroupName string = resourceGroup().name
+
 @description('Existing Foundry account resource ID.')
 param foundryAccountId string
 
@@ -39,6 +42,7 @@ param foundryAccountId string
 param publicNetworkAccess string = 'Disabled'
 
 resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' existing = {
+  scope: resourceGroup(foundryResourceGroupName)
   name: foundryAccountName
 }
 
@@ -63,18 +67,15 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
   }
 }
 
-var cognitiveServicesOpenAiUserRoleDefinitionId = subscriptionResourceId(
-  'Microsoft.Authorization/roleDefinitions',
-  '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
-)
-
-resource foundryRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(apimService.id, foundryAccount.id, cognitiveServicesOpenAiUserRoleDefinitionId)
-  scope: foundryAccount
-  properties: {
-    principalId: apimService.identity.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: cognitiveServicesOpenAiUserRoleDefinitionId
+// Extension resources (role assignments) must be deployed via a nested module scoped to the
+// Foundry account's own resource group when it differs from this file's resource group.
+module foundryRoleAssignmentModule 'foundry-role-assignment.bicep' = {
+  name: 'apim-foundry-role-assignment'
+  scope: resourceGroup(foundryResourceGroupName)
+  params: {
+    foundryAccountName: foundryAccountName
+    apimPrincipalId: apimService.identity.principalId
+    apimServiceId: apimService.id
   }
 }
 
@@ -92,7 +93,7 @@ output subnetDelegationStatus string = 'not-required'
 output virtualNetworkType string = apimService.properties.virtualNetworkType
 output hasPublicGatewayEndpoint bool = hasPublicGatewayEndpoint
 output privateIpAddresses array = privateIpAddresses
-output foundryRoleAssignmentId string = foundryRoleAssignment.id
+output foundryRoleAssignmentId string = foundryRoleAssignmentModule.outputs.foundryRoleAssignmentId
 output readiness object = {
   prerequisites: 'existing'
   subnetDelegation: 'not-required'

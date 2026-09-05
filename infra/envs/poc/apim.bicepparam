@@ -5,8 +5,10 @@ param apimServiceName = 'apim-agent-factory-private-poc'
 param publisherEmail = 'platform-eng@example.com'
 param publisherName = 'Agent Factory Platform Engineering'
 
+param networkResourceGroupName = 'rg-agent-blueprint-poc-network'
 param vnetName = 'vnet-agent-factory-poc'
-param apimSubnetName = 'snet-apim'
+param apimSubnetName = 'hybridsubnet-apim'
+param foundryResourceGroupName = 'rg-agent-blueprint-poc-foundry'
 param foundryAccountName = 'foundry-agent-factory-poc'
 param approvedModels = [
   {

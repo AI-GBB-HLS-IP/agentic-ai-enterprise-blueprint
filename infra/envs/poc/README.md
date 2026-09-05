@@ -36,39 +36,74 @@ not yet automated, follow
 
 ## Deploy
 
+This environment now splits across three resource groups: network, Foundry, and APIM. Create and
+deploy each in order (network first, since foundry/apim reference its vnet/subnets/DNS zones
+cross-resource-group).
+
 ```bash
-RG_NAME="rg-agent-factory-poc"
 LOCATION="eastus2"
+NETWORK_RG="rg-agent-blueprint-poc-network"
+FOUNDRY_RG="rg-agent-blueprint-poc-foundry"
+APIM_RG="rg-agent-blueprint-poc-apim"
 
-az group create --name "$RG_NAME" --location "$LOCATION"
+az group create --name "$NETWORK_RG" --location "$LOCATION"
+az group create --name "$FOUNDRY_RG" --location "$LOCATION"
+az group create --name "$APIM_RG" --location "$LOCATION"
 
+# 1. Network foundation
 az deployment group what-if \
-  --resource-group "$RG_NAME" \
+  --resource-group "$NETWORK_RG" \
   --template-file infra/envs/poc/main.bicep \
   --parameters @infra/envs/poc/network.parameters.json
 
 az deployment group create \
-  --resource-group "$RG_NAME" \
+  --resource-group "$NETWORK_RG" \
   --template-file infra/envs/poc/main.bicep \
   --parameters @infra/envs/poc/network.parameters.json
+
+# 2. Foundry (references the network RG's vnet/subnets/DNS zones)
+az deployment group what-if \
+  --resource-group "$FOUNDRY_RG" \
+  --template-file infra/envs/poc/foundry.bicep \
+  --parameters infra/envs/poc/foundry.bicepparam
+
+az deployment group create \
+  --resource-group "$FOUNDRY_RG" \
+  --template-file infra/envs/poc/foundry.bicep \
+  --parameters infra/envs/poc/foundry.bicepparam
+
+# 3. APIM (references the network RG's vnet/subnet and the Foundry RG's account)
+az deployment group what-if \
+  --resource-group "$APIM_RG" \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters infra/envs/poc/apim.bicepparam
+
+az deployment group create \
+  --resource-group "$APIM_RG" \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters infra/envs/poc/apim.bicepparam
 ```
+
+Single-resource-group deployments remain supported: omit `networkResourceGroupName` /
+`foundryResourceGroupName` overrides (they default to `resourceGroup().name`) and deploy all three
+templates against one resource group, as before.
 
 ## Verify
 
 ```bash
 az network vnet subnet list \
-  --resource-group "$RG_NAME" \
+  --resource-group "$NETWORK_RG" \
   --vnet-name vnet-agent-factory-poc \
   --query "[].{name:name,prefix:addressPrefix,delegations:delegations[*].serviceName,nsg:networkSecurityGroup.id}" \
   --output table
 
 az network private-dns zone list \
-  --resource-group "$RG_NAME" \
+  --resource-group "$NETWORK_RG" \
   --query "[].name" \
   --output table
 
 # Private-by-default check: expect no public IP unless Bastion is intentionally enabled
-az network public-ip list --resource-group "$RG_NAME" --query "[].name" --output table
+az network public-ip list --resource-group "$NETWORK_RG" --query "[].name" --output table
 ```
 
 ## Bastion validation
@@ -83,7 +118,7 @@ section does not apply.
 When Bastion is intentionally enabled, the deployment includes an Azure Bastion Basic host and its
 required Standard static public IP.
 For a full interactive Bastion validation, create a temporary test VM without a public IP in
-`snet-privateendpoints`, connect through the Azure Portal, and run `nslookup` for a private
+`hybridsubnet-privateendpoints`, connect through the Azure Portal, and run `nslookup` for a private
 endpoint record. Delete the test VM and its NIC/disk after validation.
 
 The Basic SKU supports portal-based Bastion access but does not support the Azure CLI native-client
@@ -92,7 +127,7 @@ non-interactive DNS-only check, Azure Run Command can execute `nslookup` inside 
 
 ```bash
 az vm run-command invoke \
-  --resource-group "$RG_NAME" \
+  --resource-group "$NETWORK_RG" \
   --name vm-dns-test \
   --command-id RunShellScript \
   --scripts 'nslookup validation-endpoint.privatelink.openai.azure.com'
@@ -102,7 +137,7 @@ The validation record is temporary and must be removed with:
 
 ```bash
 az network private-dns record-set a delete \
-  --resource-group "$RG_NAME" \
+  --resource-group "$NETWORK_RG" \
   --zone-name privatelink.openai.azure.com \
   --name validation-endpoint \
   --yes
@@ -112,14 +147,14 @@ Remove the temporary VM and attached resources after validation:
 
 ```bash
 VM_NAME="vm-dns-test"
-NIC_ID="$(az vm show --resource-group "$RG_NAME" --name "$VM_NAME" --query 'networkProfile.networkInterfaces[0].id' -o tsv)"
+NIC_ID="$(az vm show --resource-group "$NETWORK_RG" --name "$VM_NAME" --query 'networkProfile.networkInterfaces[0].id' -o tsv)"
 NIC_NAME="${NIC_ID##*/}"
-DISK_NAME="$(az vm show --resource-group "$RG_NAME" --name "$VM_NAME" \
+DISK_NAME="$(az vm show --resource-group "$NETWORK_RG" --name "$VM_NAME" \
   --query 'storageProfile.osDisk.name' -o tsv)"
 
-az vm delete --resource-group "$RG_NAME" --name "$VM_NAME" --yes
-az network nic delete --resource-group "$RG_NAME" --name "$NIC_NAME"
-az disk delete --resource-group "$RG_NAME" --name "$DISK_NAME" --yes
+az vm delete --resource-group "$NETWORK_RG" --name "$VM_NAME" --yes
+az network nic delete --resource-group "$NETWORK_RG" --name "$NIC_NAME"
+az disk delete --resource-group "$NETWORK_RG" --name "$DISK_NAME" --yes
 ```
 
 - Parameters are in `network.parameters.json`; update `location` and names as needed.
