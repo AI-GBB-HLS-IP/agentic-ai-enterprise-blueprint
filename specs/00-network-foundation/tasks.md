@@ -163,7 +163,7 @@ NSGs, and existing-zone VNet links are allowed.
 - [ ] T041 [P] [US4] Add failing static and compiled-template assertions for existing VNet immutability, child-only subnet writes, absence of route resources, existing-control immutability, and link-only DNS behavior in `tests/network/test-brownfield-template-boundaries.sh`
 - [x] T042 [P] [US4] Implement new-subnet child resources with `@batchSize(1)` serialized writes and no existing VNet property declaration in `infra/modules/network/subnets.bicep`
 - [ ] T043 [P] [US4] Implement blueprint-owned NSG creation and approved-existing-NSG reference handling without modifying referenced NSGs in `infra/modules/network/nsg.bicep`
-- [x] T044 [US4] Implement the network-owner entry point in `infra/envs/poc/brownfield-network.bicep`, deploying the root at blueprint resource-group scope while invoking subnet writes at existing-VNet resource-group scope in the same subscription
+- [x] T044 [US4] Implement the network-owner entry point in `infra/envs/poc/brownfield-network.bicep`, deploying scoped to the existing-VNet resource-group while invoking subnet writes as child resources in the same subscription
 - [ ] T045 [P] [US4] Ensure `infra/envs/poc/brownfield-network.bicepparam.example` contains only placeholders and documents that existing route-table IDs are references only and no route tables or routes are created
 
 ### Network-Owner Preview Tests and Implementation
