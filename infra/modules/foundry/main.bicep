@@ -321,6 +321,11 @@ module storageRbac './storage-rbac.bicep' = {
     storageAccountName: storageAccountNameResolved
     projectWorkspaceIdGuid: projectWorkspaceIdGuid
   }
+  #disable-next-line BCP318
+  dependsOn: [
+    newStorageAccount
+    existingStorageAccount
+  ]
 }
 
 module modelDeployment './model-deployment.bicep' = if (enableModelDeployment) {
