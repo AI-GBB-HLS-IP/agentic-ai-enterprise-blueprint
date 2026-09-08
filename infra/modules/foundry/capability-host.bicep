@@ -50,7 +50,8 @@ resource capabilityHost 'Microsoft.CognitiveServices/accounts/projects/capabilit
 // and the {workspaceId}-azureml-agent blob container). RBAC below is pre-authorized against
 // those not-yet-existing child scopes, which Azure RBAC permits as long as the parent resource
 // (the Cosmos/Storage account) already exists.
-var rawWorkspaceId = project.properties.internalId
+var rawWorkspaceId = string(project.properties.internalId)
+var _validateWorkspaceId = (length(rawWorkspaceId) == 32) ? true : error('project.properties.internalId must be a 32-character hex GUID; ensure the selected API version returns internalId.')
 var workspaceIdGuid = '${substring(rawWorkspaceId, 0, 8)}-${substring(rawWorkspaceId, 8, 4)}-${substring(rawWorkspaceId, 12, 4)}-${substring(rawWorkspaceId, 16, 4)}-${substring(rawWorkspaceId, 20, 12)}'
 
 output projectPrincipalId string = project.identity.principalId
