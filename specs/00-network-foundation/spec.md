@@ -360,11 +360,11 @@ must be confirmed with the tenant administrator when self-service group creation
   deployment has one explicit owner scope.
 - **FR-016a**: Brownfield DNS inputs MUST provide approved existing zones for active
   Cognitive Services/Foundry, Azure OpenAI, APIM, Key Vault, and Storage Blob roles. Optional
-  service roles, including SQL, Cosmos DB (`privatelink.documents.azure.com`), and AI Search
-  (`privatelink.search.windows.net`), are required only when the corresponding downstream service
-  is enabled. Cosmos DB and AI Search zones MUST be treated as active (not optional) whenever the
-  Foundry Agent Service capability host is enabled, since both are required dependent resources
-  for agent thread storage and vector-store connections.
+  service roles, including SQL, are required only when the corresponding downstream service is
+  enabled. Cosmos DB (`privatelink.documents.azure.com`) and AI Search
+  (`privatelink.search.windows.net`) zones MUST be supplied whenever the Foundry Agent Service
+  capability host is enabled, since both are required dependent resources for agent thread storage
+  and vector-store connections.
 - **FR-017**: Azure Bastion MUST be optional in both greenfield and brownfield modes. When
   disabled, no Bastion subnet, host, or public IP may be proposed.
 - **FR-018**: NSG and route-table integration MUST be explicit and limited to approved new
