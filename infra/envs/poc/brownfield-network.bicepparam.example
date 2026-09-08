@@ -3,7 +3,12 @@ using './brownfield-network.bicep'
 // PLACEHOLDER VALUES ONLY. This tracked .example file must never contain real subscription-
 // specific values (per repo confidentiality convention). Copy it to a local, untracked
 // `brownfield-network.bicepparam` and replace every placeholder with the admin-approved value
-// for your existing VNet before deploying. See specs/00-network-foundation/quickstart.md.
+// for your existing VNet before deploying. See docs/deploy-00-network.md.
+//
+// WARNING: subnet names below are written as child PUTs against the existing VNet. If a name
+// already exists in that VNet, its properties are OVERWRITTEN and anything this template does not
+// set (route table/UDR, service endpoints, NAT gateway) is REMOVED. Confirm every requested name
+// is unused, and review `az deployment group what-if` output before deploying.
 
 param existingVnetName = '<existing-vnet-name>'
 param existingVnetResourceGroupName = '<existing-vnet-resource-group>'

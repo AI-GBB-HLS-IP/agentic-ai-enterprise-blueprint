@@ -4,6 +4,10 @@
 
 **Input**: Feature specification from `specs/00-network-foundation/spec.md`
 
+> **Reference material.** To deploy this chapter, use
+> [`docs/deploy-00-network.md`](../../docs/deploy-00-network.md). This document records
+> architecture decisions, not deployment steps.
+
 ## Summary
 
 Preserve the implemented greenfield network foundation while adding a separate brownfield path

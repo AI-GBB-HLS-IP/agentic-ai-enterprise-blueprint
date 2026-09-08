@@ -6,6 +6,10 @@
 
 **Status**: Greenfield mode implemented; brownfield adjustment in specification
 
+> **Reference material.** To deploy this chapter, use
+> [`docs/deploy-00-network.md`](../../docs/deploy-00-network.md). This document records
+> requirements, not deployment steps.
+
 **Input**: Issue #1 — initial Network Foundation; Issue #33 — customer-managed VNet support.
 
 **Blueprint reference**: Chapters [01-foundry-byo-networking](../../chapters/01-foundry-byo-networking.md)

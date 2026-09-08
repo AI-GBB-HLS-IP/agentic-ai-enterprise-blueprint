@@ -19,7 +19,7 @@ Run the documented preflight checks in `specs/00-network-foundation/spec.md` bef
 
 For the full ordered sequence, including validation gates, known deviations, and which steps are
 not yet automated, follow
-[`specs/00-network-foundation/RUNBOOK.md`](../../../specs/00-network-foundation/RUNBOOK.md).
+[`docs/deploy-00-network.md`](../../../docs/deploy-00-network.md).
 
 ## Validate before deploying
 

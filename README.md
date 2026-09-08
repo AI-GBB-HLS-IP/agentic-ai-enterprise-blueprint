@@ -466,6 +466,19 @@ The Secure Agent Factory enforces a strict separation between three personas. No
 
 Each part is self-contained — IT Platform can complete Part 1 independently, CoE completes Part 2 on top, and Developers use Part 3 immediately once Parts 1 and 2 are in place.
 
+### Deploying the reference infrastructure
+
+If you are here to **run** the IaC rather than read the architecture, start with the operator
+guides in [`docs/`](./docs/). Each one is a self-contained, end-to-end runbook — you do not need to
+read `specs/` to deploy.
+
+| Guide | Covers |
+|-------|--------|
+| [`docs/deploy-00-network.md`](./docs/deploy-00-network.md) | Network foundation — greenfield and brownfield (existing VNet) |
+
+`specs/` holds the requirements, design decisions, and task backlog behind each chapter. It is
+reference material, not deployment instructions.
+
 ### Reference Implementations (IaC)
 
 | Repository | Use |
