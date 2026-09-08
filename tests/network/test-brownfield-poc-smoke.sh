@@ -16,6 +16,11 @@ command -v az >/dev/null 2>&1 || {
   exit 0
 }
 
+command -v python3 >/dev/null 2>&1 || {
+  echo "SKIP: python3 not available; cannot run compiled-template assertions." >&2
+  exit 0
+}
+
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 
