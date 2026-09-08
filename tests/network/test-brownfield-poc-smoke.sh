@@ -88,8 +88,8 @@ for example in "$NETWORK_PARAM_EXAMPLE" "$DNS_PARAM_EXAMPLE"; do
 done
 
 echo "==> brownfield-network.bicep: shared hybrid NSG reaches every subnet"
-# Customer VPCx policy requires every blueprint subnet to be associated with the single
-# hybrid-nsg-{subscription_name}-{region} NSG. The APIM and compute subnets resolve their NSG
+# Some customer policies require every blueprint subnet to be associated with a single shared hybrid NSG
+# (often named like hybrid-nsg-<subscription>-<region>). The APIM and compute subnets resolve their NSG
 # through the three-mode ternary; the foundry, private endpoint, and CI/CD subnets pick it up by
 # union() with sharedNsgAssociation. Assert all five paths are wired.
 network_arm="$workdir/network.json"
