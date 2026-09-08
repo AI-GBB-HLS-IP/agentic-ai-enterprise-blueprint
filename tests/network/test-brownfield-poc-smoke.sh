@@ -153,20 +153,13 @@ sed \
   -e "s/<region>/eastus2/" \
   -e "s/<admin-approved-cidr>/10.0.0.0\/28/" \
   "$NETWORK_PARAM_EXAMPLE" >"$network_tmp_param"
-az bicep build-params --file "$network_tmp_param" --stdout >/dev/null 2>"$workdir/network-params.err"
-if [[ -s "$workdir/network-params.err" ]] && grep -qi error "$workdir/network-params.err"; then
+if ! az bicep build-params --file "$network_tmp_param" --stdout >/dev/null 2>"$workdir/network-params.err"; then
   echo "FAIL: filled-in brownfield-network.bicepparam.example does not compile" >&2
   cat "$workdir/network-params.err" >&2
   exit 1
 fi
 
-sed \
-  -e "s#<dns-zone-resource-group>#rg-example-dns#" \
-  -e "s#<full-arm-resource-id-of-existing-vnet>#/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example-network/providers/Microsoft.Network/virtualNetworks/vnet-example#" \
-  -e "s#<existing-vnet-name>#vnet-example#" \
-  "$DNS_PARAM_EXAMPLE" >"$dns_tmp_param"
-az bicep build-params --file "$dns_tmp_param" --stdout >/dev/null 2>"$workdir/dns-params.err"
-if [[ -s "$workdir/dns-params.err" ]] && grep -qi error "$workdir/dns-params.err"; then
+if ! az bicep build-params --file "$dns_tmp_param" --stdout >/dev/null 2>"$workdir/dns-params.err"; then
   echo "FAIL: filled-in brownfield-dns.bicepparam.example does not compile" >&2
   cat "$workdir/dns-params.err" >&2
   exit 1
