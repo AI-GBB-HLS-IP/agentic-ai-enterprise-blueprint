@@ -58,71 +58,55 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
   }
 }
 
-resource snetApim 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'hybridsubnet-apim'
-  parent: vnet
-  properties: {
+// Subnet definitions are shared with the brownfield entry point via ./subnets.bicep, so subnet
+// shape (delegation, NSG association, private-endpoint policy) has a single implementation. The
+// module also serializes the child writes with @batchSize(1); declaring these subnets in parallel
+// here previously risked intermittent 409 Conflict responses from the platform.
+//
+// Ownership boundary: the VNet resource above is declared ONLY in this greenfield template. The
+// shared module references the VNet as `existing` and writes nothing but its subnet children,
+// which is what allows brownfield to reuse it against an admin-owned VNet.
+var subnetDefinitions = [
+  {
+    name: 'hybridsubnet-apim'
     addressPrefix: apimSubnetPrefix
     privateEndpointNetworkPolicies: 'Enabled'
-    networkSecurityGroup: {
-      id: nsg.outputs.apimNsgId
-    }
+    nsgId: nsg.outputs.apimNsgId
   }
-}
-
-resource snetFoundry 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'hybridsubnet-foundry'
-  parent: vnet
-  properties: {
+  {
+    name: 'hybridsubnet-foundry'
     addressPrefix: foundrySubnetPrefix
     privateEndpointNetworkPolicies: 'Enabled'
-    delegations: [
-      {
-        name: 'foundry-delegation'
-        properties: {
-          serviceName: 'Microsoft.App/environments'
-        }
-      }
-    ]
+    delegationServiceName: 'Microsoft.App/environments'
   }
-}
-
-resource snetCompute 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'hybridsubnet-compute'
-  parent: vnet
-  properties: {
+  {
+    name: 'hybridsubnet-compute'
     addressPrefix: computeSubnetPrefix
     privateEndpointNetworkPolicies: 'Enabled'
-    networkSecurityGroup: {
-      id: nsg.outputs.computeNsgId
-    }
+    nsgId: nsg.outputs.computeNsgId
   }
-}
-
-resource snetPrivateEndpoints 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'hybridsubnet-privateendpoints'
-  parent: vnet
-  properties: {
+  {
+    name: 'hybridsubnet-privateendpoints'
     addressPrefix: privateEndpointsSubnetPrefix
     privateEndpointNetworkPolicies: 'Disabled'
   }
-}
-
-resource snetCicdAgents 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'hybridsubnet-cicdagents'
-  parent: vnet
-  properties: {
+  {
+    name: 'hybridsubnet-cicdagents'
     addressPrefix: cicdAgentsSubnetPrefix
     privateEndpointNetworkPolicies: 'Enabled'
   }
-}
-
-resource azureBastionSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  name: 'AzureBastionSubnet'
-  parent: vnet
-  properties: {
+  {
+    name: 'AzureBastionSubnet'
     addressPrefix: bastionSubnetPrefix
     privateEndpointNetworkPolicies: 'Enabled'
+  }
+]
+
+module subnets './subnets.bicep' = {
+  name: '${vnetName}-subnets'
+  params: {
+    vnetName: vnet.name
+    subnets: subnetDefinitions
   }
 }
 
@@ -137,13 +121,14 @@ module privateDns './private-dns.bicep' = {
 
 output vnetId string = vnet.id
 
+// Index order matches subnetDefinitions above.
 output subnetIds object = {
-  apim: snetApim.id
-  foundry: snetFoundry.id
-  compute: snetCompute.id
-  privateEndpoints: snetPrivateEndpoints.id
-  cicdAgents: snetCicdAgents.id
-  bastion: azureBastionSubnet.id
+  apim: subnets.outputs.subnetIds[0]
+  foundry: subnets.outputs.subnetIds[1]
+  compute: subnets.outputs.subnetIds[2]
+  privateEndpoints: subnets.outputs.subnetIds[3]
+  cicdAgents: subnets.outputs.subnetIds[4]
+  bastion: subnets.outputs.subnetIds[5]
 }
 
 output nsgIds object = {
