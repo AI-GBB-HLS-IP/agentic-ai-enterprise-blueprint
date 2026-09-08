@@ -85,10 +85,9 @@ greenfield module always uses mode 3.
 | 2 — per-purpose existing | `reuseExistingNsgs = true` + both `existing*NsgId` | none | APIM, compute |
 | 3 — blueprint-owned (default) | leave the above unset | APIM + compute | APIM, compute |
 
-**Mode 1** exists for the customer VPCx policy that requires every subnet to be associated with the
-single pre-existing hybrid NSG in `VPCXRG`, conventionally named
-`hybrid-nsg-{subscription_name}-{region}` (for example `hybrid-nsg-azr-rrr-eastus`). Pass the full
-ARM resource ID, so the NSG may live in a different resource group or subscription; it is referenced
+**Mode 1** exists for customer policies that require every subnet to be associated with a single
+pre-existing hybrid NSG (often named like `hybrid-nsg-<subscription>-<region>`). Pass the full ARM
+resource ID, so the NSG may live in a different resource group or subscription; it is referenced
 only and is never created or modified. Mode 1 takes precedence over `reuseExistingNsgs`.
 
 > **Private endpoint caveat.** Azure only enforces NSG rules on private endpoint traffic when the
