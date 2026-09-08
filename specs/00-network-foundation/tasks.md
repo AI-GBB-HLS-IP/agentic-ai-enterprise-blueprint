@@ -147,7 +147,7 @@ NSGs, and existing-zone VNet links are allowed.
 
 - [x] T032 [US4] Implement read-only existing-VNet discovery and local JSON output in `scripts/network/discover-existing-vnet.sh`, ensuring it proposes no changes and never writes discovery values into repository artifacts
 - [~] T033 [US4] Implement service-profile and workload-derived capacity calculation in `scripts/network/calculate-subnet-capacity.sh`, including minimums, recommendations, expected consumers, Azure-reserved addresses, growth allowance, rationale, and generic IPAM approval status
-      *Partial:* `scripts/network/generate-brownfield-params.sh` derives the allocation from discovery, enforces the Foundry `/27` and APIM `/29` platform minimums, reports Azure-reserved usable counts, and emits reviewable `.bicepparam` files. Workload-derived consumer counts, growth allowance, and IPAM approval status remain open.
+  *Partial:* `scripts/network/generate-brownfield-params.sh` derives the allocation from discovery, enforces the Foundry `/27` and APIM `/29` platform minimums, reports Azure-reserved usable counts, and emits reviewable `.bicepparam` files. Workload-derived consumer counts, growth allowance, and IPAM approval status remain open.
 - [ ] T034 [P] [US4] Define placeholder-only discovery, capacity, deployment-key, ownership, adoption, NSG, route-table, and subnet-request inputs in `infra/envs/poc/brownfield-network.bicepparam.example`
 
 ### Brownfield Preflight Tests
