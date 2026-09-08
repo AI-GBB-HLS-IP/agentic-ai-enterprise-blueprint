@@ -1,9 +1,9 @@
 targetScope = 'resourceGroup'
 
 // DNS-owner entry point for brownfield deployments: links the existing VNet to the 8 required
-// private DNS zones. This template MUST be deployed scoped to a single, explicit DNS zone
-// resource group per invocation (one owner scope at a time) and never creates or modifies a
-// zone — only VNet links, always with registration disabled.
+// private DNS zones. Each link is deployed at the DNS zone resource-group scope
+// (dnsResourceGroupName); this template never creates or modifies a zone — only VNet links, with
+// registration always disabled.
 //
 // Fast-POC-pass scope (see issue #48): the deferred DNS preflight validator and what-if guard
 // (specs/00-network-foundation/tasks.md T048-T049, T052-T053) will add cross-tenant/ownership
