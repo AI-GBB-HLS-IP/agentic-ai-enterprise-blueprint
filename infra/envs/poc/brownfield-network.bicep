@@ -56,7 +56,7 @@ param cicdAgentsSubnetPrefix string = '10.0.0.112/28'
 // NSG association. Three mutually exclusive modes, in precedence order:
 //
 //   1. sharedHybridNsgId set  -> "shared hybrid NSG" mode. One pre-existing, customer-owned NSG
-//      (typically the VPCx `hybrid-nsg-{subscription_name}-{region}` NSG in VPCXRG) is associated
+//      (for example a centrally managed hybrid NSG such as `hybrid-nsg-<subscription>-<region>`) is associated
 //      with ALL subnets created here. No NSG is created or modified by this template. This is the
 //      mode required by customer network policies that mandate the hybrid NSG on every subnet.
 //   2. reuseExistingNsgs true -> per-purpose existing NSGs. Associates the supplied APIM and
@@ -65,7 +65,7 @@ param cicdAgentsSubnetPrefix string = '10.0.0.112/28'
 //   3. neither                -> blueprint-owned mode. Creates the two blueprint APIM/compute
 //      NSGs (distinct rule sets, per the greenfield design in infra/modules/network/README.md).
 //
-// The shared NSG may live in any resource group or the same subscription's VPCXRG: subnet-to-NSG
+// The shared NSG may live in any resource group in the same subscription: subnet-to-NSG
 // association is by full ARM resource ID and is inherently cross-resource-group.
 // ---------------------------------------------------------------------------------------------
 
