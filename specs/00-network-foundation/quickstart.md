@@ -51,6 +51,16 @@ are proposed. Bastion resources appear only when explicitly enabled.
 
 ## Brownfield discovery
 
+> **Current status (issue #48):** `infra/envs/poc/brownfield-network.bicep` and
+> `infra/envs/poc/brownfield-dns.bicep` exist and compile, and deploy the 5 purpose-keyed
+> subnets/NSGs and the 8 DNS zone links respectively against an admin-provided existing VNet.
+> The discovery, capacity-calculation, fail-closed preflight, and what-if allowlist scripts
+> referenced below (`discover-existing-vnet.sh`, `validate-brownfield-inputs.sh`,
+> `validate-network-what-if.sh`, `validate-dns-inputs.sh`, `validate-dns-what-if.sh`) are **not
+> yet implemented** — this is an explicit, tracked scope reduction to ship a usable brownfield
+> path faster. Until they exist, obtain admin/IPAM approval for every CIDR, subnet name, and NSG
+> ID out of band, and review `what-if` output manually before every brownfield deployment.
+
 Run the planned read-only discovery against the selected existing VNet before choosing CIDRs:
 
 ```bash
