@@ -72,7 +72,34 @@ permitted public IP in the blueprint.
 > **Current deviation**: this module still creates `AzureBastionSubnet` unconditionally, and
 > `infra/envs/poc/main.bicep` always deploys the Bastion module. Making Bastion fully conditional
 > is tracked by tasks T005 and T059-T063. See
-> [`specs/00-network-foundation/RUNBOOK.md`](../../../specs/00-network-foundation/RUNBOOK.md).
+> [`docs/deploy-00-network.md`](../../../docs/deploy-00-network.md).
+
+## Brownfield subnet writes are destructive on name collision
+
+`subnets.bicep` creates each subnet as a child resource PUT against an `existing` VNet reference.
+It never declares the VNet's top-level properties, so the address space, peerings, and DDoS
+settings are safe. The subnets themselves are not.
+
+The module builds each request body with `union()` from a fixed set of properties: `addressPrefix`,
+`privateEndpointNetworkPolicies`, and optionally one delegation and one `networkSecurityGroup`.
+A subnet PUT replaces the whole subnet object, so if a requested name **already exists** in the
+target VNet:
+
+- its address prefix, delegation, and NSG association are replaced with the module's values; and
+- every property the module does not send — **route table (UDR), service endpoints, NAT gateway,
+  service association links** — is absent from the request and is therefore **removed**.
+
+There is no `routeTableId` parameter, so a UDR can neither be attached to a new subnet nor
+preserved on a colliding one. In a forced-tunneling environment, silently dropping a UDR can
+blackhole egress or bypass an inspection appliance.
+
+The module also does not validate that CIDRs fall inside the VNet address space or avoid
+overlapping existing subnets; that is stated in the `subnets` parameter description and is
+deferred with the rest of the preflight tooling (issue #48).
+
+Until `validate-brownfield-inputs.sh` and `validate-network-what-if.sh` exist, confirm out of band
+that all five requested subnet names are unused, and reject any `what-if` result containing
+`~ Modify` or `- Delete` on a resource the blueprint did not create.
 
 ## NSG association modes (brownfield)
 
