@@ -126,15 +126,31 @@ the result is attributable to the intended model deployment.
   `Microsoft.App/environments`.
 - **FR-004**: The feature MUST use `snet-privateendpoints` (`10.0.4.0/24`) for private
   endpoints and MUST NOT add public IP addresses for Foundry or its supporting resources.
-- **FR-005**: The feature MUST provision Foundry's required supporting resources, including
-  private storage and Key Vault; SQL Database MUST be provisioned when required by the selected
-  Foundry workload.
+- **FR-005**: The feature MUST provision Foundry's required supporting resources: private
+  Storage, Key Vault, Cosmos DB (for the Agent Service thread/message stores), and AI Search
+  (for the Agent Service vector store); SQL Database MUST be provisioned when required by the
+  selected Foundry workload.
+- **FR-005a**: When the Foundry Agent Service capability host is enabled, the feature MUST
+  create project-level connections (AAD-authenticated) to Cosmos DB, Storage, and AI Search,
+  and MUST activate a `capabilityHosts` resource of kind `Agents` referencing those
+  connections, following the account-level (not project-level) subnet delegation model
+  described in Microsoft's
+  [Foundry Agent Service networking guidance](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/agents-networking-deep-dive):
+  all projects under one Foundry account share the same delegated subnet.
+- **FR-005b**: The feature MUST pre-authorize the Foundry project's managed identity with the
+  minimum built-in RBAC roles required by the Agent Service platform to auto-provision its
+  Cosmos DB containers (`enterprise_memory` database: thread-message-store,
+  system-thread-message-store, agent-entity-store) and Storage blob container
+  (`{workspaceId}*-azureml-agent`) before those child resources exist. The Storage role
+  assignment MUST use an ABAC condition scoping access to containers matching the project's
+  workspace ID pattern only.
 - **FR-006**: The feature MUST create private endpoints for Foundry and each required supporting
-  resource, and each private endpoint MUST have an approved connection state before validation
-  can pass.
+  resource (Storage, Key Vault, Cosmos DB, AI Search), and each private endpoint MUST have an
+  approved connection state before validation can pass.
 - **FR-007**: The feature MUST integrate private endpoints with the existing private DNS zones
-  for Cognitive Services/Foundry, Azure OpenAI when used, Storage Blob, Key Vault, and SQL when
-  used, with VNet links to `vnet-agent-factory-poc`.
+  for Cognitive Services/Foundry, Azure OpenAI when used, Storage Blob, Key Vault, Cosmos DB
+  (`privatelink.documents.azure.com`), AI Search (`privatelink.search.windows.net`), and SQL
+  when used, with VNet links to `vnet-agent-factory-poc`.
 - **FR-008**: The feature MUST configure BYO VNet before any Foundry agents are created, using
   `vnet-agent-factory-poc`, `snet-foundry`, and `snet-privateendpoints`.
 - **FR-009**: The feature MUST deploy one approved model only after region and model quota are
@@ -152,6 +168,15 @@ the result is attributable to the intended model deployment.
 - **FR-014**: The feature MUST preserve separation of duties: platform engineering owns resource
   and network configuration, while AI CoE approves model selection and developers do not receive
   direct infrastructure administration access.
+- **FR-015**: The feature MUST support bring-your-own (BYO) reuse of each of the four dependent
+  resources — Storage account, AI Search service, Cosmos DB account, and VNet/subnets —
+  independently: for each resource, an existing resource's full ARM resource ID MAY be supplied
+  in place of creating a new one, including when that existing resource lives in a different
+  resource group or subscription than the Foundry account.
+- **FR-016**: When an existing (BYO) dependent resource is supplied and already has its own
+  private endpoint configured, the feature MUST NOT create a duplicate private endpoint for
+  that resource; a per-resource flag MUST control this behavior independently of the BYO
+  resource-ID toggle.
 
 ### Key Entities
 
@@ -163,8 +188,12 @@ the result is attributable to the intended model deployment.
   to `snet-privateendpoints`.
 - **Private DNS zone and link**: Existing service-specific name-resolution zones linked to the
   platform VNet and associated with private endpoint DNS records.
-- **Supporting resource**: Storage, Key Vault, and conditionally SQL resources required by the
-  Foundry workload.
+- **Supporting resource**: Storage, Key Vault, Cosmos DB, AI Search, and conditionally SQL
+  resources required by the Foundry workload; each of Storage, AI Search, Cosmos DB, and the
+  VNet/subnets MAY be newly created or reused (BYO) independently of the others.
+- **Capability host**: The `capabilityHosts` child resource (kind `Agents`) that activates the
+  Foundry Agent Service runtime for a project, referencing its Cosmos DB, Storage, and AI
+  Search connections.
 - **Model deployment**: An approved model name/version and serving capacity available to the
   Foundry project.
 - **Validation result**: Evidence of prerequisite status, deployment status, connectivity,

@@ -1,25 +1,9 @@
+// Storage is no longer created here: it is now BYO-capable (create-new-or-reuse-existing) and
+// is orchestrated from main.bicep via ./storage.bicep so it can be independently referenced
+// cross-subscription/cross-resource-group like AI Search and Cosmos DB. Key Vault remains
+// blueprint-owned only (not part of the customer BYO-dependent-resource set).
 param location string
-param storageAccountName string
 param keyVaultName string
-
-resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: storageAccountName
-  location: location
-  sku: {
-    name: 'Standard_LRS'
-  }
-  kind: 'StorageV2'
-  properties: {
-    publicNetworkAccess: 'Disabled'
-    allowBlobPublicAccess: false
-    minimumTlsVersion: 'TLS1_2'
-    supportsHttpsTrafficOnly: true
-    networkAcls: {
-      defaultAction: 'Deny'
-      bypass: 'AzureServices'
-    }
-  }
-}
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
@@ -39,5 +23,4 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-output storageAccountId string = storage.id
 output keyVaultId string = keyVault.id
