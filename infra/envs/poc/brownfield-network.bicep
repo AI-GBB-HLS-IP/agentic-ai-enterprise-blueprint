@@ -1,9 +1,10 @@
 targetScope = 'resourceGroup'
 
 // Network-owner entry point for brownfield deployments: adds the 5 purpose-keyed subnets (and
-// their NSGs) to an admin-provided existing VNet. This deployment MUST be run scoped to the
-// existing VNet's own resource group (same subscription) so subnet writes land alongside their
-// parent VNet; it never creates, modifies, or deletes the VNet resource itself.
+// their NSGs) to an admin-provided existing VNet. Deploy this template at any resource-group
+// scope in the same subscription, but set existingVnetResourceGroupName to the VNet's resource
+// group so subnet writes land alongside their parent VNet; it never creates, modifies, or
+// deletes the VNet resource itself.
 //
 // Fast-POC-pass scope (see issue #48): this entry point performs no independent overlap,
 // containment, or ownership/adoption validation of its own — the supplied CIDRs and NSG
@@ -15,7 +16,7 @@ targetScope = 'resourceGroup'
 @description('Name of the existing (admin-provided) VNet. Not created, modified, or deleted by this template.')
 param existingVnetName string
 
-@description('Resource group containing the existing VNet. This template must be deployed scoped to this resource group.')
+@description('Resource group containing the existing VNet. Subnet/NSG modules are deployed to this resource group in the same subscription.')
 param existingVnetResourceGroupName string = resourceGroup().name
 
 @description('Deployment location for new NSG resources.')
