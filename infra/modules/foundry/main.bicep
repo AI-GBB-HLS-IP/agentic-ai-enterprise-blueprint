@@ -301,6 +301,10 @@ module aiSearchRbac './ai-search-rbac.bicep' = {
     projectPrincipalId: project.identity.principalId
     aiSearchServiceName: aiSearchServiceNameResolved
   }
+  dependsOn: [
+    existingAISearchService
+    newAISearchService
+  ]
 }
 
 module storageRbac './storage-rbac.bicep' = {
