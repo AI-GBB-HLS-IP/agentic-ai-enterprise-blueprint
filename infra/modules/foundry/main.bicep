@@ -138,24 +138,24 @@ module keyVaultResources './supporting-resources.bicep' = {
 
 var storagePassedIn = !empty(existingAzureStorageAccountResourceId)
 var storageParts = split(existingAzureStorageAccountResourceId, '/')
-var _validateStorageResourceId = !storagePassedIn || (length(storageParts) > 8 && toLower(storageParts[6]) == 'microsoft.storage' && toLower(storageParts[7]) == 'storageaccounts') ? true : error('existingAzureStorageAccountResourceId must be a full ARM resource ID for Microsoft.Storage/storageAccounts.')
+var _validateStorageResourceId = !storagePassedIn || (length(storageParts) == 9 && toLower(storageParts[6]) == 'microsoft.storage' && toLower(storageParts[7]) == 'storageaccounts' && !empty(storageParts[8])) ? true : error('existingAzureStorageAccountResourceId must be a full ARM resource ID for Microsoft.Storage/storageAccounts.')
 var storageSubscriptionId = storagePassedIn ? storageParts[2] : subscription().subscriptionId
 var storageResourceGroupName = storagePassedIn ? storageParts[4] : resourceGroup().name
-var storageAccountNameResolved = storagePassedIn ? last(storageParts) : storageAccountName
+var storageAccountNameResolved = storagePassedIn ? storageParts[8] : storageAccountName
 
 var searchPassedIn = !empty(existingAISearchResourceId)
 var searchParts = split(existingAISearchResourceId, '/')
-var _validateAISearchResourceId = !searchPassedIn || (length(searchParts) > 8 && toLower(searchParts[6]) == 'microsoft.search' && toLower(searchParts[7]) == 'searchservices') ? true : error('existingAISearchResourceId must be a full ARM resource ID for Microsoft.Search/searchServices.')
+var _validateAISearchResourceId = !searchPassedIn || (length(searchParts) == 9 && toLower(searchParts[6]) == 'microsoft.search' && toLower(searchParts[7]) == 'searchservices' && !empty(searchParts[8])) ? true : error('existingAISearchResourceId must be a full ARM resource ID for Microsoft.Search/searchServices.')
 var searchSubscriptionId = searchPassedIn ? searchParts[2] : subscription().subscriptionId
 var searchResourceGroupName = searchPassedIn ? searchParts[4] : resourceGroup().name
-var aiSearchServiceNameResolved = searchPassedIn ? last(searchParts) : aiSearchServiceName
+var aiSearchServiceNameResolved = searchPassedIn ? searchParts[8] : aiSearchServiceName
 
 var cosmosPassedIn = !empty(existingAzureCosmosDBAccountResourceId)
 var cosmosParts = split(existingAzureCosmosDBAccountResourceId, '/')
-var _validateCosmosDBResourceId = !cosmosPassedIn || (length(cosmosParts) > 8 && toLower(cosmosParts[6]) == 'microsoft.documentdb' && toLower(cosmosParts[7]) == 'databaseaccounts') ? true : error('existingAzureCosmosDBAccountResourceId must be a full ARM resource ID for Microsoft.DocumentDB/databaseAccounts.')
+var _validateCosmosDBResourceId = !cosmosPassedIn || (length(cosmosParts) == 9 && toLower(cosmosParts[6]) == 'microsoft.documentdb' && toLower(cosmosParts[7]) == 'databaseaccounts' && !empty(cosmosParts[8])) ? true : error('existingAzureCosmosDBAccountResourceId must be a full ARM resource ID for Microsoft.DocumentDB/databaseAccounts.')
 var cosmosSubscriptionId = cosmosPassedIn ? cosmosParts[2] : subscription().subscriptionId
 var cosmosResourceGroupName = cosmosPassedIn ? cosmosParts[4] : resourceGroup().name
-var cosmosDBAccountNameResolved = cosmosPassedIn ? last(cosmosParts) : cosmosDBAccountName
+var cosmosDBAccountNameResolved = cosmosPassedIn ? cosmosParts[8] : cosmosDBAccountName
 
 resource existingStorageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = if (storagePassedIn) {
   scope: resourceGroup(storageSubscriptionId, storageResourceGroupName)
