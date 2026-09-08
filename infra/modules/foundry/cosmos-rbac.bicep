@@ -11,7 +11,7 @@ param projectWorkspaceIdGuid string
 
 // Built-in role: Cosmos DB Operator (management-plane; lets the project read connection strings
 // and metadata, but not data).
-var cosmosDBOperatorRoleId = resourceId('Microsoft.Authorization/roleDefinitions', '230815da-be43-4aae-9cb4-875f7bd000aa')
+var cosmosDBOperatorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '230815da-be43-4aae-9cb4-875f7bd000aa')
 
 // Built-in Cosmos DB SQL role: Cosmos DB Built-in Data Contributor (data-plane; scoped per
 // container below, not at the account level).
