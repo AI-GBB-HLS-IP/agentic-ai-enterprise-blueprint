@@ -145,8 +145,8 @@ then
 fi
 
 echo "==> .bicepparam.example files compile once placeholders are filled"
-network_tmp_param="${REPO_ROOT}/infra/envs/poc/.tmp-brownfield-network-smoketest.bicepparam"
-dns_tmp_param="${REPO_ROOT}/infra/envs/poc/.tmp-brownfield-dns-smoketest.bicepparam"
+network_tmp_param="${workdir}/.tmp-brownfield-network-smoketest.bicepparam"
+dns_tmp_param="${workdir}/.tmp-brownfield-dns-smoketest.bicepparam"
 cleanup_tmp_params() {
   rm -f "$network_tmp_param" "$dns_tmp_param"
 }
