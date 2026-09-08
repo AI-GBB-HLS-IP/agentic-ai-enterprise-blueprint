@@ -139,21 +139,24 @@ module keyVaultResources './supporting-resources.bicep' = {
 
 var storagePassedIn = !empty(existingAzureStorageAccountResourceId)
 var storageParts = split(existingAzureStorageAccountResourceId, '/')
-var _validateStorageResourceId = !storagePassedIn || (length(storageParts) == 9 && toLower(storageParts[6]) == 'microsoft.storage' && toLower(storageParts[7]) == 'storageaccounts' && !empty(storageParts[8])) ? true : error('existingAzureStorageAccountResourceId must be a full ARM resource ID for Microsoft.Storage/storageAccounts.')
+var _validateStorageResourceId = !storagePassedIn || (((length(storageParts) == 9) || (length(storageParts) == 10 && empty(storageParts[9]))) && toLower(storageParts[1]) == 'subscriptions' && toLower(storageParts[3]) == 'resourcegroups' && toLower(storageParts[5]) == 'providers' && toLower(storageParts[6]) == 'microsoft.storage' && toLower(storageParts[7]) == 'storageaccounts' && !empty(storageParts[8])) ? true : error('existingAzureStorageAccountResourceId must be a full ARM resource ID for Microsoft.Storage/storageAccounts.')
+var _validateStoragePrivateEndpointFlag = storagePassedIn || !existingStoragePrivateEndpoint ? true : error('existingStoragePrivateEndpoint can only be true when existingAzureStorageAccountResourceId is set.')
 var storageSubscriptionId = storagePassedIn ? storageParts[2] : subscription().subscriptionId
 var storageResourceGroupName = storagePassedIn ? storageParts[4] : resourceGroup().name
 var storageAccountNameResolved = storagePassedIn ? storageParts[8] : storageAccountName
 
 var searchPassedIn = !empty(existingAISearchResourceId)
 var searchParts = split(existingAISearchResourceId, '/')
-var _validateAISearchResourceId = !searchPassedIn || (length(searchParts) == 9 && toLower(searchParts[6]) == 'microsoft.search' && toLower(searchParts[7]) == 'searchservices' && !empty(searchParts[8])) ? true : error('existingAISearchResourceId must be a full ARM resource ID for Microsoft.Search/searchServices.')
+var _validateAISearchResourceId = !searchPassedIn || (((length(searchParts) == 9) || (length(searchParts) == 10 && empty(searchParts[9]))) && toLower(searchParts[1]) == 'subscriptions' && toLower(searchParts[3]) == 'resourcegroups' && toLower(searchParts[5]) == 'providers' && toLower(searchParts[6]) == 'microsoft.search' && toLower(searchParts[7]) == 'searchservices' && !empty(searchParts[8])) ? true : error('existingAISearchResourceId must be a full ARM resource ID for Microsoft.Search/searchServices.')
+var _validateAISearchPrivateEndpointFlag = searchPassedIn || !existingAISearchPrivateEndpoint ? true : error('existingAISearchPrivateEndpoint can only be true when existingAISearchResourceId is set.')
 var searchSubscriptionId = searchPassedIn ? searchParts[2] : subscription().subscriptionId
 var searchResourceGroupName = searchPassedIn ? searchParts[4] : resourceGroup().name
 var aiSearchServiceNameResolved = searchPassedIn ? searchParts[8] : aiSearchServiceName
 
 var cosmosPassedIn = !empty(existingAzureCosmosDBAccountResourceId)
 var cosmosParts = split(existingAzureCosmosDBAccountResourceId, '/')
-var _validateCosmosDBResourceId = !cosmosPassedIn || (length(cosmosParts) == 9 && toLower(cosmosParts[6]) == 'microsoft.documentdb' && toLower(cosmosParts[7]) == 'databaseaccounts' && !empty(cosmosParts[8])) ? true : error('existingAzureCosmosDBAccountResourceId must be a full ARM resource ID for Microsoft.DocumentDB/databaseAccounts.')
+var _validateCosmosDBResourceId = !cosmosPassedIn || (((length(cosmosParts) == 9) || (length(cosmosParts) == 10 && empty(cosmosParts[9]))) && toLower(cosmosParts[1]) == 'subscriptions' && toLower(cosmosParts[3]) == 'resourcegroups' && toLower(cosmosParts[5]) == 'providers' && toLower(cosmosParts[6]) == 'microsoft.documentdb' && toLower(cosmosParts[7]) == 'databaseaccounts' && !empty(cosmosParts[8])) ? true : error('existingAzureCosmosDBAccountResourceId must be a full ARM resource ID for Microsoft.DocumentDB/databaseAccounts.')
+var _validateCosmosDBPrivateEndpointFlag = cosmosPassedIn || !existingCosmosDBPrivateEndpoint ? true : error('existingCosmosDBPrivateEndpoint can only be true when existingAzureCosmosDBAccountResourceId is set.')
 var cosmosSubscriptionId = cosmosPassedIn ? cosmosParts[2] : subscription().subscriptionId
 var cosmosResourceGroupName = cosmosPassedIn ? cosmosParts[4] : resourceGroup().name
 var cosmosDBAccountNameResolved = cosmosPassedIn ? cosmosParts[8] : cosmosDBAccountName
