@@ -18,8 +18,23 @@ param privateEndpointsSubnetPrefix = '<admin-approved-cidr>'
 param computeSubnetPrefix = '<admin-approved-cidr>'
 param cicdAgentsSubnetPrefix = '<admin-approved-cidr>'
 
-// Set to true and populate both existing*NsgId values below only if reusing pre-approved NSGs
-// instead of letting this template create new blueprint-owned ones.
+// NSG association. Choose ONE of the three modes below.
+//
+// Mode 1 (customer VPCx policy): associate a single pre-existing hybrid NSG with EVERY subnet.
+// Set sharedHybridNsgId to the full resource ID of the NSG in VPCXRG, typically named
+// hybrid-nsg-{subscription_name}-{region}. The NSG may live in a different resource group; it is
+// referenced only and never created or modified. reuseExistingNsgs and the per-purpose IDs below
+// are ignored when this is set.
+param sharedHybridNsgId = ''
+
+// Mode 2: per-purpose pre-approved NSGs on the APIM and compute subnets only. Set
+// reuseExistingNsgs = true and populate both IDs. Leave sharedHybridNsgId empty.
+// Mode 3 (default): this template creates the two blueprint-owned APIM/compute NSGs.
 param reuseExistingNsgs = false
 param existingApimNsgId = ''
 param existingComputeNsgId = ''
+
+// Azure only enforces NSG rules on private endpoint traffic when this is 'Enabled' or
+// 'NetworkSecurityGroupEnabled'. With 'Disabled' the NSG is still associated with the subnet
+// (satisfying a policy that mandates association) but does not filter private endpoint traffic.
+param privateEndpointsNetworkPolicies = 'Disabled'

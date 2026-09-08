@@ -60,7 +60,11 @@ if ! grep -Eq "resource zone 'Microsoft.Network/privateDnsZones@[^']+' existing"
 fi
 
 echo "==> .bicepparam.example files contain placeholders only"
-placeholder_pattern="^param [A-Za-z][A-Za-z0-9]* = ('<[^']*>'|''|true|false)\$"
+# Allowed on the right-hand side of a tracked .example param: an angle-bracket placeholder, an
+# empty string, a boolean, or a non-customer-identifying Azure enum literal from the allowlist
+# below. Anything else risks leaking a real deployment value into a tracked file.
+safe_enum_literals="Disabled|Enabled|NetworkSecurityGroupEnabled|RouteTableEnabled"
+placeholder_pattern="^param [A-Za-z][A-Za-z0-9]* = ('<[^']*>'|''|true|false|'(${safe_enum_literals})')\$"
 for example in "$NETWORK_PARAM_EXAMPLE" "$DNS_PARAM_EXAMPLE"; do
   while IFS= read -r line; do
     if [[ "$line" =~ ^param\  ]] && ! [[ "$line" =~ $placeholder_pattern ]]; then
@@ -69,6 +73,63 @@ for example in "$NETWORK_PARAM_EXAMPLE" "$DNS_PARAM_EXAMPLE"; do
     fi
   done <"$example"
 done
+
+echo "==> brownfield-network.bicep: shared hybrid NSG reaches every subnet"
+# Customer VPCx policy requires every blueprint subnet to be associated with the single
+# hybrid-nsg-{subscription_name}-{region} NSG. The APIM and compute subnets resolve their NSG
+# through the three-mode ternary; the foundry, private endpoint, and CI/CD subnets pick it up by
+# union() with sharedNsgAssociation. Assert all five paths are wired.
+network_arm="$workdir/network.json"
+for subnet_param in foundrySubnetName privateEndpointsSubnetName cicdAgentsSubnetName; do
+  if ! python3 - "$network_arm" "$subnet_param" <<'PY'
+import json, sys
+arm, subnet_param = json.load(open(sys.argv[1])), sys.argv[2]
+res = next(r for r in arm['resources'] if r.get('name') == 'brownfield-subnets')
+entries = res['properties']['parameters']['subnets']['value']
+match = [e for e in entries if isinstance(e, str) and subnet_param in e]
+if not match:
+    sys.exit(f"no subnet entry found for {subnet_param}")
+if 'sharedNsgAssociation' not in match[0]:
+    sys.exit(f"{subnet_param} subnet is not union()-ed with sharedNsgAssociation")
+PY
+  then
+    echo "FAIL: $subnet_param subnet does not receive the shared hybrid NSG" >&2
+    exit 1
+  fi
+done
+
+for subnet_param in apimSubnetName computeSubnetName; do
+  if ! python3 - "$network_arm" "$subnet_param" <<'PY'
+import json, sys
+arm, subnet_param = json.load(open(sys.argv[1])), sys.argv[2]
+res = next(r for r in arm['resources'] if r.get('name') == 'brownfield-subnets')
+entries = res['properties']['parameters']['subnets']['value']
+match = [e for e in entries if isinstance(e, dict) and subnet_param in e.get('name', '')]
+if not match:
+    sys.exit(f"no subnet entry found for {subnet_param}")
+nsg = match[0].get('nsgId', '')
+if 'useSharedHybridNsg' not in nsg or 'sharedHybridNsgId' not in nsg:
+    sys.exit(f"{subnet_param} subnet does not prefer the shared hybrid NSG")
+PY
+  then
+    echo "FAIL: $subnet_param subnet does not prefer the shared hybrid NSG" >&2
+    exit 1
+  fi
+done
+
+echo "==> brownfield-network.bicep: no NSG is created in shared hybrid NSG mode"
+if ! python3 - "$network_arm" <<'PY'
+import json, sys
+arm = json.load(open(sys.argv[1]))
+res = next(r for r in arm['resources'] if r.get('name') == 'brownfield-nsg')
+cond = res.get('condition', '')
+if 'useSharedHybridNsg' not in cond:
+    sys.exit('brownfield-nsg module is not gated on useSharedHybridNsg')
+PY
+then
+  echo "FAIL: NSG creation is not suppressed when a shared hybrid NSG is supplied" >&2
+  exit 1
+fi
 
 echo "==> .bicepparam.example files compile once placeholders are filled"
 network_tmp_param="${REPO_ROOT}/infra/envs/poc/.tmp-brownfield-network-smoketest.bicepparam"

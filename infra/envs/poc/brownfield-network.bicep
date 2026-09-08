@@ -51,22 +51,53 @@ param cicdAgentsSubnetName string = 'hybridsubnet-cicdagents'
 @description('CI/CD agents subnet CIDR.')
 param cicdAgentsSubnetPrefix string = '10.0.0.112/28'
 
-@description('APIM NSG name, used only when reuseExistingNsgs is false.')
+// ---------------------------------------------------------------------------------------------
+// NSG association. Three mutually exclusive modes, in precedence order:
+//
+//   1. sharedHybridNsgId set  -> "shared hybrid NSG" mode. One pre-existing, customer-owned NSG
+//      (typically the VPCx `hybrid-nsg-{subscription_name}-{region}` NSG in VPCXRG) is associated
+//      with ALL subnets created here. No NSG is created or modified by this template. This is the
+//      mode required by customer network policies that mandate the hybrid NSG on every subnet.
+//   2. reuseExistingNsgs true -> per-purpose existing NSGs. Associates the supplied APIM and
+//      compute NSGs on those two subnets only; foundry, private endpoints, and CI/CD agents get
+//      no NSG. Retained for environments without a single shared hybrid NSG.
+//   3. neither                -> blueprint-owned mode. Creates the two blueprint APIM/compute
+//      NSGs (distinct rule sets, per the greenfield design in infra/modules/network/README.md).
+//
+// The shared NSG may live in any resource group or the same subscription's VPCXRG: subnet-to-NSG
+// association is by full ARM resource ID and is inherently cross-resource-group.
+// ---------------------------------------------------------------------------------------------
+
+@description('Full ARM resource ID of a single pre-existing, customer-owned NSG to associate with EVERY subnet created by this template (e.g. the VPCx /VPCXRG NSG named hybrid-nsg-{subscription_name}-{region}). May live in a different resource group. When set, this template creates and modifies no NSG, and reuseExistingNsgs / existingApimNsgId / existingComputeNsgId are ignored.')
+param sharedHybridNsgId string = ''
+
+@description('APIM NSG name, used only in blueprint-owned mode (sharedHybridNsgId empty and reuseExistingNsgs false).')
 param apimNsgName string = 'hybrid-nsg-agent-blueprint-${toLower(replace(location, ' ', ''))}-apim'
 
-@description('Compute NSG name, used only when reuseExistingNsgs is false.')
+@description('Compute NSG name, used only in blueprint-owned mode (sharedHybridNsgId empty and reuseExistingNsgs false).')
 param computeNsgName string = 'hybrid-nsg-agent-blueprint-${toLower(replace(location, ' ', ''))}-compute'
 
-@description('Set true to reuse pre-approved existing NSGs instead of creating new blueprint-owned ones. When true, existingApimNsgId and existingComputeNsgId must both be supplied and are associated as-is (this template never modifies a referenced existing NSG).')
+@description('Set true to reuse pre-approved per-purpose existing NSGs instead of creating new blueprint-owned ones. Ignored when sharedHybridNsgId is set. When true, existingApimNsgId and existingComputeNsgId must both be supplied and are associated as-is (this template never modifies a referenced existing NSG).')
 param reuseExistingNsgs bool = false
 
-@description('Existing APIM NSG resource ID. Required when reuseExistingNsgs is true.')
+@description('Existing APIM NSG resource ID. Required when reuseExistingNsgs is true and sharedHybridNsgId is empty.')
 param existingApimNsgId string = ''
 
-@description('Existing compute NSG resource ID. Required when reuseExistingNsgs is true.')
+@description('Existing compute NSG resource ID. Required when reuseExistingNsgs is true and sharedHybridNsgId is empty.')
 param existingComputeNsgId string = ''
 
-module nsg '../../modules/network/nsg.bicep' = if (!reuseExistingNsgs) {
+@description('''Private-endpoint network policy for the private endpoints subnet. Azure only enforces NSG rules on private endpoint traffic when this is `Enabled` or `NetworkSecurityGroupEnabled`; with the default `Disabled`, an associated NSG is still attached to the subnet (satisfying a policy that mandates association) but its rules are NOT applied to private endpoint traffic. Set to `NetworkSecurityGroupEnabled` if the hybrid NSG must actually filter private endpoint traffic.''')
+@allowed([
+  'Disabled'
+  'Enabled'
+  'NetworkSecurityGroupEnabled'
+  'RouteTableEnabled'
+])
+param privateEndpointsNetworkPolicies string = 'Disabled'
+
+var useSharedHybridNsg = !empty(sharedHybridNsgId)
+
+module nsg '../../modules/network/nsg.bicep' = if (!useSharedHybridNsg && !reuseExistingNsgs) {
   scope: resourceGroup(existingVnetResourceGroupName)
   name: 'brownfield-nsg'
   params: {
@@ -77,13 +108,18 @@ module nsg '../../modules/network/nsg.bicep' = if (!reuseExistingNsgs) {
   }
 }
 
-// The ternary below always resolves to a defined branch (either the conditional module's
-// output or the caller-supplied existing ID) based on the same reuseExistingNsgs flag that
-// gates the module, so the "possibly not deployed" warning does not indicate a real risk here.
+// The ternaries below always resolve to a defined branch (shared NSG ID, caller-supplied existing
+// ID, or the conditional module's output) using the same flags that gate the module, so the
+// "possibly not deployed" warning does not indicate a real risk here.
 #disable-next-line BCP318
-var apimNsgIdResolved = reuseExistingNsgs ? existingApimNsgId : nsg.outputs.apimNsgId
+var apimNsgIdResolved = useSharedHybridNsg ? sharedHybridNsgId : (reuseExistingNsgs ? existingApimNsgId : nsg.outputs.apimNsgId)
 #disable-next-line BCP318
-var computeNsgIdResolved = reuseExistingNsgs ? existingComputeNsgId : nsg.outputs.computeNsgId
+var computeNsgIdResolved = useSharedHybridNsg ? sharedHybridNsgId : (reuseExistingNsgs ? existingComputeNsgId : nsg.outputs.computeNsgId)
+
+// Only the shared-hybrid-NSG mode attaches an NSG to the foundry, private endpoints, and CI/CD
+// subnets; in the other two modes these objects contribute no `nsgId` key and those subnets are
+// created without an NSG.
+var sharedNsgAssociation = useSharedHybridNsg ? { nsgId: sharedHybridNsgId } : {}
 
 module subnets '../../modules/network/subnets.bicep' = {
   scope: resourceGroup(existingVnetResourceGroupName)
@@ -91,30 +127,30 @@ module subnets '../../modules/network/subnets.bicep' = {
   params: {
     vnetName: existingVnetName
     subnets: [
-      {
+      union({
         name: foundrySubnetName
         addressPrefix: foundrySubnetPrefix
         delegationServiceName: 'Microsoft.App/environments'
-      }
+      }, sharedNsgAssociation)
       {
         name: apimSubnetName
         addressPrefix: apimSubnetPrefix
         nsgId: apimNsgIdResolved
       }
-      {
+      union({
         name: privateEndpointsSubnetName
         addressPrefix: privateEndpointsSubnetPrefix
-        privateEndpointNetworkPolicies: 'Disabled'
-      }
+        privateEndpointNetworkPolicies: privateEndpointsNetworkPolicies
+      }, sharedNsgAssociation)
       {
         name: computeSubnetName
         addressPrefix: computeSubnetPrefix
         nsgId: computeNsgIdResolved
       }
-      {
+      union({
         name: cicdAgentsSubnetName
         addressPrefix: cicdAgentsSubnetPrefix
-      }
+      }, sharedNsgAssociation)
     ]
   }
 }
@@ -122,5 +158,6 @@ module subnets '../../modules/network/subnets.bicep' = {
 output vnetName string = existingVnetName
 output existingVnetResourceGroupName string = existingVnetResourceGroupName
 output subnetIds array = subnets.outputs.subnetIds
+output usingSharedHybridNsg bool = useSharedHybridNsg
 output apimNsgId string = apimNsgIdResolved
 output computeNsgId string = computeNsgIdResolved

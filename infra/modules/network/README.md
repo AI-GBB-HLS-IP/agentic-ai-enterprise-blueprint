@@ -74,6 +74,30 @@ permitted public IP in the blueprint.
 > is tracked by tasks T005 and T059-T063. See
 > [`specs/00-network-foundation/RUNBOOK.md`](../../../specs/00-network-foundation/RUNBOOK.md).
 
+## NSG association modes (brownfield)
+
+`infra/envs/poc/brownfield-network.bicep` supports three mutually exclusive NSG strategies. The
+greenfield module always uses mode 3.
+
+| Mode | How to select | NSGs created | Subnets associated |
+| --- | --- | --- | --- |
+| 1 — shared hybrid NSG | set `sharedHybridNsgId` | none | all five |
+| 2 — per-purpose existing | `reuseExistingNsgs = true` + both `existing*NsgId` | none | APIM, compute |
+| 3 — blueprint-owned (default) | leave the above unset | APIM + compute | APIM, compute |
+
+**Mode 1** exists for the customer VPCx policy that requires every subnet to be associated with the
+single pre-existing hybrid NSG in `VPCXRG`, conventionally named
+`hybrid-nsg-{subscription_name}-{region}` (for example `hybrid-nsg-azr-rrr-eastus`). Pass the full
+ARM resource ID, so the NSG may live in a different resource group or subscription; it is referenced
+only and is never created or modified. Mode 1 takes precedence over `reuseExistingNsgs`.
+
+> **Private endpoint caveat.** Azure only enforces NSG rules on private endpoint traffic when the
+> subnet's `privateEndpointNetworkPolicies` is `Enabled` or `NetworkSecurityGroupEnabled`. The
+> `privateEndpointsNetworkPolicies` parameter defaults to `Disabled`, which still *associates* the
+> NSG with `hybridsubnet-privateendpoints` — satisfying a policy that mandates association — but
+> does not filter private endpoint traffic. Set it to `NetworkSecurityGroupEnabled` if the rules
+> must actually be enforced.
+
 ## NSG rules for APIM VNet-injected mode (Research Q2)
 
 `apimNsgName` (APIM subnet NSG) includes the minimum baseline rules required for APIM
