@@ -132,6 +132,12 @@ capacity calculation, network preflight, network what-if validation, DNS preflig
 what-if validation. Verify that only approved new subnets, approved associations, blueprint-owned
 NSGs, and existing-zone VNet links are allowed.
 
+> **Fast-POC-pass note (issue #48):** T040, T042, and T044 are implemented as a reduced,
+> POC-scoped subset — the Bicep entry points and modules exist and compile, validated by a
+> lightweight smoke test (`tests/network/test-brownfield-poc-smoke.sh`) rather than the full
+> edge-case test matrices below. T030-T034, T035-T039, T041, T043, T045-T056 remain open and are
+> required before this user story is spec-complete.
+
 ### Discovery and Capacity Tests
 
 - [ ] T030 [P] [US4] Add failing tests proving discovery uses read-only Azure operations and inventories VNet prefixes, subnet names and CIDRs, delegations, NSG and route-table associations, peerings, DNS configuration, DDoS settings, and unallocated ranges in `tests/network/test-discover-existing-vnet.sh`
@@ -153,11 +159,11 @@ NSGs, and existing-zone VNet links are allowed.
 ### Brownfield Preflight Implementation
 
 - [ ] T039 [US4] Implement fail-closed brownfield preflight in `scripts/network/validate-brownfield-inputs.sh`, covering discovery evidence, IPAM approval, sizing, names, containment, overlap, service behavior, same-subscription boundary, permissions, prior ownership, adoption fallback, existing NSGs, and existing route tables
-- [ ] T040 [P] [US4] Implement the existing-zone link-only child module with registration fixed to `false` in `infra/modules/network/private-dns-link.bicep`
+- [x] T040 [P] [US4] Implement the existing-zone link-only child module with registration fixed to `false` in `infra/modules/network/private-dns-link.bicep`
 - [ ] T041 [P] [US4] Add failing static and compiled-template assertions for existing VNet immutability, child-only subnet writes, absence of route resources, existing-control immutability, and link-only DNS behavior in `tests/network/test-brownfield-template-boundaries.sh`
-- [ ] T042 [P] [US4] Implement new-subnet child resources with `@batchSize(1)` serialized writes and no existing VNet property declaration in `infra/modules/network/subnets.bicep`
+- [x] T042 [P] [US4] Implement new-subnet child resources with `@batchSize(1)` serialized writes and no existing VNet property declaration in `infra/modules/network/subnets.bicep`
 - [ ] T043 [P] [US4] Implement blueprint-owned NSG creation and approved-existing-NSG reference handling without modifying referenced NSGs in `infra/modules/network/nsg.bicep`
-- [ ] T044 [US4] Implement the network-owner entry point in `infra/envs/poc/brownfield-network.bicep`, deploying the root at blueprint resource-group scope while invoking subnet writes at existing-VNet resource-group scope in the same subscription
+- [x] T044 [US4] Implement the network-owner entry point in `infra/envs/poc/brownfield-network.bicep`, deploying scoped to the existing-VNet resource-group while invoking subnet writes as child resources in the same subscription
 - [ ] T045 [P] [US4] Ensure `infra/envs/poc/brownfield-network.bicepparam.example` contains only placeholders and documents that existing route-table IDs are references only and no route tables or routes are created
 
 ### Network-Owner Preview Tests and Implementation

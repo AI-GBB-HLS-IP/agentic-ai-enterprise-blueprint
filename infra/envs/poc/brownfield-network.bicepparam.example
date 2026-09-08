@@ -1,0 +1,40 @@
+using './brownfield-network.bicep'
+
+// PLACEHOLDER VALUES ONLY. This tracked .example file must never contain real subscription-
+// specific values (per repo confidentiality convention). Copy it to a local, untracked
+// `brownfield-network.bicepparam` and replace every placeholder with the admin-approved value
+// for your existing VNet before deploying. See specs/00-network-foundation/quickstart.md.
+
+param existingVnetName = '<existing-vnet-name>'
+param existingVnetResourceGroupName = '<existing-vnet-resource-group>'
+param location = '<region>'
+
+// Admin-approved CIDRs for the existing VNet's free address space. Defaults on
+// brownfield-network.bicep illustrate the /25 worked example in
+// infra/modules/network/README.md; override every value below to match the real allocation.
+param foundrySubnetPrefix = '<admin-approved-cidr>'
+param apimSubnetPrefix = '<admin-approved-cidr>'
+param privateEndpointsSubnetPrefix = '<admin-approved-cidr>'
+param computeSubnetPrefix = '<admin-approved-cidr>'
+param cicdAgentsSubnetPrefix = '<admin-approved-cidr>'
+
+// NSG association. Choose ONE of the three modes below.
+//
+// Mode 1 (customer hybrid NSG policy): associate a single pre-existing hybrid NSG with EVERY subnet.
+// Set sharedHybridNsgId to the full resource ID of the centrally managed hybrid NSG (often named
+// like hybrid-nsg-<subscription>-<region>). The NSG may live in a different resource group; it is
+// referenced only and never created or modified. reuseExistingNsgs and the per-purpose IDs below
+// are ignored when this is set.
+param sharedHybridNsgId = ''
+
+// Mode 2: per-purpose pre-approved NSGs on the APIM and compute subnets only. Set
+// reuseExistingNsgs = true and populate both IDs. Leave sharedHybridNsgId empty.
+// Mode 3 (default): this template creates the two blueprint-owned APIM/compute NSGs.
+param reuseExistingNsgs = false
+param existingApimNsgId = ''
+param existingComputeNsgId = ''
+
+// Azure only enforces NSG rules on private endpoint traffic when this is 'Enabled' or
+// 'NetworkSecurityGroupEnabled'. With 'Disabled' the NSG is still associated with the subnet
+// (satisfying a policy that mandates association) but does not filter private endpoint traffic.
+param privateEndpointsNetworkPolicies = 'Disabled'

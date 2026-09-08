@@ -303,11 +303,11 @@ These are real gaps to confirm during a live walkthrough.
 | 5 | No `subnets.bicep`; subnets are declared inline | Diverges from the shared serialized-write module design | T009, T022 |
 | 6 | No prerequisite or quota validator | Steps 2 and 3 remain manual | T017 |
 | 7 | No greenfield what-if allowlist validator | Step 8 review remains manual | T027 |
-| 8 | No brownfield entry points or discovery tooling | Existing-VNet mode cannot be executed | Phase 5 |
+| 8 | Brownfield entry points (`brownfield-network.bicep`, `brownfield-dns.bicep`) exist and compile, but discovery, capacity calculation, fail-closed preflight, and what-if allowlist tooling are not implemented | Existing-VNet mode can only be deployed with manually admin-approved CIDRs/NSG IDs; no automated safety net yet | T030-T033, T035-T039, T046-T053, T056 (tracked in issue #48) |
 
 ## What cannot be executed today
 
-- Brownfield discovery, capacity calculation, and preflight
-- Brownfield network-owner and DNS-owner stages
-- Automated what-if boundary enforcement
+- Brownfield discovery, capacity calculation, and fail-closed preflight validation
+- Automated brownfield what-if boundary enforcement (network-owner and DNS-owner stages)
+- Automated what-if boundary enforcement (greenfield)
 - Bastion-disabled deployment without editing the template
