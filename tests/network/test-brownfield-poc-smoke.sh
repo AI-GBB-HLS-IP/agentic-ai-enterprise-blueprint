@@ -80,7 +80,7 @@ safe_enum_literals="Disabled|Enabled|NetworkSecurityGroupEnabled|RouteTableEnabl
 placeholder_pattern="^param [A-Za-z][A-Za-z0-9]* = ('<[^']*>'|''|true|false|'(${safe_enum_literals})')\$"
 for example in "$NETWORK_PARAM_EXAMPLE" "$DNS_PARAM_EXAMPLE"; do
   while IFS= read -r line; do
-    if [[ "$line" =~ ^param\  ]] && ! [[ "$line" =~ $placeholder_pattern ]]; then
+    if [[ "$line" =~ ^param[[:space:]] ]] && ! [[ "$line" =~ $placeholder_pattern ]]; then
       echo "FAIL: $(basename "$example") contains a non-placeholder param value: $line" >&2
       exit 1
     fi
