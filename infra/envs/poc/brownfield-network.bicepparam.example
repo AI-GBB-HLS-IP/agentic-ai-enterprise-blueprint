@@ -20,9 +20,9 @@ param cicdAgentsSubnetPrefix = '<admin-approved-cidr>'
 
 // NSG association. Choose ONE of the three modes below.
 //
-// Mode 1 (customer VPCx policy): associate a single pre-existing hybrid NSG with EVERY subnet.
-// Set sharedHybridNsgId to the full resource ID of the NSG in VPCXRG, typically named
-// hybrid-nsg-{subscription_name}-{region}. The NSG may live in a different resource group; it is
+// Mode 1 (customer hybrid NSG policy): associate a single pre-existing hybrid NSG with EVERY subnet.
+// Set sharedHybridNsgId to the full resource ID of the centrally managed hybrid NSG (often named
+// like hybrid-nsg-<subscription>-<region>). The NSG may live in a different resource group; it is
 // referenced only and never created or modified. reuseExistingNsgs and the per-purpose IDs below
 // are ignored when this is set.
 param sharedHybridNsgId = ''
