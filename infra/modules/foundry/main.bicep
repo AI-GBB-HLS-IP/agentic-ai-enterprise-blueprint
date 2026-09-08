@@ -293,6 +293,11 @@ module cosmosDBRbac './cosmos-rbac.bicep' = {
     cosmosDBAccountName: cosmosDBAccountNameResolved
     projectWorkspaceIdGuid: projectWorkspaceIdGuid
   }
+  #disable-next-line BCP318
+  dependsOn: [
+    newCosmosDBAccount
+    existingCosmosDBAccount
+  ]
 }
 
 module aiSearchRbac './ai-search-rbac.bicep' = {
