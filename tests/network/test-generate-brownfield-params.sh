@@ -186,7 +186,60 @@ if run_generator --discovery "$workdir/does-not-exist.json" --out-dir "$outdir";
   fail "missing discovery file should be rejected"
 fi
 
+# --- fragmented VNet: the first free aligned block is selected, occupied space skipped ----------
+python3 - "$workdir/fragmented.json" <<'PY'
+import json
+import sys
+
+document = {
+    "vnet": {
+        "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-placeholder/providers/Microsoft.Network/virtualNetworks/vnet-placeholder",
+        "name": "vnet-placeholder",
+        "resourceGroup": "rg-placeholder",
+        "location": "placeholderregion",
+        "addressPrefixes": ["10.0.0.0/22"],
+    },
+    "subnets": [
+        {"name": "existing-a", "addressPrefix": "10.0.0.0/24"},
+        {"name": "existing-b", "addressPrefix": "10.0.1.0/25"},
+        {"name": "existing-c", "addressPrefix": "10.0.1.192/26"},
+        {"name": "existing-d", "addressPrefix": "10.0.2.0/27"},
+        {"name": "existing-e", "addressPrefix": "10.0.3.0/24"},
+    ],
+}
+
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(document, handle)
+PY
+
+run_generator --discovery "$workdir/fragmented.json" --out-dir "$outdir" --force \
+  || fail "generator should find a free block in a partially allocated VNet"
+assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.2.128/26'" \
+  "generator should skip the occupied 10.0.2.0/25 and land on 10.0.2.128/25"
+
 # --- no free block of the requested size ---------------------------------------------------------
+python3 - "$workdir/tight.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1].replace("tight", "fragmented"), encoding="utf-8") as handle:
+    document = json.load(handle)
+
+document["subnets"].append({"name": "existing-f", "addressPrefix": "10.0.2.128/26"})
+document["subnets"].append({"name": "existing-g", "addressPrefix": "10.0.2.224/27"})
+
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(document, handle)
+PY
+
+if run_generator --discovery "$workdir/tight.json" --out-dir "$outdir" --force; then
+  fail "a VNet with no free /25 should be rejected"
+fi
+assert_contains "$workdir/run.out" "no free /25 block found" "missing exhaustion diagnostic"
+assert_contains "$workdir/run.out" "Largest free ranges in this VNet" \
+  "exhaustion diagnostic should list the remaining free ranges"
+assert_contains "$workdir/run.out" "10.0.1.128/26" "exhaustion diagnostic should compute free space"
+
 python3 - "$workdir/full.json" <<'PY'
 import json
 import sys
@@ -210,5 +263,7 @@ if run_generator --discovery "$workdir/full.json" --out-dir "$outdir" --force; t
   fail "a fully allocated VNet should be rejected"
 fi
 assert_contains "$workdir/run.out" "no free /25 block found" "missing exhaustion diagnostic"
+assert_contains "$workdir/run.out" "fully allocated" \
+  "a fully allocated VNet should say so rather than list free ranges"
 
 echo "Brownfield parameter generator tests passed."

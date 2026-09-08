@@ -251,6 +251,12 @@ sign-off on the CIDRs before deploying.
 | `--reuse-existing-nsgs` + `--existing-apim-nsg-id` + `--existing-compute-nsg-id` | NSG mode 2 |
 | `--private-endpoints-network-policies NetworkSecurityGroupEnabled` | NSG rules must actually be *enforced* on private endpoint traffic |
 
+**Partially allocated VNets are the normal case.** The generator subtracts every existing subnet
+from the VNet address space and picks the first *aligned* free block of the requested size, so
+occupied ranges — including `GatewaySubnet`, `AzureFirewallSubnet`, and non-contiguous gaps — are
+skipped automatically. If no block of that size is free, it reports the largest free ranges it
+found so you can pass one with `--block` or take the numbers to the network admin.
+
 **How the block is split:** the first half becomes the foundry subnet, the second half is divided
 into four equal subnets. A `/25` therefore yields `/26` foundry plus four `/28`s — the worked
 example below. Platform minimums: foundry `/27`, APIM (classic Premium, VNet-injected) `/29`;

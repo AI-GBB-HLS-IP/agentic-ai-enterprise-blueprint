@@ -189,6 +189,26 @@ for subnet in subnets:
 # ---------------------------------------------------------------------------------------------
 MAX_BLOCK_PREFIX = 25
 
+def free_blocks(networks, used_list):
+    """Address space in `networks` not covered by `used_list`, largest first."""
+    remaining = list(networks)
+    for used in used_list:
+        next_remaining = []
+        for net in remaining:
+            if not net.overlaps(used):
+                next_remaining.append(net)
+                continue
+            if net.subnet_of(used):
+                continue
+            if used.subnet_of(net):
+                next_remaining.extend(net.address_exclude(used))
+            elif net.prefixlen < 32:
+                next_remaining.extend(net.subnets())
+        remaining = next_remaining
+    collapsed = list(ipaddress.collapse_addresses(remaining))
+    return sorted(collapsed, key=lambda net: (net.prefixlen, int(net.network_address)))
+
+
 if config["block"]:
     try:
         chosen = ipaddress.ip_network(config["block"], strict=True)
@@ -227,10 +247,20 @@ else:
         if chosen is not None:
             break
     if chosen is None:
-        fail(
-            f"no free /{block_size} block found in {address_prefixes}. Ask the network admin for "
-            "an allocation and pass it with --block."
-        )
+        available = free_blocks(vnet_networks, [network for _, network in used_networks])
+        if available:
+            largest = ", ".join(str(net) for net in available[:5])
+            hint = (
+                f"Largest free ranges in this VNet: {largest}. If one of them is at least a "
+                f"/{MAX_BLOCK_PREFIX}, pass it with --block; otherwise ask the network admin to "
+                "extend the VNet address space or hand you a larger allocation."
+            )
+        else:
+            hint = (
+                "The VNet address space is fully allocated — ask the network admin to extend it "
+                "or hand you an allocation."
+            )
+        fail(f"no free /{block_size} block found in {address_prefixes}. {hint}")
     auto_selected = True
 
 halves = list(chosen.subnets(prefixlen_diff=1))
