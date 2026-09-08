@@ -37,9 +37,10 @@ are manual. This table is the single source of truth for automation status; task
 | Deployment-time `tags` object | ❌ | ❌ | T026 |
 | Confidentiality scan | ✅ | ✅ | — |
 | Prerequisite / quota check | ⚠️ manual | ⚠️ manual | T017 |
-| VNet discovery | n/a | ⚠️ manual | T032 |
-| Subnet capacity sizing | n/a | ⚠️ manual | T033 |
-| Fail-closed preflight | n/a | ⚠️ manual | T039 |
+| VNet discovery | n/a | ✅ scripted | — (T032) |
+| Subnet capacity sizing | n/a | ✅ proposed by generator | IPAM approval is still yours |
+| Parameter file authoring | ⚠️ manual | ✅ generated | — |
+| Fail-closed preflight | n/a | ⚠️ partial | T039 (generator covers names, overlap, containment) |
 | `what-if` boundary enforcement | ⚠️ manual | ⚠️ manual | T027 / T047 / T053 |
 | Optional Bastion | ❌ always deployed | n/a | T005, T059–T063 |
 
@@ -47,8 +48,7 @@ are manual. This table is the single source of truth for automation status; task
 what to look for.
 
 > Any `./scripts/network/<name>.sh` referenced in `specs/` that is not listed in
-> [Section 7](#7-scripts-that-exist) does not exist yet. Only `validate-policy-inputs.sh` and
-> `scan-confidentiality.sh` are implemented.
+> [Section 7](#7-scripts-that-exist) does not exist yet.
 
 ---
 
@@ -175,9 +175,24 @@ Brownfield writes subnets **into someone else's VNet**. Read this warning before
 > inspection appliance. **No preflight detects this yet** — [step 5.3](#53-preflight-manual--t039)
 > is how you catch it.
 
-### 5.1 Discover the existing VNet (manual — T032)
+### 5.1 Discover the existing VNet
 
-All read-only. Save the output somewhere untracked.
+Run the read-only discovery script. It only issues `az ... show/list` calls and writes a single
+JSON document; it changes nothing.
+
+```bash
+./scripts/network/discover-existing-vnet.sh \
+  --resource-group "<existing-vnet-resource-group>" \
+  --vnet "<existing-vnet-name>" \
+  --dns-resource-group "<dns-zone-resource-group>"    # optional, inventories the zones too
+```
+
+Output goes to `./network-discovery-<vnet>.json` by default (git-ignored). Use `--output` for a
+different path or `--stdout` to skip writing a file. **Never commit this file** — it contains
+subscription-specific values.
+
+<details>
+<summary>Equivalent manual commands, if you cannot run the script</summary>
 
 ```bash
 RG=<existing-vnet-resource-group>
@@ -194,11 +209,58 @@ az network vnet peering list -g "$RG" --vnet-name "$VNET" \
   --query "[].{name:name, state:peeringState}" -o table
 ```
 
-The `name` and `routeTable` columns drive the collision check in step 5.3.
+</details>
 
-### 5.2 Size the subnets and write the parameter file
+### 5.2 Generate the parameter files
 
-Sizing minimums:
+The generator turns discovery output into both `.bicepparam` files for you, picking the first
+free block in the VNet and carving it into the five subnets.
+
+```bash
+./scripts/network/generate-brownfield-params.sh \
+  --discovery ./network-discovery-<vnet>.json \
+  --dns-resource-group "<dns-zone-resource-group>"
+```
+
+It prints the proposed allocation, then writes `infra/envs/poc/brownfield-network.bicepparam` and
+`infra/envs/poc/brownfield-dns.bicepparam` (both git-ignored). Add `--dry-run` to see the proposal
+without writing anything, and `--force` to overwrite a previous run.
+
+The generated allocation is a **proposal for review, not an approval.** Read it, then get IPAM
+sign-off on the CIDRs before deploying.
+
+**Checks the generator enforces (fail-closed):**
+
+| Check | Behaviour |
+| --- | --- |
+| Requested subnet name already exists in the VNet | **Error**, and it names the route table / NAT gateway / service endpoints that a deploy would remove. Override with `--name-prefix`, or `--allow-name-collision` only if you own those subnets |
+| Block overlaps an existing subnet | Error |
+| Block not contained in a VNet address prefix | Error |
+| Block too small for the platform minimums | Error |
+| No free block of the requested size | Error, with a prompt to request an allocation |
+| `--reuse-existing-nsgs` without both NSG IDs | Error |
+
+**Common options:**
+
+| Option | Use it when |
+| --- | --- |
+| `--block <cidr>` | IPAM handed you a specific range — skips auto-selection but still validates it |
+| `--block-size <n>` | You want something other than a `/25` (must be `/25` or larger) |
+| `--name-prefix <prefix>` | Default `hybridsubnet-*` names collide, or your naming standard differs |
+| `--shared-hybrid-nsg-id <id>` | NSG mode 1 (see below) |
+| `--reuse-existing-nsgs` + `--existing-apim-nsg-id` + `--existing-compute-nsg-id` | NSG mode 2 |
+| `--private-endpoints-network-policies NetworkSecurityGroupEnabled` | NSG rules must actually be *enforced* on private endpoint traffic |
+
+**Partially allocated VNets are the normal case.** The generator subtracts every existing subnet
+from the VNet address space and picks the first *aligned* free block of the requested size, so
+occupied ranges — including `GatewaySubnet`, `AzureFirewallSubnet`, and non-contiguous gaps — are
+skipped automatically. If no block of that size is free, it reports the largest free ranges it
+found so you can pass one with `--block` or take the numbers to the network admin.
+
+**How the block is split:** the first half becomes the foundry subnet, the second half is divided
+into four equal subnets. A `/25` therefore yields `/26` foundry plus four `/28`s — the worked
+example below. Platform minimums: foundry `/27`, APIM (classic Premium, VNet-injected) `/29`;
+every subnet loses 5 addresses to Azure.
 
 | Subnet | Platform minimum | Recommended |
 | --- | --- | --- |
@@ -207,50 +269,52 @@ Sizing minimums:
 | Private endpoints | endpoint count + 5 Azure-reserved + growth | |
 | Compute, CI/CD agents | workload + 5 Azure-reserved + growth | |
 
-A `/25` allocation fits exactly: `.0/26` foundry, `.64/28` apim, `.80/28` private endpoints,
-`.96/28` compute, `.112/28` cicdagents. **Get IPAM approval before continuing.**
+**Choose one NSG mode:**
 
-Create the parameter file — it is already git-ignored:
+| Mode | How to select | NSGs created | Subnets associated |
+| --- | --- | --- | --- |
+| 1 — shared hybrid NSG | `--shared-hybrid-nsg-id` | none | all five |
+| 2 — per-purpose existing | `--reuse-existing-nsgs` + both `--existing-*-nsg-id` | none | APIM, compute |
+| 3 — blueprint-owned (default) | pass nothing | APIM + compute | APIM, compute |
+
+Use **mode 1** where policy mandates a single pre-existing NSG on every subnet. Pass its full ARM
+resource ID; it may live in another resource group or subscription, and is referenced only, never
+modified. Mode 1 overrides mode 2.
+
+> `privateEndpointsNetworkPolicies` defaults to `Disabled`, which **associates** the NSG with the
+> private endpoints subnet but does not let it filter private endpoint traffic. Use
+> `NetworkSecurityGroupEnabled` if the rules must actually be enforced there.
+
+<details>
+<summary>Writing the parameter file by hand instead</summary>
 
 ```bash
 cp infra/envs/poc/brownfield-network.bicepparam.example \
    infra/envs/poc/brownfield-network.bicepparam
 ```
 
-Replace **every** `<placeholder>` in the copy:
-
-| Parameter | Value comes from |
-| --- | --- |
-| `existingVnetName`, `existingVnetResourceGroupName` | the network admin |
-| `location` | the existing VNet's region |
-| the five `*SubnetPrefix` | your IPAM-approved sizing above |
-| the five `*SubnetName` | defaults are fine **unless** the name already exists — see 5.3 |
-| `sharedHybridNsgId` | see the NSG modes below |
-| `privateEndpointsNetworkPolicies` | leave `Disabled` unless NSG rules must be *enforced* on private endpoint traffic |
+Replace **every** `<placeholder>` in the copy: `existingVnetName` and
+`existingVnetResourceGroupName` from the network admin, `location` from the existing VNet, the
+five `*SubnetPrefix` from your IPAM-approved sizing, the five `*SubnetName` (defaults are fine
+unless the name already exists), the NSG parameters for your chosen mode, and
+`privateEndpointsNetworkPolicies`.
 
 Nothing prompts you interactively. A missing required parameter fails with
 `Missing input parameters: <name>`.
 
-**Choose one NSG mode:**
+</details>
 
-| Mode | How to select | NSGs created | Subnets associated |
-| --- | --- | --- | --- |
-| 1 — shared hybrid NSG | set `sharedHybridNsgId` | none | all five |
-| 2 — per-purpose existing | `reuseExistingNsgs = true` + both `existing*NsgId` | none | APIM, compute |
-| 3 — blueprint-owned (default) | leave both unset | APIM + compute | APIM, compute |
+### 5.3 Preflight (partly manual — T039)
 
-Use **mode 1** where policy mandates a single pre-existing NSG on every subnet (for example a
-hybrid NSG named `hybrid-nsg-<subscription>-<region>`). Pass its full ARM resource ID; it may live
-in another resource group or subscription, and is referenced only, never modified. Mode 1
-overrides `reuseExistingNsgs`.
+The generator already fails closed on name collisions, overlap, and containment, so re-running it
+against fresh discovery output *is* the collision check. Re-run discovery immediately before
+deploying if the VNet may have changed since.
 
-> `privateEndpointsNetworkPolicies` defaults to `Disabled`, which **associates** the NSG with the
-> private endpoints subnet but does not let it filter private endpoint traffic. Use
-> `NetworkSecurityGroupEnabled` if the rules must actually be enforced there.
+Still yours to confirm manually: IPAM approval of the block, the same-subscription boundary, your
+permissions at the target scope, and the `what-if` review in step 5.4.
 
-### 5.3 Preflight (manual — T039)
-
-The critical check: none of your requested subnet names may already exist.
+<details>
+<summary>Manual collision check, if you wrote the parameter file by hand</summary>
 
 ```bash
 RG=<existing-vnet-resource-group>
@@ -268,7 +332,9 @@ done
 ```
 
 Substitute your own names if you overrode the defaults. Also confirm by eye that every CIDR sits
-inside a VNet address prefix and overlaps no existing subnet — nothing checks this yet.
+inside a VNet address prefix and overlaps no existing subnet.
+
+</details>
 
 ### 5.4 Network-owner stage
 
@@ -327,9 +393,10 @@ az network private-dns zone list -g "<dns-zone-resource-group>" \
 Then:
 
 ```bash
-cp infra/envs/poc/brownfield-dns.bicepparam.example \
-   infra/envs/poc/brownfield-dns.bicepparam
-# fill in the placeholders, then:
+# generate-brownfield-params.sh already wrote infra/envs/poc/brownfield-dns.bicepparam.
+# If you skipped it, copy the example and fill in the placeholders instead:
+#   cp infra/envs/poc/brownfield-dns.bicepparam.example \
+#      infra/envs/poc/brownfield-dns.bicepparam
 
 az deployment group what-if \
   --resource-group "<dns-zone-resource-group>" \
@@ -377,12 +444,14 @@ properties and are expected false positives.
 ## 7. Scripts that exist
 
 ```bash
+./scripts/network/discover-existing-vnet.sh --resource-group <rg> --vnet <name>   # read-only
+./scripts/network/generate-brownfield-params.sh --discovery <discovery.json>
 ./scripts/network/validate-policy-inputs.sh --input policy-inputs.local.json
 ./scripts/network/scan-confidentiality.sh
 ./tests/network/run-tests.sh
 ```
 
-Run the last two before every commit. The confidentiality scan fails closed on subscription and
+Pass `--help` to any of them for the full option list. Run the last two before every commit. The confidentiality scan fails closed on subscription and
 tenant GUIDs, resolved ARM resource IDs, real email addresses, absolute home directory paths, and
 private address ranges outside the blueprint's own plan.
 
