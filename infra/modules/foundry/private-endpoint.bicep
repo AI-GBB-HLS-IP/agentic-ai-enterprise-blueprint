@@ -39,7 +39,9 @@ param aiSearchServiceId string = ''
 @description('AI Search private DNS zone resource ID. Required when createAISearchPrivateEndpoint is true.')
 param aiSearchDnsZoneId string = ''
 
-
+var _validateStoragePrivateEndpointInputs = createStoragePrivateEndpoint && empty(storageAccountId) ? error('storageAccountId is required when createStoragePrivateEndpoint is true.') : true
+var _validateCosmosPrivateEndpointInputs = createCosmosDBPrivateEndpoint && (empty(cosmosDBAccountId) || empty(cosmosDBDnsZoneId)) ? error('cosmosDBAccountId and cosmosDBDnsZoneId are required when createCosmosDBPrivateEndpoint is true.') : true
+var _validateAISearchPrivateEndpointInputs = createAISearchPrivateEndpoint && (empty(aiSearchServiceId) || empty(aiSearchDnsZoneId)) ? error('aiSearchServiceId and aiSearchDnsZoneId are required when createAISearchPrivateEndpoint is true.') : true
 resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   name: 'pe-foundry'
   location: location
