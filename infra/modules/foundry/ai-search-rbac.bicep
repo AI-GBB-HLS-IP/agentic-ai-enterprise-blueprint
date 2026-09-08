@@ -8,8 +8,8 @@ param aiSearchServiceName string
 
 // Built-in roles: Search Index Data Contributor (read/write index data) and Search Service
 // Contributor (manage indexes/service configuration).
-var searchIndexDataContributorRoleId = resourceId('Microsoft.Authorization/roleDefinitions', '8ebe5a00-799e-43f5-93ac-243d3dce84a7')
-var searchServiceContributorRoleId = resourceId('Microsoft.Authorization/roleDefinitions', '7ca78c08-252a-4471-8644-bb5ff32d4ba0')
+var searchIndexDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8ebe5a00-799e-43f5-93ac-243d3dce84a7')
+var searchServiceContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7ca78c08-252a-4471-8644-bb5ff32d4ba0')
 
 resource aiSearchService 'Microsoft.Search/searchServices@2024-06-01-preview' existing = {
   name: aiSearchServiceName
