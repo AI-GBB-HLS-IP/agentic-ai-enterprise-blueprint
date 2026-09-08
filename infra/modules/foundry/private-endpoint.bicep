@@ -39,9 +39,9 @@ param aiSearchServiceId string = ''
 @description('AI Search private DNS zone resource ID. Required when createAISearchPrivateEndpoint is true.')
 param aiSearchDnsZoneId string = ''
 
-var _validateStoragePrivateEndpointInputs = createStoragePrivateEndpoint && empty(storageAccountId) ? error('storageAccountId is required when createStoragePrivateEndpoint is true.') : true
-var _validateCosmosPrivateEndpointInputs = createCosmosDBPrivateEndpoint && (empty(cosmosDBAccountId) || empty(cosmosDBDnsZoneId)) ? error('cosmosDBAccountId and cosmosDBDnsZoneId are required when createCosmosDBPrivateEndpoint is true.') : true
-var _validateAISearchPrivateEndpointInputs = createAISearchPrivateEndpoint && (empty(aiSearchServiceId) || empty(aiSearchDnsZoneId)) ? error('aiSearchServiceId and aiSearchDnsZoneId are required when createAISearchPrivateEndpoint is true.') : true
+var _validateStoragePrivateEndpointInputs = createStoragePrivateEndpoint && empty(storageAccountId) ? fail('storageAccountId is required when createStoragePrivateEndpoint is true.') : true
+var _validateCosmosPrivateEndpointInputs = createCosmosDBPrivateEndpoint && (empty(cosmosDBAccountId) || empty(cosmosDBDnsZoneId)) ? fail('cosmosDBAccountId and cosmosDBDnsZoneId are required when createCosmosDBPrivateEndpoint is true.') : true
+var _validateAISearchPrivateEndpointInputs = createAISearchPrivateEndpoint && (empty(aiSearchServiceId) || empty(aiSearchDnsZoneId)) ? fail('aiSearchServiceId and aiSearchDnsZoneId are required when createAISearchPrivateEndpoint is true.') : true
 resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   name: 'pe-foundry'
   location: location
@@ -163,7 +163,7 @@ output foundryPrivateEndpointId string = foundryPrivateEndpoint.id
 output storagePrivateEndpointId string = createStoragePrivateEndpoint ? storagePrivateEndpoint.id : ''
 output keyVaultPrivateEndpointId string = keyVaultPrivateEndpoint.id
 
-resource cosmosDBPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createCosmosDBPrivateEndpoint) {
+resource cosmosDBPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createCosmosDBPrivateEndpoint && _validateCosmosPrivateEndpointInputs) {
   name: 'pe-foundry-cosmosdb'
   location: location
   properties: {
@@ -199,7 +199,7 @@ resource cosmosDBDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGrou
   }
 }
 
-resource aiSearchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createAISearchPrivateEndpoint) {
+resource aiSearchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createAISearchPrivateEndpoint && _validateAISearchPrivateEndpointInputs) {
   name: 'pe-foundry-aisearch'
   location: location
   properties: {

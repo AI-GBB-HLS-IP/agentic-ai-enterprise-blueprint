@@ -122,7 +122,7 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-previ
 var rawWorkspaceId = string(project.properties.internalId)
 var projectWorkspaceIdGuid = (length(rawWorkspaceId) == 32)
   ? '${substring(rawWorkspaceId, 0, 8)}-${substring(rawWorkspaceId, 8, 4)}-${substring(rawWorkspaceId, 12, 4)}-${substring(rawWorkspaceId, 16, 4)}-${substring(rawWorkspaceId, 20, 12)}'
-  : error('project.properties.internalId must be a 32-character hex GUID; ensure the selected API version returns internalId.')
+  : fail('project.properties.internalId must be a 32-character hex GUID; ensure the selected API version returns internalId.')
 
 module keyVaultResources './supporting-resources.bicep' = {
   name: 'foundry-keyvault'
@@ -139,27 +139,33 @@ module keyVaultResources './supporting-resources.bicep' = {
 
 var storagePassedIn = !empty(existingAzureStorageAccountResourceId)
 var storageParts = split(existingAzureStorageAccountResourceId, '/')
-var _validateStorageResourceId = !storagePassedIn || (((length(storageParts) == 9) || (length(storageParts) == 10 && empty(storageParts[9]))) && toLower(storageParts[1]) == 'subscriptions' && toLower(storageParts[3]) == 'resourcegroups' && toLower(storageParts[5]) == 'providers' && toLower(storageParts[6]) == 'microsoft.storage' && toLower(storageParts[7]) == 'storageaccounts' && !empty(storageParts[8])) ? true : error('existingAzureStorageAccountResourceId must be a full ARM resource ID for Microsoft.Storage/storageAccounts.')
-var _validateStoragePrivateEndpointFlag = storagePassedIn || !existingStoragePrivateEndpoint ? true : error('existingStoragePrivateEndpoint can only be true when existingAzureStorageAccountResourceId is set.')
+var _validateStorageResourceId = !storagePassedIn || (((length(storageParts) == 9) || (length(storageParts) == 10 && empty(storageParts[9]))) && toLower(storageParts[1]) == 'subscriptions' && toLower(storageParts[3]) == 'resourcegroups' && toLower(storageParts[5]) == 'providers' && toLower(storageParts[6]) == 'microsoft.storage' && toLower(storageParts[7]) == 'storageaccounts' && !empty(storageParts[8])) ? true : fail('existingAzureStorageAccountResourceId must be a full ARM resource ID for Microsoft.Storage/storageAccounts.')
+var _validateStoragePrivateEndpointFlag = storagePassedIn || !existingStoragePrivateEndpoint ? true : fail('existingStoragePrivateEndpoint can only be true when existingAzureStorageAccountResourceId is set.')
 var storageSubscriptionId = storagePassedIn ? storageParts[2] : subscription().subscriptionId
 var storageResourceGroupName = storagePassedIn ? storageParts[4] : resourceGroup().name
-var storageAccountNameResolved = storagePassedIn ? ((_validateStorageResourceId && _validateStoragePrivateEndpointFlag) ? storageParts[8] : '') : storageAccountName
+var storageAccountNameResolved = (_validateStorageResourceId && _validateStoragePrivateEndpointFlag)
+  ? (storagePassedIn ? storageParts[8] : storageAccountName)
+  : ''
 
 var searchPassedIn = !empty(existingAISearchResourceId)
 var searchParts = split(existingAISearchResourceId, '/')
-var _validateAISearchResourceId = !searchPassedIn || (((length(searchParts) == 9) || (length(searchParts) == 10 && empty(searchParts[9]))) && toLower(searchParts[1]) == 'subscriptions' && toLower(searchParts[3]) == 'resourcegroups' && toLower(searchParts[5]) == 'providers' && toLower(searchParts[6]) == 'microsoft.search' && toLower(searchParts[7]) == 'searchservices' && !empty(searchParts[8])) ? true : error('existingAISearchResourceId must be a full ARM resource ID for Microsoft.Search/searchServices.')
-var _validateAISearchPrivateEndpointFlag = searchPassedIn || !existingAISearchPrivateEndpoint ? true : error('existingAISearchPrivateEndpoint can only be true when existingAISearchResourceId is set.')
+var _validateAISearchResourceId = !searchPassedIn || (((length(searchParts) == 9) || (length(searchParts) == 10 && empty(searchParts[9]))) && toLower(searchParts[1]) == 'subscriptions' && toLower(searchParts[3]) == 'resourcegroups' && toLower(searchParts[5]) == 'providers' && toLower(searchParts[6]) == 'microsoft.search' && toLower(searchParts[7]) == 'searchservices' && !empty(searchParts[8])) ? true : fail('existingAISearchResourceId must be a full ARM resource ID for Microsoft.Search/searchServices.')
+var _validateAISearchPrivateEndpointFlag = searchPassedIn || !existingAISearchPrivateEndpoint ? true : fail('existingAISearchPrivateEndpoint can only be true when existingAISearchResourceId is set.')
 var searchSubscriptionId = searchPassedIn ? searchParts[2] : subscription().subscriptionId
 var searchResourceGroupName = searchPassedIn ? searchParts[4] : resourceGroup().name
-var aiSearchServiceNameResolved = searchPassedIn ? searchParts[8] : aiSearchServiceName
+var aiSearchServiceNameResolved = (_validateAISearchResourceId && _validateAISearchPrivateEndpointFlag)
+  ? (searchPassedIn ? searchParts[8] : aiSearchServiceName)
+  : ''
 
 var cosmosPassedIn = !empty(existingAzureCosmosDBAccountResourceId)
 var cosmosParts = split(existingAzureCosmosDBAccountResourceId, '/')
-var _validateCosmosDBResourceId = !cosmosPassedIn || (((length(cosmosParts) == 9) || (length(cosmosParts) == 10 && empty(cosmosParts[9]))) && toLower(cosmosParts[1]) == 'subscriptions' && toLower(cosmosParts[3]) == 'resourcegroups' && toLower(cosmosParts[5]) == 'providers' && toLower(cosmosParts[6]) == 'microsoft.documentdb' && toLower(cosmosParts[7]) == 'databaseaccounts' && !empty(cosmosParts[8])) ? true : error('existingAzureCosmosDBAccountResourceId must be a full ARM resource ID for Microsoft.DocumentDB/databaseAccounts.')
-var _validateCosmosDBPrivateEndpointFlag = cosmosPassedIn || !existingCosmosDBPrivateEndpoint ? true : error('existingCosmosDBPrivateEndpoint can only be true when existingAzureCosmosDBAccountResourceId is set.')
+var _validateCosmosDBResourceId = !cosmosPassedIn || (((length(cosmosParts) == 9) || (length(cosmosParts) == 10 && empty(cosmosParts[9]))) && toLower(cosmosParts[1]) == 'subscriptions' && toLower(cosmosParts[3]) == 'resourcegroups' && toLower(cosmosParts[5]) == 'providers' && toLower(cosmosParts[6]) == 'microsoft.documentdb' && toLower(cosmosParts[7]) == 'databaseaccounts' && !empty(cosmosParts[8])) ? true : fail('existingAzureCosmosDBAccountResourceId must be a full ARM resource ID for Microsoft.DocumentDB/databaseAccounts.')
+var _validateCosmosDBPrivateEndpointFlag = cosmosPassedIn || !existingCosmosDBPrivateEndpoint ? true : fail('existingCosmosDBPrivateEndpoint can only be true when existingAzureCosmosDBAccountResourceId is set.')
 var cosmosSubscriptionId = cosmosPassedIn ? cosmosParts[2] : subscription().subscriptionId
 var cosmosResourceGroupName = cosmosPassedIn ? cosmosParts[4] : resourceGroup().name
-var cosmosDBAccountNameResolved = cosmosPassedIn ? cosmosParts[8] : cosmosDBAccountName
+var cosmosDBAccountNameResolved = (_validateCosmosDBResourceId && _validateCosmosDBPrivateEndpointFlag)
+  ? (cosmosPassedIn ? cosmosParts[8] : cosmosDBAccountName)
+  : ''
 
 resource existingStorageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = if (storagePassedIn) {
   scope: resourceGroup(storageSubscriptionId, storageResourceGroupName)
@@ -273,21 +279,6 @@ module projectConnections './project-connections.bicep' = {
   ]
 }
 
-module capabilityHost './capability-host.bicep' = {
-  name: 'foundry-capability-host'
-  params: {
-    foundryAccountName: foundryAccountName
-    projectName: projectName
-    cosmosDBConnectionName: projectConnections.outputs.cosmosDBConnectionName
-    storageConnectionName: projectConnections.outputs.storageConnectionName
-    aiSearchConnectionName: projectConnections.outputs.aiSearchConnectionName
-  }
-  dependsOn: [
-    cosmosDBRbac
-    storageRbac
-    aiSearchRbac
-  ]
-
 module cosmosDBRbac './cosmos-rbac.bicep' = {
   name: 'foundry-cosmos-rbac'
   scope: resourceGroup(cosmosSubscriptionId, cosmosResourceGroupName)
@@ -328,6 +319,25 @@ module storageRbac './storage-rbac.bicep' = {
   dependsOn: [
     newStorageAccount
     existingStorageAccount
+  ]
+}
+
+// The capability host activates the Agent Service against the project connections. It must run
+// after every RBAC assignment, because the platform auto-provisions the Cosmos containers and the
+// blob container during activation using the project's managed identity.
+module capabilityHost './capability-host.bicep' = {
+  name: 'foundry-capability-host'
+  params: {
+    foundryAccountName: foundryAccountName
+    projectName: projectName
+    cosmosDBConnectionName: projectConnections.outputs.cosmosDBConnectionName
+    storageConnectionName: projectConnections.outputs.storageConnectionName
+    aiSearchConnectionName: projectConnections.outputs.aiSearchConnectionName
+  }
+  dependsOn: [
+    cosmosDBRbac
+    storageRbac
+    aiSearchRbac
   ]
 }
 
