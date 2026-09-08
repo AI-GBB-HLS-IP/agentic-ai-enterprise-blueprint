@@ -36,10 +36,10 @@ Per Microsoft's [Foundry Agent Service networking guidance](https://learn.micros
 subnet delegation is configured once at the **Foundry account level** and shared by every project
 under that account — a project never needs its own delegated subnet. Recommended sizing:
 
-| Size | Usable IPs | Max concurrent agent sessions (default 1:1 ratio) | Use |
+| Size | Usable IPs | Max concurrent agent sessions (approx; per Microsoft guidance) | Use |
 |---|---|---|---|
 | `/27` | ~27 | ~17 | Documented technical minimum; very little headroom |
-| `/26` | ~59 | ~50 (max at default ratio) | Blueprint POC recommendation; used when the admin-allocated VNet is too small for `/24` |
+| `/26` | ~59 | ~50 | Blueprint POC recommendation; used when the admin-allocated VNet is too small for `/24` |
 | `/24` | ~251 | absorbs platform upgrade/scaling spikes | **Microsoft's production recommendation** |
 
 **Worked example** — brownfield POC constrained to an admin-allocated `/25` VNet (128 addresses,
