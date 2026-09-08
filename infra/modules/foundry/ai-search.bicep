@@ -14,7 +14,7 @@ resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
     name: 'standard'
   }
   properties: {
-    disableLocalAuth: false
+    disableLocalAuth: true
     authOptions: {
       aadOrApiKey: {
         aadAuthFailureMode: 'http401WithBearerChallenge'
