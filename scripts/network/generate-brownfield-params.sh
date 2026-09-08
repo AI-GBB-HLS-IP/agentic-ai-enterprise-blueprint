@@ -176,8 +176,9 @@ for subnet in subnets:
             continue
         try:
             network = ipaddress.ip_network(prefix, strict=False)
-        except ValueError:
-            continue
+        except ValueError as exc:
+            name = subnet.get("name") or "<unknown>"
+            fail(f"invalid subnet address prefix in discovery file for subnet '{name}': {prefix} ({exc})")
         if network.version == 4:
             used_networks.append((subnet.get("name"), network))
 
