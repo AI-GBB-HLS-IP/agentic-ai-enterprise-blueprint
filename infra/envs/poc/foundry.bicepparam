@@ -11,9 +11,23 @@ param projectName = 'prj-agent-factory-poc'
 param projectDisplayName = 'Agent Factory POC'
 param storageAccountName = 'stagentfactorypoc'
 param keyVaultName = 'kv-agent-factory-poc'
+param aiSearchServiceName = 'srch-agent-factory-poc'
+param cosmosDBAccountName = 'cosmos-agent-factory-poc'
 param vnetName = 'vnet-agent-factory-poc'
 param foundrySubnetName = 'hybridsubnet-foundry'
 param privateEndpointSubnetName = 'hybridsubnet-privateendpoints'
+
+// BYO dependent resources: leave the resource-ID params empty (default) to have this module
+// create new Storage / AI Search / Cosmos DB accounts. To reuse existing resources instead
+// (e.g. the customer's pre-provisioned dependencies), set the resource ID and, if that
+// existing resource already has its own private endpoint, set the matching
+// existing*PrivateEndpoint flag to true so this module does not create a duplicate.
+param existingAzureStorageAccountResourceId = ''
+param existingStoragePrivateEndpoint = false
+param existingAISearchResourceId = ''
+param existingAISearchPrivateEndpoint = false
+param existingAzureCosmosDBAccountResourceId = ''
+param existingCosmosDBPrivateEndpoint = false
 
 param enableModelDeployment = true
 param modelDeploymentName = 'gpt-4.1-mini'
