@@ -164,6 +164,11 @@ if ! az bicep build-params --file "$network_tmp_param" --stdout >/dev/null 2>"$w
   exit 1
 fi
 
+sed \
+  -e "s/<dns-zone-resource-group>/rg-example-dns/" \
+  -e "s/<full-arm-resource-id-of-existing-vnet>/vnet-id-example/" \
+  -e "s/<existing-vnet-name>/vnet-example/" \
+  "$DNS_PARAM_EXAMPLE" >"$dns_tmp_param"
 if ! az bicep build-params --file "$dns_tmp_param" --stdout >/dev/null 2>"$workdir/dns-params.err"; then
   echo "FAIL: filled-in brownfield-dns.bicepparam.example does not compile" >&2
   cat "$workdir/dns-params.err" >&2
