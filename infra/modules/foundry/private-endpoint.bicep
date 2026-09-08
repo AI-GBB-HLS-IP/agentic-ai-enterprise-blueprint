@@ -88,7 +88,7 @@ resource foundryDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroup
   }
 }
 
-resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createStoragePrivateEndpoint) {
+resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createStoragePrivateEndpoint && _validateStoragePrivateEndpointInputs) {
   name: 'pe-foundry-storage'
   location: location
   properties: {
