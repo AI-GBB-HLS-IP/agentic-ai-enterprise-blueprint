@@ -143,7 +143,7 @@ var _validateStorageResourceId = !storagePassedIn || (((length(storageParts) == 
 var _validateStoragePrivateEndpointFlag = storagePassedIn || !existingStoragePrivateEndpoint ? true : error('existingStoragePrivateEndpoint can only be true when existingAzureStorageAccountResourceId is set.')
 var storageSubscriptionId = storagePassedIn ? storageParts[2] : subscription().subscriptionId
 var storageResourceGroupName = storagePassedIn ? storageParts[4] : resourceGroup().name
-var storageAccountNameResolved = storagePassedIn ? storageParts[8] : storageAccountName
+var storageAccountNameResolved = storagePassedIn ? ((_validateStorageResourceId && _validateStoragePrivateEndpointFlag) ? storageParts[8] : '') : storageAccountName
 
 var searchPassedIn = !empty(existingAISearchResourceId)
 var searchParts = split(existingAISearchResourceId, '/')
