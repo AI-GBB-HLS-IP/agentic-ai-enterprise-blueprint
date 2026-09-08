@@ -48,7 +48,9 @@
         "apim": "privatelink.azure-api.net",
         "keyVault": "privatelink.vaultcore.azure.net",
         "storageBlob": "privatelink.blob.core.windows.net",
-        "sql": "privatelink.database.windows.net"
+        "sql": "privatelink.database.windows.net",
+        "cosmosDB": "privatelink.documents.azure.com",
+        "aiSearch": "privatelink.search.windows.net"
       }
     }
   }
