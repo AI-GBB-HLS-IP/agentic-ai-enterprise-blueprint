@@ -45,7 +45,7 @@ resource cosmosDBZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
 }
 
 resource aiSearchZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: privateDnsZoneNames.aiSearch
+  name: contains(privateDnsZoneNames, 'aiSearch') ? privateDnsZoneNames.aiSearch : 'privatelink.search.windows.net'
   location: 'global'
 }
 
