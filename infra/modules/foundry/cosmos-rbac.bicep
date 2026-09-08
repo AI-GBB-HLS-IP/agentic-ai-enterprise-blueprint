@@ -45,7 +45,7 @@ resource userThreadContainerAssignment 'Microsoft.DocumentDB/databaseAccounts/sq
   properties: {
     principalId: projectPrincipalId
     roleDefinitionId: cosmosDataContributorSqlRoleId
-    scope: '${cosmosDBAccount.id}/dbs/enterprise_memory/colls/${userThreadContainerName}'
+    scope: '/dbs/enterprise_memory/colls/${userThreadContainerName}'
   }
 }
 
