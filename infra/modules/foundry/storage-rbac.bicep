@@ -13,7 +13,7 @@ param projectWorkspaceIdGuid string
 // blob container(s) the Foundry Agent Service platform auto-provisions for this project
 // (named `{workspaceId}...-azureml-agent`). This mirrors the customer-provided reference
 // template's least-privilege scoping rather than granting account-wide blob access.
-var storageBlobDataContributorRoleId = resourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+var storageBlobDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
