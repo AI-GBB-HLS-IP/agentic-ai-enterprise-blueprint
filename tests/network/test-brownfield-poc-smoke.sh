@@ -145,8 +145,11 @@ then
 fi
 
 echo "==> .bicepparam.example files compile once placeholders are filled"
-network_tmp_param="${workdir}/.tmp-brownfield-network-smoketest.bicepparam"
-dns_tmp_param="${workdir}/.tmp-brownfield-dns-smoketest.bicepparam"
+# A .bicepparam `using` path resolves relative to the parameter file, and `az bicep build-params`
+# rejects absolute paths there (BCP051). So the temporary filled-in copies must be written beside
+# their target templates rather than into $workdir. The trap below removes them on any exit.
+network_tmp_param="$(dirname "$NETWORK_ENTRY")/.tmp-brownfield-network-smoketest.bicepparam"
+dns_tmp_param="$(dirname "$DNS_ENTRY")/.tmp-brownfield-dns-smoketest.bicepparam"
 cleanup_tmp_params() {
   rm -f "$network_tmp_param" "$dns_tmp_param"
 }
