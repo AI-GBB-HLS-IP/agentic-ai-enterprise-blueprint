@@ -120,8 +120,9 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-previ
 }
 
 var rawWorkspaceId = string(project.properties.internalId)
-var _validateWorkspaceId = (length(rawWorkspaceId) == 32) ? true : error('project.properties.internalId must be a 32-character hex GUID; ensure the selected API version returns internalId.')
-var projectWorkspaceIdGuid = '${substring(rawWorkspaceId, 0, 8)}-${substring(rawWorkspaceId, 8, 4)}-${substring(rawWorkspaceId, 12, 4)}-${substring(rawWorkspaceId, 16, 4)}-${substring(rawWorkspaceId, 20, 12)}'
+var projectWorkspaceIdGuid = (length(rawWorkspaceId) == 32)
+  ? '${substring(rawWorkspaceId, 0, 8)}-${substring(rawWorkspaceId, 8, 4)}-${substring(rawWorkspaceId, 12, 4)}-${substring(rawWorkspaceId, 16, 4)}-${substring(rawWorkspaceId, 20, 12)}'
+  : error('project.properties.internalId must be a 32-character hex GUID; ensure the selected API version returns internalId.')
 
 module keyVaultResources './supporting-resources.bicep' = {
   name: 'foundry-keyvault'
