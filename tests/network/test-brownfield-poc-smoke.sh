@@ -20,7 +20,11 @@ workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 
 echo "==> az bicep build: brownfield-network.bicep"
-az bicep build --file "$NETWORK_ENTRY" --stdout >"$workdir/network.json" 2>"$workdir/network.err"
+if ! az bicep build --file "$NETWORK_ENTRY" --stdout >"$workdir/network.json" 2>"$workdir/network.err"; then
+  echo "FAIL: az bicep build failed for brownfield-network.bicep" >&2
+  cat "$workdir/network.err" >&2
+  exit 1
+fi
 if [[ ! -s "$workdir/network.json" ]]; then
   echo "FAIL: brownfield-network.bicep produced no compiled output" >&2
   cat "$workdir/network.err" >&2
@@ -28,7 +32,11 @@ if [[ ! -s "$workdir/network.json" ]]; then
 fi
 
 echo "==> az bicep build: brownfield-dns.bicep"
-az bicep build --file "$DNS_ENTRY" --stdout >"$workdir/dns.json" 2>"$workdir/dns.err"
+if ! az bicep build --file "$DNS_ENTRY" --stdout >"$workdir/dns.json" 2>"$workdir/dns.err"; then
+  echo "FAIL: az bicep build failed for brownfield-dns.bicep" >&2
+  cat "$workdir/dns.err" >&2
+  exit 1
+fi
 if [[ ! -s "$workdir/dns.json" ]]; then
   echo "FAIL: brownfield-dns.bicep produced no compiled output" >&2
   cat "$workdir/dns.err" >&2
