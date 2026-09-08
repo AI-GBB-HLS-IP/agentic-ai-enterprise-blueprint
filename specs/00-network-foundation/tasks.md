@@ -145,8 +145,9 @@ NSGs, and existing-zone VNet links are allowed.
 
 ### Discovery and Capacity Implementation
 
-- [ ] T032 [US4] Implement read-only existing-VNet discovery and local JSON output in `scripts/network/discover-existing-vnet.sh`, ensuring it proposes no changes and never writes discovery values into repository artifacts
-- [ ] T033 [US4] Implement service-profile and workload-derived capacity calculation in `scripts/network/calculate-subnet-capacity.sh`, including minimums, recommendations, expected consumers, Azure-reserved addresses, growth allowance, rationale, and generic IPAM approval status
+- [x] T032 [US4] Implement read-only existing-VNet discovery and local JSON output in `scripts/network/discover-existing-vnet.sh`, ensuring it proposes no changes and never writes discovery values into repository artifacts
+- [~] T033 [US4] Implement service-profile and workload-derived capacity calculation in `scripts/network/calculate-subnet-capacity.sh`, including minimums, recommendations, expected consumers, Azure-reserved addresses, growth allowance, rationale, and generic IPAM approval status
+      *Partial:* `scripts/network/generate-brownfield-params.sh` derives the allocation from discovery, enforces the Foundry `/27` and APIM `/29` platform minimums, reports Azure-reserved usable counts, and emits reviewable `.bicepparam` files. Workload-derived consumer counts, growth allowance, and IPAM approval status remain open.
 - [ ] T034 [P] [US4] Define placeholder-only discovery, capacity, deployment-key, ownership, adoption, NSG, route-table, and subnet-request inputs in `infra/envs/poc/brownfield-network.bicepparam.example`
 
 ### Brownfield Preflight Tests
@@ -158,7 +159,8 @@ NSGs, and existing-zone VNet links are allowed.
 
 ### Brownfield Preflight Implementation
 
-- [ ] T039 [US4] Implement fail-closed brownfield preflight in `scripts/network/validate-brownfield-inputs.sh`, covering discovery evidence, IPAM approval, sizing, names, containment, overlap, service behavior, same-subscription boundary, permissions, prior ownership, adoption fallback, existing NSGs, and existing route tables
+- [~] T039 [US4] Implement fail-closed brownfield preflight in `scripts/network/validate-brownfield-inputs.sh`, covering discovery evidence, IPAM approval, sizing, names, containment, overlap, service behavior, same-subscription boundary, permissions, prior ownership, adoption fallback, existing NSGs, and existing route tables
+      *Partial:* `scripts/network/generate-brownfield-params.sh` fails closed on requested-name collisions (reporting the route table, NAT gateway, and service endpoints a write would remove), VNet containment, overlap with existing subnets, undersized blocks, and incomplete NSG-mode inputs. IPAM approval, subscription boundary, permissions, and ownership/adoption remain open.
 - [x] T040 [P] [US4] Implement the existing-zone link-only child module with registration fixed to `false` in `infra/modules/network/private-dns-link.bicep`
 - [ ] T041 [P] [US4] Add failing static and compiled-template assertions for existing VNet immutability, child-only subnet writes, absence of route resources, existing-control immutability, and link-only DNS behavior in `tests/network/test-brownfield-template-boundaries.sh`
 - [x] T042 [P] [US4] Implement new-subnet child resources with `@batchSize(1)` serialized writes and no existing VNet property declaration in `infra/modules/network/subnets.bicep`
