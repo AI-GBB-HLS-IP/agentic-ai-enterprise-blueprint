@@ -271,8 +271,10 @@ must be confirmed with the tenant administrator when self-service group creation
 - **FR-005**: In greenfield mode, Private DNS zones MUST be created and VNet-linked for:
   Foundry/Cognitive Services (`privatelink.cognitiveservices.azure.com`), Azure OpenAI
   (`privatelink.openai.azure.com`), APIM (`privatelink.azure-api.net`), Key Vault
-  (`privatelink.vaultcore.azure.net`), Storage Blob (`privatelink.blob.core.windows.net`), and SQL
-  (`privatelink.database.windows.net`) if used. Brownfield DNS ownership follows FR-016.
+  (`privatelink.vaultcore.azure.net`), Storage Blob (`privatelink.blob.core.windows.net`), SQL
+  (`privatelink.database.windows.net`) if used, Cosmos DB (`privatelink.documents.azure.com`) for
+  the Foundry Agent Service's thread storage, and AI Search (`privatelink.search.windows.net`) for
+  the Foundry Agent Service's vector-store connection. Brownfield DNS ownership follows FR-016.
 - **FR-006**: No subnet or resource in this spec MAY have a public IP assigned. When Bastion is
   explicitly enabled, its required public IP is the sole permitted exception.
 - **FR-007**: Greenfield resources MUST remain deployable/re-deployable idempotently via
@@ -315,6 +317,28 @@ must be confirmed with the tenant administrator when self-service group creation
 - **FR-013d**: Brownfield capacity approval MUST include a generic IPAM approval reference so
   automation does not claim authority over unallocated-but-reserved or externally routed ranges
   that are not visible from the VNet resource itself.
+- **FR-013e**: Per Microsoft's Foundry Agent Service networking guidance, the Foundry delegated
+  subnet SHOULD use `/24` for production (headroom for platform upgrades and scaling events,
+  target ≤80% utilization); `/26` supports up to ~50 concurrent agent sessions at the default 1:1
+  IP-to-session ratio and MAY be used when the admin-allocated VNet cannot accommodate `/24`;
+  `/27` remains the documented technical minimum but leaves minimal headroom. Any sizing below
+  `/24` MUST be recorded as an explicit, approved POC/capacity trade-off, not a silent default.
+
+  **Worked example — brownfield POC within an admin-allocated `/25` VNet** (128 addresses; no
+  room for the `/24` production recommendation). Purpose-keyed subnets sized as an exact,
+  CIDR-aligned fit against FR-002a and FR-013c, using generic relative offsets:
+
+  | Purpose key | Relative CIDR | Size | Usable IPs | Sizing basis |
+  |---|---|---|---|---|
+  | `foundry` | `.0/26` | 64 | 59 | FR-013c "SHOULD /26"; caps at ~50 concurrent agent sessions per FR-013e |
+  | `apim` | `.64/28` | 16 | 11 | Above FR-013c `/29` minimum; approved POC trade-off below the `/27` recommendation |
+  | `privateEndpoints` | `.80/28` | 16 | 11 | Covers Foundry account/project, Storage, AI Search, Cosmos DB, Key Vault endpoints |
+  | `compute` | `.96/28` | 16 | 11 | Derived from approved POC instance count |
+  | `cicdAgents` | `.112/28` | 16 | 11 | Derived from approved POC agent count |
+
+  Total: 64+16+16+16+16 = 128, an exact, non-overlapping fit with no unallocated remainder. This
+  example is illustrative only; actual brownfield CIDRs remain customer-approved per FR-013 and
+  MUST be validated against live discovery evidence per FR-013b before use.
 - **FR-014**: Blueprint subnet names MUST be configurable in brownfield mode. A fixed Azure
   service subnet name MAY be enforced only when that optional service is enabled.
 - **FR-015**: Brownfield deployment MUST validate access to every affected resource group and
@@ -337,7 +361,10 @@ must be confirmed with the tenant administrator when self-service group creation
 - **FR-016a**: Brownfield DNS inputs MUST provide approved existing zones for active
   Cognitive Services/Foundry, Azure OpenAI, APIM, Key Vault, and Storage Blob roles. Optional
   service roles, including SQL, are required only when the corresponding downstream service is
-  enabled.
+  enabled. Cosmos DB (`privatelink.documents.azure.com`) and AI Search
+  (`privatelink.search.windows.net`) zones MUST be supplied whenever the Foundry Agent Service
+  capability host is enabled, since both are required dependent resources for agent thread storage
+  and vector-store connections.
 - **FR-017**: Azure Bastion MUST be optional in both greenfield and brownfield modes. When
   disabled, no Bastion subnet, host, or public IP may be proposed.
 - **FR-018**: NSG and route-table integration MUST be explicit and limited to approved new

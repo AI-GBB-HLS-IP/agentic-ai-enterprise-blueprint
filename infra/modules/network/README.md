@@ -21,6 +21,44 @@ This module provisions the Network Foundation MVP for the POC:
   - `privatelink.vaultcore.azure.net`
   - `privatelink.blob.core.windows.net`
   - `privatelink.database.windows.net`
+  - `privatelink.documents.azure.com` (Cosmos DB — required by the Foundry Agent Service's thread
+    storage whenever the capability host is enabled)
+  - `privatelink.search.windows.net` (AI Search — required by the Foundry Agent Service's
+    vector-store connection whenever the capability host is enabled)
+
+Subnet sizes above are the **fixed greenfield recommendation** (fixed per FR-002/FR-013a) and MUST NOT be
+resized. Brownfield mode reuses the same purpose keys and DNS zone list but sizes each subnet to
+what the admin-allocated existing VNet actually supports; see the worked brownfield example below.
+
+## Foundry delegated subnet sizing (greenfield vs. brownfield POC)
+
+Per Microsoft's [Foundry Agent Service networking guidance](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/agents-networking-deep-dive),
+subnet delegation is configured once at the **Foundry account level** and shared by every project
+under that account — a project never needs its own delegated subnet. Recommended sizing:
+
+| Size | Usable IPs | Max concurrent agent sessions (approx; per Microsoft guidance) | Use |
+|---|---|---|---|
+| `/27` | ~27 | ~17 | Documented technical minimum; very little headroom |
+| `/26` | ~59 | ~50 | Blueprint POC recommendation; used when the admin-allocated VNet is too small for `/24` |
+| `/24` | ~251 | absorbs platform upgrade/scaling spikes | **Microsoft's production recommendation** |
+
+**Worked example** — brownfield POC constrained to an admin-allocated `/25` VNet (128 addresses,
+too small to fit the `/24` production recommendation). All 5 purpose-keyed subnets fit as an exact,
+CIDR-aligned allocation (illustrative CIDRs; real values remain customer-approved per FR-013):
+
+| Purpose key | Relative CIDR | Size | Usable IPs |
+|---|---|---|---|
+| `foundry` | `.0/26` | 64 | 59 |
+| `apim` | `.64/28` | 16 | 11 |
+| `privateEndpoints` | `.80/28` | 16 | 11 |
+| `compute` | `.96/28` | 16 | 11 |
+| `cicdAgents` | `.112/28` | 16 | 11 |
+
+This caps the POC at ~50 concurrent agent sessions (~47 at the recommended 80% utilization
+target) — an explicit, documented capacity trade-off versus Microsoft's `/24` production sizing,
+not a silent default. See `specs/00-network-foundation/spec.md` FR-013c–FR-013e for the full
+sizing gate and `contracts/deployment-parameters.md` for the parameter contract.
+
 
 ## Optional Bastion
 
@@ -70,4 +108,4 @@ See `main.bicep` parameters:
 - `subnetIds` object (`apim`, `foundry`, `compute`, `privateEndpoints`, `cicdAgents`, and `bastion`
   when Bastion is enabled)
 - `nsgIds` object (`apim`, `compute`)
-- `privateDnsZoneIds` object (all 6 DNS zones)
+- `privateDnsZoneIds` object (all 8 DNS zones)

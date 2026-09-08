@@ -39,6 +39,16 @@ resource sqlZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   location: 'global'
 }
 
+resource cosmosDBZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: contains(privateDnsZoneNames, 'cosmosDB') ? privateDnsZoneNames.cosmosDB : 'privatelink.documents.azure.com'
+  location: 'global'
+}
+
+resource aiSearchZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: contains(privateDnsZoneNames, 'aiSearch') ? privateDnsZoneNames.aiSearch : 'privatelink.search.windows.net'
+  location: 'global'
+}
+
 resource cognitiveServicesLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: cognitiveServicesZone
   name: '${vnetName}-link'
@@ -111,6 +121,30 @@ resource sqlLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-
   }
 }
 
+resource cosmosDBLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: cosmosDBZone
+  name: '${vnetName}-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnetId
+    }
+  }
+}
+
+resource aiSearchLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: aiSearchZone
+  name: '${vnetName}-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnetId
+    }
+  }
+}
+
 output zoneIds object = {
   cognitiveServices: cognitiveServicesZone.id
   azureOpenAI: azureOpenAIZone.id
@@ -118,4 +152,6 @@ output zoneIds object = {
   keyVault: keyVaultZone.id
   storageBlob: storageBlobZone.id
   sql: sqlZone.id
+  cosmosDB: cosmosDBZone.id
+  aiSearch: aiSearchZone.id
 }
