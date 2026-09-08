@@ -119,6 +119,10 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-previ
   }
 }
 
+var rawWorkspaceId = string(project.properties.internalId)
+var _validateWorkspaceId = (length(rawWorkspaceId) == 32) ? true : error('project.properties.internalId must be a 32-character hex GUID; ensure the selected API version returns internalId.')
+var projectWorkspaceIdGuid = '${substring(rawWorkspaceId, 0, 8)}-${substring(rawWorkspaceId, 8, 4)}-${substring(rawWorkspaceId, 12, 4)}-${substring(rawWorkspaceId, 16, 4)}-${substring(rawWorkspaceId, 20, 12)}'
+
 module keyVaultResources './supporting-resources.bicep' = {
   name: 'foundry-keyvault'
   params: {
@@ -274,6 +278,10 @@ module capabilityHost './capability-host.bicep' = {
     storageConnectionName: projectConnections.outputs.storageConnectionName
     aiSearchConnectionName: projectConnections.outputs.aiSearchConnectionName
   }
+  dependsOn: [
+    cosmosDBRbac
+    storageRbac
+  ]
 }
 
 module cosmosDBRbac './cosmos-rbac.bicep' = {
@@ -282,7 +290,7 @@ module cosmosDBRbac './cosmos-rbac.bicep' = {
   params: {
     projectPrincipalId: project.identity.principalId
     cosmosDBAccountName: cosmosDBAccountNameResolved
-    projectWorkspaceIdGuid: capabilityHost.outputs.projectWorkspaceIdGuid
+    projectWorkspaceIdGuid: projectWorkspaceIdGuid
   }
 }
 
@@ -301,7 +309,7 @@ module storageRbac './storage-rbac.bicep' = {
   params: {
     projectPrincipalId: project.identity.principalId
     storageAccountName: storageAccountNameResolved
-    projectWorkspaceIdGuid: capabilityHost.outputs.projectWorkspaceIdGuid
+    projectWorkspaceIdGuid: projectWorkspaceIdGuid
   }
 }
 
