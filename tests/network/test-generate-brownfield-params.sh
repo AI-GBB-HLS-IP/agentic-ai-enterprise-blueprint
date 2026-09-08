@@ -68,7 +68,10 @@ dns_param="$outdir/brownfield-dns.bicepparam"
 [[ -f "$network_param" ]] || fail "network parameter file was not written"
 [[ -f "$dns_param" ]] || fail "dns parameter file was not written"
 
-assert_contains "$network_param" "using './brownfield-network.bicep'" "missing using statement"
+expected_using_prefix="$(python3 -c "import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" \
+  "${REPO_ROOT}/infra/envs/poc" "$outdir")"
+assert_contains "$network_param" "using '${expected_using_prefix}/brownfield-network.bicep'" \
+  "missing using statement pointing at the templates directory relative to --out-dir"
 assert_contains "$network_param" "param existingVnetName = 'vnet-placeholder'" "wrong vnet name"
 assert_contains "$network_param" "param existingVnetResourceGroupName = 'rg-placeholder'" "wrong rg"
 assert_contains "$network_param" "param location = 'placeholderregion'" "wrong location"
