@@ -26,7 +26,7 @@ This module provisions the Network Foundation MVP for the POC:
   - `privatelink.search.windows.net` (AI Search — required by the Foundry Agent Service's
     vector-store connection whenever the capability host is enabled)
 
-Sizes above are the **fixed greenfield recommendation** (fixed per FR-002/FR-013a) and MUST NOT be
+Subnet sizes above are the **fixed greenfield recommendation** (fixed per FR-002/FR-013a) and MUST NOT be
 resized. Brownfield mode reuses the same purpose keys and DNS zone list but sizes each subnet to
 what the admin-allocated existing VNet actually supports; see the worked brownfield example below.
 
