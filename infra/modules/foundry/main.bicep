@@ -285,8 +285,8 @@ module capabilityHost './capability-host.bicep' = {
   dependsOn: [
     cosmosDBRbac
     storageRbac
+    aiSearchRbac
   ]
-}
 
 module cosmosDBRbac './cosmos-rbac.bicep' = {
   name: 'foundry-cosmos-rbac'
