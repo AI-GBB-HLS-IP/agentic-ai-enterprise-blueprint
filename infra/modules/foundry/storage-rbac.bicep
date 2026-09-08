@@ -27,6 +27,6 @@ resource storageBlobDataContributorAssignment 'Microsoft.Authorization/roleAssig
     roleDefinitionId: storageBlobDataContributorRoleId
     principalType: 'ServicePrincipal'
     conditionVersion: '2.0'
-    condition: '((!(ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags/read\'})  AND  !(ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/filter/action\'}) AND  !(ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags/write\'}) ) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringStartsWithIgnoreCase \'${projectWorkspaceIdGuid}\' AND @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringLikeIgnoreCase \'*-azureml-agent\'))'
+    condition: '((ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags/read\'} OR ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/filter/action\'} OR ActionMatches{\'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags/write\'}) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringStartsWithIgnoreCase \'${projectWorkspaceIdGuid}\' AND @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringLikeIgnoreCase \'*-azureml-agent\'))'
   }
 }
