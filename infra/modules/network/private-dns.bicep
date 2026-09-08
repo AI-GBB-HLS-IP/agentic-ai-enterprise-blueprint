@@ -40,7 +40,7 @@ resource sqlZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
 }
 
 resource cosmosDBZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: privateDnsZoneNames.cosmosDB
+  name: contains(privateDnsZoneNames, 'cosmosDB') ? privateDnsZoneNames.cosmosDB : 'privatelink.documents.azure.com'
   location: 'global'
 }
 
