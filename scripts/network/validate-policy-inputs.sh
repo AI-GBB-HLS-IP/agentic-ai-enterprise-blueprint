@@ -67,7 +67,7 @@ fi
 # Write the payload to a temp file instead of passing it as a python3 argv string: an
 # arbitrarily large --json/--input payload could otherwise exceed the OS ARG_MAX limit
 # (see scripts/network/discover-existing-vnet.sh for the same fix).
-payload_file="$(mktemp)"
+payload_file="$(mktemp "${TMPDIR:-/tmp}/validate-policy-inputs.XXXXXX")"
 trap 'rm -f "$payload_file"' EXIT
 printf '%s' "$json_payload" > "$payload_file"
 
