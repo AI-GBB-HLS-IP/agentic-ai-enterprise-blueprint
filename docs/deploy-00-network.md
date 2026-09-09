@@ -265,7 +265,7 @@ every subnet loses 5 addresses to Azure.
 **Minimum viable block: `/26`.** If your VNet can't spare a full `/25` (for example, an existing
 subnet already fragments the space), pass `--block-size 26` or `--block <a /26 you have free>`.
 A `/26` splits into `/27` foundry (meets the platform minimum with zero slack) plus four `/29`s —
-apim meets its `/29` minimum with zero slack, and private endpoints/compute/CI-CD agents each get
+apim meets its `/29` minimum with zero slack, and private endpoints/compute/CI/CD agents each get
 only **3 usable addresses** after the 5 Azure-reserved. Check that 3 is actually enough before
 relying on it: the Foundry module can create up to 5 private endpoints in the `privateEndpoints`
 subnet (foundry, key vault, storage, Cosmos DB, AI Search) unless you point it at existing
