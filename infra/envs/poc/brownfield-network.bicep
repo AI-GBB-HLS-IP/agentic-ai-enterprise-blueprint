@@ -96,7 +96,44 @@ param existingComputeNsgId string = ''
 ])
 param privateEndpointsNetworkPolicies string = 'Disabled'
 
-var useSharedHybridNsg = !empty(sharedHybridNsgId)
+// ---------------------------------------------------------------------------------------------
+// NSG reference validation. These IDs point at customer-owned NSGs this template never creates,
+// so a typo cannot be caught by Azure until the subnet write itself fails -- after earlier subnets
+// in the serialized batch have already been written. Validating the shape up front makes the
+// failure deterministic. Mirrors the BYO resource-ID validation in infra/modules/foundry/main.bicep.
+//
+// The checks below deliberately avoid indexing into split() results: ARM's and()/or() do not
+// reliably short-circuit, so an index expression on an empty parameter could be evaluated and
+// throw before the guard rejects it. startsWith/contains/length are safe on any string, including
+// the empty string. Do not replace them with a user-defined function either -- that raises the
+// emitted template to languageVersion 2.0, which changes `resources` from an array to a
+// symbolic-name object and breaks the compiled-template assertions in tests/network.
+// ---------------------------------------------------------------------------------------------
+
+var nsgIdSegmentCount = 9
+var nsgProviderPath = '/providers/microsoft.network/networksecuritygroups/'
+
+var _validateSharedHybridNsgId = empty(sharedHybridNsgId) || (startsWith(toLower(sharedHybridNsgId), '/subscriptions/') && contains(toLower(sharedHybridNsgId), '/resourcegroups/') && contains(toLower(sharedHybridNsgId), nsgProviderPath) && length(split(sharedHybridNsgId, '/')) == nsgIdSegmentCount)
+  ? true
+  : fail('sharedHybridNsgId must be a full ARM resource ID for Microsoft.Network/networkSecurityGroups with no trailing slash, for example /subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/networkSecurityGroups/<name>.')
+
+var _validateExistingApimNsgId = empty(existingApimNsgId) || (startsWith(toLower(existingApimNsgId), '/subscriptions/') && contains(toLower(existingApimNsgId), '/resourcegroups/') && contains(toLower(existingApimNsgId), nsgProviderPath) && length(split(existingApimNsgId, '/')) == nsgIdSegmentCount)
+  ? true
+  : fail('existingApimNsgId must be a full ARM resource ID for Microsoft.Network/networkSecurityGroups with no trailing slash.')
+
+var _validateExistingComputeNsgId = empty(existingComputeNsgId) || (startsWith(toLower(existingComputeNsgId), '/subscriptions/') && contains(toLower(existingComputeNsgId), '/resourcegroups/') && contains(toLower(existingComputeNsgId), nsgProviderPath) && length(split(existingComputeNsgId, '/')) == nsgIdSegmentCount)
+  ? true
+  : fail('existingComputeNsgId must be a full ARM resource ID for Microsoft.Network/networkSecurityGroups with no trailing slash.')
+
+var _validateReuseExistingNsgs = !reuseExistingNsgs || !empty(sharedHybridNsgId) || (!empty(existingApimNsgId) && !empty(existingComputeNsgId))
+  ? true
+  : fail('reuseExistingNsgs is true, so both existingApimNsgId and existingComputeNsgId must be supplied.')
+
+// Threaded into useSharedHybridNsg so the guards are always evaluated; an unreferenced variable
+// would be eliminated and its fail() never raised.
+var nsgInputsValidated = _validateSharedHybridNsgId && _validateExistingApimNsgId && _validateExistingComputeNsgId && _validateReuseExistingNsgs
+
+var useSharedHybridNsg = nsgInputsValidated && !empty(sharedHybridNsgId)
 
 module nsg '../../modules/network/nsg.bicep' = if (!useSharedHybridNsg && !reuseExistingNsgs) {
   scope: resourceGroup(existingVnetResourceGroupName)

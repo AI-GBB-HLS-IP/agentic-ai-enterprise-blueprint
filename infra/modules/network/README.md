@@ -74,6 +74,24 @@ permitted public IP in the blueprint.
 > is tracked by tasks T005 and T059-T063. See
 > [`docs/deploy-00-network.md`](../../../docs/deploy-00-network.md).
 
+## Shared subnet implementation
+
+Both entry points create their subnets through **`subnets.bicep`**:
+
+| Caller | VNet | Subnets |
+| --- | --- | --- |
+| `modules/network/main.bicep` (greenfield) | declares it as a **managed** resource | `subnets.bicep` (6, including `AzureBastionSubnet`) |
+| `envs/poc/brownfield-network.bicep` | never declares it | `subnets.bicep` (5) |
+
+This keeps subnet shape — delegation, NSG association, private-endpoint policy — and the
+serialized `@batchSize(1)` write behaviour in one implementation. The ownership boundary is
+unaffected: `subnets.bicep` references the VNet as `existing` and writes only its children, so
+the VNet resource is declared in the greenfield template and nowhere else. Greenfield's
+`subnetIds` output maps the module's array by index, so the order of `subnetDefinitions` in
+`main.bicep` is load-bearing.
+
+Enforced by `tests/network/test-network-module-contracts.sh`.
+
 ## Brownfield subnet writes are destructive on name collision
 
 `subnets.bicep` creates each subnet as a child resource PUT against an `existing` VNet reference.
@@ -116,6 +134,16 @@ greenfield module always uses mode 3.
 pre-existing hybrid NSG (often named like `hybrid-nsg-<subscription>-<region>`). Pass the full ARM
 resource ID, so the NSG may live in a different resource group or subscription; it is referenced
 only and is never created or modified. Mode 1 takes precedence over `reuseExistingNsgs`.
+
+**Resource ID validation.** All three NSG ID parameters are validated for ARM resource-ID shape
+before anything is written, using the same `fail()` pattern as the BYO resources in
+`infra/modules/foundry/main.bicep`. A malformed or wrong-type ID stops the deployment up front
+rather than failing partway through the serialized subnet batch, leaving some subnets written and
+others not. Mode 2 additionally fails closed unless **both** `existingApimNsgId` and
+`existingComputeNsgId` are supplied.
+
+The check is on *shape only* — the template never resolves the ID against Azure, so an NSG that
+does not exist, or that the deploying identity cannot read, still fails at deploy time.
 
 > **Private endpoint caveat.** Azure only enforces NSG rules on private endpoint traffic when the
 > subnet's `privateEndpointNetworkPolicies` is `Enabled` or `NetworkSecurityGroupEnabled`. The
