@@ -87,9 +87,9 @@ fi
 # Pass large `az` JSON payloads via temp files instead of argv: real-world VNets with many
 # subnets/NSGs/peerings can produce output that exceeds the OS ARG_MAX limit when passed
 # directly as command-line arguments (causing "Argument list too long").
-work_dir="$(mktemp -d)"
+work_dir="$(mktemp -d 2>/dev/null || mktemp -d -t discover-existing-vnet)"
+[[ -n "$work_dir" ]] || { echo "Failed to create temp directory" >&2; exit 1; }
 trap 'rm -rf "$work_dir"' EXIT
-
 printf '%s' "$vnet_json" > "$work_dir/vnet.json"
 printf '%s' "$subnets_json" > "$work_dir/subnets.json"
 printf '%s' "$peerings_json" > "$work_dir/peerings.json"
