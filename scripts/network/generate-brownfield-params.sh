@@ -16,7 +16,10 @@ Usage: generate-brownfield-params.sh --discovery <discovery.json> [options]
 
 Address plan:
   --block <cidr>                 Use this exact free block instead of auto-selecting one
-  --block-size <n>               Prefix length of the block to auto-select (default: 25, max: 25)
+  --block-size <n>               Prefix length of the block to auto-select (default: 25).
+                                 Minimum viable is /26 (foundry /27 + four /29s, each losing 5
+                                 addresses to Azure -- only 3 usable IPs per non-foundry subnet).
+                                 Prefer /25 or larger whenever the VNet has the room.
   --name-prefix <prefix>         Subnet name prefix (default: hybridsubnet)
   --location <region>            Override the location from discovery
 
@@ -188,8 +191,17 @@ for subnet in subnets:
 # second half -> four equal subnets for apim, private endpoints, compute, and CI/CD agents.
 # With the default /25 block this yields /26 + 4x/28, matching the worked example in
 # infra/modules/network/README.md.
+#
+# RECOMMENDED_BLOCK_PREFIX is the default and the size to prefer whenever the VNet has the room.
+# MIN_VIABLE_BLOCK_PREFIX is the hard floor: a /26 halves to /27 (meets the foundry platform
+# minimum with zero slack) and quarters to /29 (meets the apim platform minimum with zero slack,
+# and leaves only 3 usable addresses -- after the 5 Azure-reserved -- for private endpoints,
+# compute, and CI/CD agents). Anything smaller than /26 cannot satisfy those minimums and is
+# rejected below by the per-subnet MINIMUM_PREFIX check regardless.
 # ---------------------------------------------------------------------------------------------
-MAX_BLOCK_PREFIX = 25
+RECOMMENDED_BLOCK_PREFIX = 25
+MIN_VIABLE_BLOCK_PREFIX = 26
+MAX_BLOCK_PREFIX = MIN_VIABLE_BLOCK_PREFIX
 
 def free_blocks(networks, used_list):
     """Address space in `networks` not covered by `used_list`, largest first."""
@@ -220,8 +232,9 @@ if config["block"]:
         fail("--block must be an IPv4 CIDR.")
     if chosen.prefixlen > MAX_BLOCK_PREFIX:
         fail(
-            f"--block {chosen} is too small: /{MAX_BLOCK_PREFIX} or larger is required so the "
-            "foundry subnet is at least a /26 and every other subnet at least a /28."
+            f"--block {chosen} is too small: /{MIN_VIABLE_BLOCK_PREFIX} or larger is required so "
+            "the foundry subnet meets its /27 platform minimum and every other subnet meets its "
+            "/29 platform minimum."
         )
     if not any(chosen.subnet_of(network) for network in vnet_networks):
         fail(f"--block {chosen} is not contained in any VNet address prefix {address_prefixes}.")
@@ -235,7 +248,10 @@ else:
     except ValueError:
         fail("--block-size must be an integer.")
     if not 8 <= block_size <= MAX_BLOCK_PREFIX:
-        fail(f"--block-size must be between 8 and {MAX_BLOCK_PREFIX}.")
+        fail(
+            f"--block-size must be between 8 and {MAX_BLOCK_PREFIX} (the minimum viable block; "
+            f"{RECOMMENDED_BLOCK_PREFIX} is recommended whenever the VNet has the room)."
+        )
 
     chosen = None
     for network in sorted(vnet_networks, key=lambda item: int(item.network_address)):
@@ -254,8 +270,10 @@ else:
             largest = ", ".join(str(net) for net in available[:5])
             hint = (
                 f"Largest free ranges in this VNet: {largest}. If one of them is at least a "
-                f"/{MAX_BLOCK_PREFIX}, pass it with --block; otherwise ask the network admin to "
-                "extend the VNet address space or hand you a larger allocation."
+                f"/{MIN_VIABLE_BLOCK_PREFIX}, pass it with --block-size {MIN_VIABLE_BLOCK_PREFIX} "
+                "or --block (this yields the minimum-viable /27 foundry + four /29 subnets); "
+                "otherwise ask the network admin to extend the VNet address space or hand you a "
+                "larger allocation."
             )
         else:
             hint = (

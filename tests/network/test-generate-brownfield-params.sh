@@ -118,6 +118,19 @@ if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --for
   fail "undersized block should be rejected"
 fi
 
+# --- /26 minimum-viable block is accepted (foundry /27 + four /29s) ----------------------------
+run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  --block-size 26 || fail "minimum-viable /26 block-size should be accepted"
+assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.1.0/27'" "wrong /26-split foundry CIDR"
+assert_contains "$network_param" "param apimSubnetPrefix = '10.0.1.32/29'" "wrong /26-split apim CIDR"
+
+# --- block-size below the /26 floor is rejected -------------------------------------------------
+if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  --block-size 27; then
+  fail "--block-size below the /26 floor should be rejected"
+fi
+assert_contains "$workdir/run.out" "must be between 8 and 26" "missing block-size floor diagnostic"
+
 # --- subnet name collision is fail-closed -------------------------------------------------------
 python3 - "$workdir/discovery.json" "$workdir/collision.json" <<'PY'
 import json
