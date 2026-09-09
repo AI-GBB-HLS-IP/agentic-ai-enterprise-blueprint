@@ -1,0 +1,94 @@
+name: PR validation
+
+# Runs the repository's own verification gates on every pull request into master,
+# and on master itself after a merge. Both jobs are offline: they compile Bicep and
+# scan tracked files. Neither signs in to Azure, so no secrets and no id-token
+# permission are required, and a fork PR cannot reach a subscription.
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validation-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned so the compiled-template assertions in tests/network are reproducible.
+  # The emitted ARM shape is version sensitive: a Bicep release that changes
+  # languageVersion turns `resources` from an array into a symbolic-name object
+  # and breaks those tests. Bump deliberately, not implicitly.
+  BICEP_VERSION: v0.46.1
+
+jobs:
+  confidentiality:
+    name: Confidentiality scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Scan tracked files
+        run: ./scripts/network/scan-confidentiality.sh
+
+  network-tests:
+    name: Network template tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install pinned Bicep CLI
+        run: |
+          # `az bicep install --version` is a no-op if any version is already present,
+          # and GitHub runners ship their own. Uninstall first so the pin is honoured,
+          # then assert it, so a silent version drift fails here rather than as a
+          # confusing assertion failure inside the test suite.
+          az bicep uninstall 2>/dev/null || true
+          az bicep install --version "$BICEP_VERSION"
+          installed=$(az bicep version)
+          echo "$installed"
+          expected="${BICEP_VERSION#v}"
+          if ! grep -q "Bicep CLI version ${expected} " <<<"$installed"; then
+            echo "::error::expected Bicep ${expected}, got: ${installed}"
+            exit 1
+          fi
+
+      - name: Run network test suite
+        run: ./tests/network/run-tests.sh
+
+  script-lint:
+    name: Shell script lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify tracked shell scripts are executable
+        run: |
+          # This repository is frequently edited from a Windows/OneDrive mount where
+          # the executable bit is not preserved, so scripts can silently land as mode
+          # 100644 and every documented `./scripts/...` invocation fails with
+          # "Permission denied" on a fresh Linux or macOS clone. Assert the git index
+          # mode directly rather than the checked-out filesystem bit.
+          if offenders=$(git ls-files -s '*.sh' | grep -v '^100755'); then
+            echo "$offenders" | while read -r _ _ _ path; do
+              echo "::error file=${path}::tracked shell script is not executable; run: git update-index --chmod=+x '${path}'"
+            done
+            exit 1
+          fi
+          echo "All tracked shell scripts are mode 100755."
+
+      - name: Run shellcheck
+        run: |
+          # Blocking at severity=error, which the tree is clean against today.
+          # Raising to severity=warning currently reports findings only in the
+          # vendored .specify/ spec-kit scripts; clear those first if tightening.
+          shellcheck --version
+          git ls-files '*.sh' | xargs shellcheck --severity=error
