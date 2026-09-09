@@ -245,7 +245,7 @@ sign-off on the CIDRs before deploying.
 | Option | Use it when |
 | --- | --- |
 | `--block <cidr>` | IPAM handed you a specific range — skips auto-selection but still validates it |
-| `--block-size <n>` | You want something other than a `/25` (must be `/25` or larger) |
+| `--block-size <n>` | You want something other than a `/25` (`/25` recommended; `/26` is the minimum viable size — see below) |
 | `--name-prefix <prefix>` | Default `hybridsubnet-*` names collide, or your naming standard differs |
 | `--shared-hybrid-nsg-id <id>` | NSG mode 1 (see below) |
 | `--reuse-existing-nsgs` + `--existing-apim-nsg-id` + `--existing-compute-nsg-id` | NSG mode 2 |
@@ -261,6 +261,19 @@ found so you can pass one with `--block` or take the numbers to the network admi
 into four equal subnets. A `/25` therefore yields `/26` foundry plus four `/28`s — the worked
 example below. Platform minimums: foundry `/27`, APIM (classic Premium, VNet-injected) `/29`;
 every subnet loses 5 addresses to Azure.
+
+**Minimum viable block: `/26`.** If your VNet can't spare a full `/25` (for example, an existing
+subnet already fragments the space), pass `--block-size 26` or `--block <a /26 you have free>`.
+A `/26` splits into `/27` foundry (meets the platform minimum with zero slack) plus four `/29`s —
+apim meets its `/29` minimum with zero slack, and private endpoints/compute/CI-CD agents each get
+only **3 usable addresses** after the 5 Azure-reserved. Check that 3 is actually enough before
+relying on it: the Foundry module can create up to 5 private endpoints in the `privateEndpoints`
+subnet (foundry, key vault, storage, Cosmos DB, AI Search) unless you point it at existing
+resources via `existingStoragePrivateEndpoint` / `existingCosmosDBPrivateEndpoint` /
+`existingAISearchPrivateEndpoint` in `foundry.bicepparam` to cut that count down. Treat `/26` as a
+stopgap for when you can't extend or reclaim VNet space, and get a larger allocation when
+possible. Anything smaller than `/26` cannot satisfy the platform minimums and the generator
+rejects it.
 
 | Subnet | Platform minimum | Recommended |
 | --- | --- | --- |
