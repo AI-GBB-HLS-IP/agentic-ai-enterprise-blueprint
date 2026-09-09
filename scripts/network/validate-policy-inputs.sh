@@ -64,12 +64,20 @@ if [[ -n "$input_path" ]]; then
   json_payload="$(<"$input_path")"
 fi
 
-python3 - "$json_payload" <<'PY'
+# Write the payload to a temp file instead of passing it as a python3 argv string: an
+# arbitrarily large --json/--input payload could otherwise exceed the OS ARG_MAX limit
+# (see scripts/network/discover-existing-vnet.sh for the same fix).
+payload_file="$(mktemp)"
+trap 'rm -f "$payload_file"' EXIT
+printf '%s' "$json_payload" > "$payload_file"
+
+python3 - "$payload_file" <<'PY'
 import json
 import re
 import sys
 
-raw = sys.argv[1]
+with open(sys.argv[1], encoding="utf-8") as handle:
+    raw = handle.read()
 
 try:
     data = json.loads(raw)
