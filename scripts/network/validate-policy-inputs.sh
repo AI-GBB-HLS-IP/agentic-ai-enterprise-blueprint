@@ -61,15 +61,15 @@ if [[ -n "$input_path" ]]; then
     echo "Input file not found: $input_path" >&2
     exit 1
   fi
-  json_payload="$(<"$input_path")"
+  payload_file="$input_path"
+else
+  # Write the payload to a temp file instead of passing it as a python3 argv string: an
+  # arbitrarily large --json payload could otherwise exceed the OS ARG_MAX limit
+  # (see scripts/network/discover-existing-vnet.sh for the same fix).
+  payload_file="$(mktemp "${TMPDIR:-/tmp}/validate-policy-inputs.XXXXXX")"
+  trap 'rm -f "$payload_file"' EXIT
+  printf '%s' "$json_payload" > "$payload_file"
 fi
-
-# Write the payload to a temp file instead of passing it as a python3 argv string: an
-# arbitrarily large --json/--input payload could otherwise exceed the OS ARG_MAX limit
-# (see scripts/network/discover-existing-vnet.sh for the same fix).
-payload_file="$(mktemp "${TMPDIR:-/tmp}/validate-policy-inputs.XXXXXX")"
-trap 'rm -f "$payload_file"' EXIT
-printf '%s' "$json_payload" > "$payload_file"
 
 python3 - "$payload_file" <<'PY'
 import json
