@@ -75,25 +75,23 @@ fi
 
 echo "Discovering ${vnet_name} in resource group ${resource_group} (read-only)..." >&2
 
-vnet_json="$(az network vnet show -g "$resource_group" -n "$vnet_name" "${az_args[@]}")"
-subnets_json="$(az network vnet subnet list -g "$resource_group" --vnet-name "$vnet_name" "${az_args[@]}")"
-peerings_json="$(az network vnet peering list -g "$resource_group" --vnet-name "$vnet_name" "${az_args[@]}")"
-
-dns_json="[]"
-if [[ -n "$dns_resource_group" ]]; then
-  dns_json="$(az network private-dns zone list -g "$dns_resource_group" "${az_args[@]}")"
-fi
-
 # Pass large `az` JSON payloads via temp files instead of argv: real-world VNets with many
 # subnets/NSGs/peerings can produce output that exceeds the OS ARG_MAX limit when passed
-# directly as command-line arguments (causing "Argument list too long").
+# directly as command-line arguments (causing "Argument list too long"). Stream `az` output
+# directly into the temp files to avoid holding multi-MB payloads in shell variables.
 work_dir="$(mktemp -d 2>/dev/null || mktemp -d -t discover-existing-vnet)"
 [[ -n "$work_dir" ]] || { echo "Failed to create temp directory" >&2; exit 1; }
 trap 'rm -rf "$work_dir"' EXIT
-printf '%s' "$vnet_json" > "$work_dir/vnet.json"
-printf '%s' "$subnets_json" > "$work_dir/subnets.json"
-printf '%s' "$peerings_json" > "$work_dir/peerings.json"
-printf '%s' "$dns_json" > "$work_dir/dns.json"
+
+az network vnet show -g "$resource_group" -n "$vnet_name" "${az_args[@]}" > "$work_dir/vnet.json"
+az network vnet subnet list -g "$resource_group" --vnet-name "$vnet_name" "${az_args[@]}" > "$work_dir/subnets.json"
+az network vnet peering list -g "$resource_group" --vnet-name "$vnet_name" "${az_args[@]}" > "$work_dir/peerings.json"
+
+if [[ -n "$dns_resource_group" ]]; then
+  az network private-dns zone list -g "$dns_resource_group" "${az_args[@]}" > "$work_dir/dns.json"
+else
+  printf '[]' > "$work_dir/dns.json"
+fi
 
 document="$(python3 - "$work_dir/vnet.json" "$work_dir/subnets.json" "$work_dir/peerings.json" "$work_dir/dns.json" "$dns_resource_group" <<'PY'
 import json
