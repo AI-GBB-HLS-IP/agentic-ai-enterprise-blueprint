@@ -63,9 +63,9 @@ if [[ -n "$input_path" ]]; then
   fi
   payload_file="$input_path"
 else
-  # Write the payload to a temp file instead of passing it as a python3 argv string: an
-  # arbitrarily large --json payload could otherwise exceed the OS ARG_MAX limit
-  # (see scripts/network/discover-existing-vnet.sh for the same fix).
+  # Write the payload to a temp file instead of passing it as a python3 argv string: a large
+  # --json payload can cause the python3 invocation to exceed the OS ARG_MAX limit because the
+  # JSON would otherwise be duplicated in argv (see scripts/network/discover-existing-vnet.sh).
   payload_file="$(mktemp "${TMPDIR:-/tmp}/validate-policy-inputs.XXXXXX")"
   trap 'rm -f "$payload_file"' EXIT
   printf '%s' "$json_payload" > "$payload_file"
