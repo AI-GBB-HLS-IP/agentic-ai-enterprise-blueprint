@@ -84,14 +84,31 @@ if [[ -n "$dns_resource_group" ]]; then
   dns_json="$(az network private-dns zone list -g "$dns_resource_group" "${az_args[@]}")"
 fi
 
-document="$(python3 - "$vnet_json" "$subnets_json" "$peerings_json" "$dns_json" "$dns_resource_group" <<'PY'
+# Pass large `az` JSON payloads via temp files instead of argv: real-world VNets with many
+# subnets/NSGs/peerings can produce output that exceeds the OS ARG_MAX limit when passed
+# directly as command-line arguments (causing "Argument list too long").
+work_dir="$(mktemp -d)"
+trap 'rm -rf "$work_dir"' EXIT
+
+printf '%s' "$vnet_json" > "$work_dir/vnet.json"
+printf '%s' "$subnets_json" > "$work_dir/subnets.json"
+printf '%s' "$peerings_json" > "$work_dir/peerings.json"
+printf '%s' "$dns_json" > "$work_dir/dns.json"
+
+document="$(python3 - "$work_dir/vnet.json" "$work_dir/subnets.json" "$work_dir/peerings.json" "$work_dir/dns.json" "$dns_resource_group" <<'PY'
 import json
 import sys
 
-vnet = json.loads(sys.argv[1])
-subnets = json.loads(sys.argv[2])
-peerings = json.loads(sys.argv[3])
-zones = json.loads(sys.argv[4])
+
+def load(path):
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+vnet = load(sys.argv[1])
+subnets = load(sys.argv[2])
+peerings = load(sys.argv[3])
+zones = load(sys.argv[4])
 dns_rg = sys.argv[5]
 
 
