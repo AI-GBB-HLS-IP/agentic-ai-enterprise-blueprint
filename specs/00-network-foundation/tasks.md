@@ -178,8 +178,8 @@ NSGs, and existing-zone VNet links are allowed.
 > **Revision note (2026-09-10)**: T048–T053 and T055 below were scoped for VNet-link mode only.
 > Per the Session 2026-09-10 clarifications and FR-016/FR-016a/FR-016b, brownfield DNS now has two
 > explicit modes (`vnet-link`, `zone-group`). These tasks need re-scoping before implementation:
-> T048/T049/T052/T053 should branch on `dnsIntegrationMode` (zone-group mode skips the VNet-link
-> preflight/what-if entirely, since it creates no DNS-owner-scoped resource); T050 remains
+> T048/T049/T052/T053 should branch on `dnsIntegrationMode` (in `zone-group` mode, skip the DNS-owner VNet-link what-if stage and link-specific checks,
+> but still validate that the referenced zone resource IDs resolve and are in-tenant/approved); T050 remains
 > VNet-link-mode-specific; a new task is needed for zone-group mode's cross-subscription zone-ID
 > resolution in workload modules (e.g. `foundry.bicep`) via `resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', <zoneName>)`; T055's
 > "zone-reference status" output should be mode-aware. Do not implement against the task text below
