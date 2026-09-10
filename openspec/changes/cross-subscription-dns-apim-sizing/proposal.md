@@ -75,7 +75,7 @@ with the network team before proceeding.
 - [ ] `docs/deploy-00-network.md` no longer contains the "Known limitation" callout — it
       describes actual behavior.
 
-## Confirmed target CIDR plan (azr-133-eastus, free block 10.75.139.192/26)
+## Example target CIDR plan (<region>, free block 10.0.1.192/26)
 
 | Purpose | CIDR | Total | Usable |
 |---|---|---|---|
