@@ -12,11 +12,23 @@ param networkResourceGroupName string = resourceGroup().name
 ])
 param dnsIntegrationMode string
 
-@description('Subscription containing the existing private DNS zones. Used only in zone-group mode.')
-param dnsSubscriptionId string = subscription().subscriptionId
+@description('Subscription containing the existing private DNS zones. Required in zone-group mode; ignored in vnet-link mode, where it defaults to this subscription.')
+param dnsSubscriptionId string = ''
 
-@description('Resource group containing the existing private DNS zones. Used only in zone-group mode.')
-param dnsResourceGroupName string = networkResourceGroupName
+@description('Resource group containing the existing private DNS zones. Required in zone-group mode; ignored in vnet-link mode, where it defaults to networkResourceGroupName.')
+param dnsResourceGroupName string = ''
+
+var effectiveDnsSubscriptionId = dnsIntegrationMode == 'zone-group'
+  ? (empty(dnsSubscriptionId)
+      ? fail('dnsSubscriptionId is required when dnsIntegrationMode is zone-group; it must not be inferred from the workload subscription.')
+      : dnsSubscriptionId)
+  : (empty(dnsSubscriptionId) ? subscription().subscriptionId : dnsSubscriptionId)
+
+var effectiveDnsResourceGroupName = dnsIntegrationMode == 'zone-group'
+  ? (empty(dnsResourceGroupName)
+      ? fail('dnsResourceGroupName is required when dnsIntegrationMode is zone-group; it must not be inferred from the workload resource group.')
+      : dnsResourceGroupName)
+  : (empty(dnsResourceGroupName) ? networkResourceGroupName : dnsResourceGroupName)
 
 param foundryAccountName string = 'foundry-agent-factory-poc'
 param projectName string = 'prj-agent-factory-poc'
@@ -124,13 +136,13 @@ resource searchDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
 }
 
 var zoneGroupDnsResourceIds = {
-  cognitiveServices: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', cognitiveServicesDns.name)
-  openAi: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', openAiDns.name)
-  servicesAi: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', servicesAiDns.name)
-  blob: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', blobDns.name)
-  keyVault: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', keyVaultDns.name)
-  cosmosDB: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', documentsDns.name)
-  aiSearch: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', searchDns.name)
+  cognitiveServices: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', cognitiveServicesDns.name)
+  openAi: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', openAiDns.name)
+  servicesAi: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', servicesAiDns.name)
+  blob: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', blobDns.name)
+  keyVault: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', keyVaultDns.name)
+  cosmosDB: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', documentsDns.name)
+  aiSearch: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', searchDns.name)
 }
 
 var vnetLinkDnsResourceIds = {
