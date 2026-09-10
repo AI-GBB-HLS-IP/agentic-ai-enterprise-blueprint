@@ -50,7 +50,7 @@ between the spec's original assumptions and reality:
 ## Pre-implementation check (do this first, before writing any code)
 
 Confirm the APIM platform version, not just SKU name — `/28` sizing was observed on
-`azr-hji-mtaxon-apim-dev` (Developer tier), but classic vs. stv2 platform depends on
+`<apim-example-instance>` (Developer tier), but classic vs. stv2 platform depends on
 `platformVersion`, not the SKU name alone. If the POC's target instance resolves to stv2, it
 needs `/27` minimum and the entire `/26` plan in this proposal collapses (see spec.md's
 Session 2026-09-10 clarification on stv2). Run:
