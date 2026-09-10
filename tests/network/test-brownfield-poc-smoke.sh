@@ -65,9 +65,11 @@ arm = json.load(open(sys.argv[1]))
 variables = arm.get("variables", {})
 serialized = json.dumps(variables)
 
-if "dnsSubscriptionId and dnsResourceGroupName are required" not in serialized:
+if "dnsSubscriptionId is required when dnsIntegrationMode is zone-group" not in serialized:
     sys.exit("missing zone-group DNS scope validation")
-if "dnsSubscriptionIdResolved" not in serialized or "dnsResourceGroupNameResolved" not in serialized:
+if "dnsResourceGroupName is required when dnsIntegrationMode is zone-group" not in serialized:
+    sys.exit("missing zone-group DNS resource-group validation")
+if "effectiveDnsSubscriptionId" not in serialized or "effectiveDnsResourceGroupName" not in serialized:
     sys.exit("zone-group resource IDs do not use validated DNS scope values")
 PY
 

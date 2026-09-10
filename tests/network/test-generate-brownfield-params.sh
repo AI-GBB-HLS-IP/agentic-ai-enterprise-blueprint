@@ -194,7 +194,7 @@ if parameters["dnsSubscriptionId"]["value"] != sys.argv[2]:
     sys.exit("compiled Foundry parameters lost the DNS subscription")
 
 zone_ids = json.dumps(template.get("variables", {}).get("zoneGroupDnsResourceIds", {}))
-for required in ("dnsSubscriptionIdResolved", "dnsResourceGroupNameResolved", "Microsoft.Network/privateDnsZones"):
+for required in ("effectiveDnsSubscriptionId", "effectiveDnsResourceGroupName", "Microsoft.Network/privateDnsZones"):
     if required not in zone_ids:
         sys.exit(f"compiled cross-subscription zone IDs do not reference {required}")
 
