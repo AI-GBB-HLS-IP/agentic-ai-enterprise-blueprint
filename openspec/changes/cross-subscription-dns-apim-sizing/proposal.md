@@ -44,6 +44,8 @@ between the spec's original assumptions and reality:
     platform is `stv2`, which needs `/27` for APIM, not `/28`/`/29`)
   - update `MINIMUM_PREFIX = {"foundry": 27, "apim": 29}` to `{"foundry": 27, "apim": 27}`
   - drop `privatelink.azure-api.net` from the required-zone list when APIM uses VNet injection
+  - when allocating a replacement private-endpoint subnet, emit the matching
+    `privateEndpointSubnetName` in `foundry.bicepparam` so Foundry uses the new subnet
 - `docs/deploy-00-network.md`: replace the "Known limitation" callout with the actual new
   behavior once implemented; document the new CLI flags.
 - `tests/network/test-generate-brownfield-params.sh`: update/add regression tests for the new
@@ -85,6 +87,8 @@ why the block moved from `/26` to `/25` (see target CIDR plan below).
 - [ ] `generate-brownfield-params.sh --block-size 25` against the real discovery file produces
       exactly: `foundry /27`, `apim /27`, `privateEndpoints /28`, `compute+cicdAgents /28`
       (merged), with 32 addresses spare.
+- [ ] Generated `foundry.bicepparam` sets `privateEndpointSubnetName` to the replacement
+      private-endpoint subnet name whenever that subnet is allocated.
 - [ ] Generated `foundry.bicepparam`/`brownfield-dns.bicepparam` support a cross-subscription
       `dnsSubscriptionId` distinct from the workload subscription.
 - [ ] `privatelink.azure-api.net` is no longer requested/required when APIM uses VNet injection.

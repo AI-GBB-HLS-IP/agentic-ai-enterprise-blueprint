@@ -37,7 +37,9 @@
       parameters to omit the `apim` zone requirement, conditionally skip `apimLink`, and omit
       its link ID from the output.
 - [ ] 3.6 Thread `dnsIntegrationMode` / `dnsSubscriptionId` through into the generated
-      `foundry.bicepparam` / `brownfield-dns.bicepparam` output.
+      `foundry.bicepparam` / `brownfield-dns.bicepparam` output, and set
+      `foundry.bicepparam` `privateEndpointSubnetName` to the replacement
+      private-endpoint subnet name whenever that subnet is allocated.
 
 ## 4. Regenerate example params
 
