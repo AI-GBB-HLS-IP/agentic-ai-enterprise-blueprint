@@ -25,8 +25,8 @@ See proposal.md - Problem/What changes for motivation and scope. Current state:
 ## Goals / Non-Goals
 
 **Goals:**
-- Support a `dnsIntegrationMode` of `zone-group` in addition to today's implicit `vnet-link`
-  behavior, without changing default behavior for existing callers.
+- Support an explicitly selected `dnsIntegrationMode` of `vnet-link` or `zone-group`, updating
+  existing callers to select `vnet-link` without changing its behavior.
 - Correct the block-splitting math to real-world, `stv2`-verified minimums: `foundry /27`,
   `apim /27`, `privateEndpoints /28`, merged `compute+cicdAgents /28` — fits exactly in a `/25`
   with 32 addresses spare.
@@ -53,8 +53,9 @@ See proposal.md - Problem/What changes for motivation and scope. Current state:
      module, with no benefit over a plain `resourceId()` string (Bicep does not validate
      cross-subscription `existing` references at compile time either way).
 
-2. **New param `dnsIntegrationMode: 'vnet-link' | 'zone-group'`, default `'vnet-link'`.**
-   Preserves current behavior for all existing callers/params files. In `zone-group` mode:
+2. **New required param `dnsIntegrationMode: 'vnet-link' | 'zone-group'`.**
+   Existing callers and parameter files explicitly select `vnet-link`, preserving their current
+   behavior without silently inferring the mode. In `zone-group` mode:
    - `foundry.bicep` builds zone IDs via decision 1 instead of declaring `existing` zone
      resources in the local subscription.
    - `brownfield-dns.bicep` skips VNet-link resource creation entirely (`if` condition on the
@@ -97,14 +98,16 @@ See proposal.md - Problem/What changes for motivation and scope. Current state:
   fail at the zone-group step. → Mitigation: document this precondition in
   docs/deploy-00-network.md; fail with a clear error rather than a silent partial deployment.
 - [Risk] Changing the default block split affects any already-generated `.bicepparam` files
-  that assumed the old four-equal-`/29` layout. → Mitigation: default `dnsIntegrationMode`
-  stays `vnet-link`; the corrected split only applies to newly generated params, and existing
-  checked-in example params are regenerated as part of this change, not silently reinterpreted.
+  that assumed the old four-equal-`/29` layout. → Mitigation: the corrected split only applies
+  to newly generated params, and existing checked-in example params are regenerated as part of
+  this change, not silently reinterpreted.
 
 ## Migration Plan
 
-1. Update `foundry.bicep` with the new param and cross-subscription zone-ID logic (decision 1-2).
-2. Update `brownfield-dns.bicep` to make VNet-link creation conditional on `dnsIntegrationMode`.
+1. Update `foundry.bicep` with the new required param and cross-subscription zone-ID logic
+   (decision 1-2), and update every existing caller/parameter file to pass an explicit mode.
+2. Update `brownfield-dns.bicep` to make VNet-link creation conditional on the required
+   `dnsIntegrationMode`, and update every existing caller/parameter file to pass an explicit mode.
 3. Update `generate-brownfield-params.sh`: add `--dns-integration-mode` / `--dns-subscription-id`
    flags, correct the block-split math (decision 3), drop the APIM zone in VNet-injection mode
    (decision 4).
@@ -113,9 +116,8 @@ See proposal.md - Problem/What changes for motivation and scope. Current state:
 5. Update/add tests in `tests/network/test-generate-brownfield-params.sh` for the new split and
    flags.
 
-Rollback: revert the commits for this change; `dnsIntegrationMode` defaulting to `vnet-link`
-means no rollback migration is needed for existing deployments (they never opted into
-`zone-group` mode).
+Rollback: revert the commits for this change, including the explicit `vnet-link` values added to
+existing callers and parameter files.
 
 ## Open Questions
 

@@ -1,7 +1,8 @@
 ## 1. `foundry.bicep` — cross-subscription DNS zone support
 
-- [ ] 1.1 Add `dnsIntegrationMode` param (`'vnet-link' | 'zone-group'`, default `'vnet-link'`)
-      and `dnsSubscriptionId` / `dnsResourceGroupName` params (used only in `zone-group` mode).
+- [ ] 1.1 Add required `dnsIntegrationMode` param (`'vnet-link' | 'zone-group'`) and
+      `dnsSubscriptionId` / `dnsResourceGroupName` params (used only in `zone-group` mode);
+      update every existing caller and parameter file to pass an explicit mode.
 - [ ] 1.2 In `zone-group` mode, build each Private DNS zone ID via
       `resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', zoneName)`
       instead of declaring local `existing` zone resources.
@@ -12,7 +13,8 @@
 
 ## 2. `brownfield-dns.bicep` — conditional VNet-link creation
 
-- [ ] 2.1 Add the same `dnsIntegrationMode` param, defaulting to `'vnet-link'`.
+- [ ] 2.1 Add the same required `dnsIntegrationMode` param; update every existing caller and
+      parameter file to pass an explicit mode.
 - [ ] 2.2 Make VNet-link resource creation conditional (`if (dnsIntegrationMode == 'vnet-link')`)
       so nothing DNS-owner-scoped is deployed in `zone-group` mode.
 - [ ] 2.3 Verify `az bicep build` succeeds and the compiled template has zero resources in the
@@ -20,8 +22,8 @@
 
 ## 3. `generate-brownfield-params.sh` — flags and corrected block split
 
-- [ ] 3.1 Add `--dns-integration-mode <vnet-link|zone-group>` flag (default `vnet-link`),
-      validated against the allowed values.
+- [ ] 3.1 Add required `--dns-integration-mode <vnet-link|zone-group>` flag, validated against
+      the allowed values, and fail clearly when it is omitted.
 - [ ] 3.2 Add `--dns-subscription-id <id>` and require both it and `--dns-resource-group <rg>` when `--dns-integration-mode zone-group` is passed; fail with a clear error if either is omitted in that mode.
 - [ ] 3.3 Replace the block split with: raise `RECOMMENDED_BLOCK_PREFIX` /
       `MIN_VIABLE_BLOCK_PREFIX` / `MAX_BLOCK_PREFIX` from `/26` to `/25`; split into
