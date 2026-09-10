@@ -61,10 +61,10 @@ firewall. This is documented here so the deviation is never silently permanent.
 
 ### Session 2026-09-10
 
-- Q: Live discovery against a real brownfield target (subscription `AZR-133`, VNet
-  `azr-133-eastus`) found centrally owned Private DNS zones hosted in a **different
+- Q: Live discovery against a real brownfield target (subscription `<workload-subscription>`, VNet
+  `<existing-vnet-name>`) found centrally owned Private DNS zones hosted in a **different
   subscription** than the target VNet (a per-tier DNS hub, e.g.
-  `VPCXAzureDevelopmentHub-VPCx`), and found **zero VNet-level links** registered on any zone
+  `<dns-hub-subscription>`), and found **zero VNet-level links** registered on any zone
   (`az network private-dns link vnet list` returned empty for every checked zone). The DNS
   owner confirmed there is no VNet-linking process at all: private endpoints are simply
   created with a DNS zone group referencing the existing hub zone directly, and access to
