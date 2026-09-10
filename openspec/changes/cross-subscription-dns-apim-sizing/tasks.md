@@ -46,8 +46,7 @@
 
 - [ ] 5.1 Remove the "Known limitation (2026-09-10)" callout in
       `docs/deploy-00-network.md`.
-- [ ] 5.2 Document the new `--dns-integration-mode` / `--dns-subscription-id` flags and the
-      corrected `/27 + /28 + /29 + /29` split, replacing the old four-equal-`/29` description.
+- [ ] 5.2 Document the new `--dns-integration-mode` / `--dns-subscription-id` flags and the corrected `/27 + /27 + /28 + /28` split, replacing the old four-equal-`/29` description.
 - [ ] 5.3 Document the `zone-group` mode precondition (deploying identity / DNS-owning team
       must already handle zone-group RBAC) as a known precondition, not a limitation.
 
