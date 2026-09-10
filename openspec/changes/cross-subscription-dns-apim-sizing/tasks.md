@@ -31,8 +31,9 @@
 - [ ] 3.4 Update the minimum-viable-block help text/error messages to describe the new `/25`
       split and `stv2`-confirmed `/27` APIM minimum (currently says "four /29s" / implies
       `/29` for apim; update throughout, including the `free_blocks()` hint message).
-- [ ] 3.5 When APIM uses VNet injection, drop `privatelink.azure-api.net` from the
-      generated/required Private DNS zone list.
+- [ ] 3.5 When APIM uses VNet injection, update `brownfield-dns.bicep` and its generated
+      parameters to omit the `apim` zone requirement, conditionally skip `apimLink`, and omit
+      its link ID from the output.
 - [ ] 3.6 Thread `dnsIntegrationMode` / `dnsSubscriptionId` through into the generated
       `foundry.bicepparam` / `brownfield-dns.bicepparam` output.
 
