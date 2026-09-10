@@ -275,6 +275,18 @@ stopgap for when you can't extend or reclaim VNet space, and get a larger alloca
 possible. Anything smaller than `/26` cannot satisfy the platform minimums and the generator
 rejects it.
 
+> **Known limitation (2026-09-10):** the `/29` APIM sizing above assumes classic-tier
+> (Developer/Premium) VNet injection at its documented technical floor, but live production
+> evidence shows a VNet-injected Developer-tier APIM instance actively using 9 addresses — more
+> than a `/29` (8 addresses total) can physically hold. A realistic classic-tier minimum is
+> `/28` (16 addresses, 11 usable); Premium v2/Standard v2 (stv2) requires `/27` (32 addresses),
+> enforced by the Azure portal. The generator script still splits the `/26`'s second half into
+> four equal `/29`s and has not yet been updated for this; see
+> `specs/00-network-foundation/spec.md` (Session 2026-09-10 clarifications) for the full
+> analysis and the planned fix (APIM sized at `/28`, with `compute` and `cicdAgents` merged into
+> one shared `/29` to keep an exact fit within the `/26`). Do not rely on the four-equal-`/29`
+> split for APIM sizing until that fix lands.
+
 | Subnet | Platform minimum | Recommended |
 | --- | --- | --- |
 | Foundry (delegated) | `/27` | `/26` or larger |

@@ -99,6 +99,25 @@ firewall. This is documented here so the deviation is never silently permanent.
   `privatelink.` prefix) for gateway hostname resolution, unrelated to centrally owned zones.
   FR-016a is corrected to state the zone list applies only when the corresponding service role
   is deployed behind a private endpoint.
+- Q: Given confirmed APIM VNet injection, does the documented `/26`-minimum-viable-block
+  worked example (foundry `/27` + four `/29`s, one for `apim`) still hold?
+  A: No — the `/29` APIM subnet size in that worked example assumed private-endpoint sizing,
+  not VNet injection. Live evidence from a production APIM instance
+  (`azr-hji-mtaxon-apim-dev`, Developer tier, VNet-injected) shows an active subnet
+  consumption of 9 addresses inside a `/28` (16 addresses, 11 usable) — already more than a
+  `/29`'s 8 total addresses could physically hold. Microsoft's official documentation confirms
+  this: classic-tier (Developer/Premium) VNet injection is documented at a `/29` technical
+  floor but is impractical below `/28`; Premium v2/Standard v2 (stv2) VNet injection requires
+  a `/27` minimum (32 addresses), enforced by the portal, with `/24` recommended. Recomputed
+  against the confirmed free `/26` block (64 addresses): `foundry /27 (32)` + `apim /28 (16)`
+  leaves only 16 addresses for the three remaining subnet purposes (`privateEndpoints`,
+  `compute`, `cicdAgents`), which need at least `3 × /29 (24)` — an 8-address shortfall. This
+  is resolved for the classic-tier POC case by merging `compute` and `cicdAgents` into a
+  single shared subnet, yielding an exact, zero-slack fit: `foundry /27 (32) + apim /28 (16) +
+  privateEndpoints /29 (8) + compute+cicdAgents /29 (8) = 64`. This fit assumes classic-tier
+  (Developer/Premium) APIM; stv2 SKUs requiring `/27` do not fit within a `/26` at all when
+  combined with the other four subnet purposes and require a larger free block from the
+  network team.
 
 ## User Scenarios & Testing *(mandatory)*
 
