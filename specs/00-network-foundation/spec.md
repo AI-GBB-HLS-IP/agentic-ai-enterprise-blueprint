@@ -52,13 +52,15 @@ firewall. This is documented here so the deviation is never silently permanent.
   subnet sizes are configurable but must meet current Azure service minimums, include documented
   growth headroom, and receive customer network/IPAM approval.
 - Q: How are brownfield changes applied when network and DNS resources have different owners?
-  A: Use staged, owner-aligned deployments. The network owner applies subnet and approved
-  association changes after a network-scoped what-if; the DNS owner applies approved VNet links
-  after a DNS-scoped what-if.
+  A: In VNet-link mode, use staged, owner-aligned deployments. The network owner applies subnet and
+  approved association changes after a network-scoped what-if; the DNS owner applies approved VNet
+  links after a DNS-scoped what-if. In zone-group mode, there is no separate DNS-owner stage; zone
+  references are deployed with the private endpoints.
 - Q: What happens if the network stage succeeds but the DNS stage fails?
-  A: Use roll-forward recovery. Keep the approved network changes, stop downstream progression,
-  correct the DNS issue, rerun and approve the DNS-scoped what-if, and retry the DNS stage
-  idempotently. Do not automatically remove approved resources across ownership boundaries.
+  A: In VNet-link mode, use roll-forward recovery. Keep the approved network changes, stop
+  downstream progression, correct the DNS issue, rerun and approve the DNS-scoped what-if, and
+  retry the DNS stage idempotently. Do not automatically remove approved resources across ownership
+  boundaries. Zone-group mode has no separate DNS stage, so this failure scenario does not apply.
 
 ### Session 2026-09-10
 
