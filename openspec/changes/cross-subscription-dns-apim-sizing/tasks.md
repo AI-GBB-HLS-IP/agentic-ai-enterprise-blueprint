@@ -22,9 +22,7 @@
 
 - [ ] 3.1 Add `--dns-integration-mode <vnet-link|zone-group>` flag (default `vnet-link`),
       validated against the allowed values.
-- [ ] 3.2 Add `--dns-subscription-id <id>` flag, required only when
-      `--dns-integration-mode zone-group` is passed; fail with a clear error if omitted in
-      that mode.
+- [ ] 3.2 Add `--dns-subscription-id <id>` and require both it and `--dns-resource-group <rg>` when `--dns-integration-mode zone-group` is passed; fail with a clear error if either is omitted in that mode.
 - [ ] 3.3 Replace the block split with: raise `RECOMMENDED_BLOCK_PREFIX` /
       `MIN_VIABLE_BLOCK_PREFIX` / `MAX_BLOCK_PREFIX` from `/26` to `/25`; split into
       `foundry /27`, `apim /27`, `privateEndpoints /28`, merged `compute+cicdAgents /28`
