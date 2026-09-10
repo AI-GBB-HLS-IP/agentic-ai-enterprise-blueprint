@@ -13,10 +13,10 @@ param networkResourceGroupName string = resourceGroup().name
 param dnsIntegrationMode string
 
 @description('Subscription containing the existing private DNS zones. Used only in zone-group mode.')
-param dnsSubscriptionId string = subscription().subscriptionId
+param dnsSubscriptionId string = ''
 
 @description('Resource group containing the existing private DNS zones. Used only in zone-group mode.')
-param dnsResourceGroupName string = networkResourceGroupName
+param dnsResourceGroupName string = ''
 
 param foundryAccountName string = 'foundry-agent-factory-poc'
 param projectName string = 'prj-agent-factory-poc'
@@ -123,14 +123,25 @@ resource searchDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
   name: 'privatelink.search.windows.net'
 }
 
+var _validateZoneGroupDnsScope = dnsIntegrationMode != 'zone-group' || (!empty(dnsSubscriptionId) && !empty(dnsResourceGroupName))
+  ? true
+  : fail('dnsSubscriptionId and dnsResourceGroupName are required when dnsIntegrationMode is zone-group.')
+
+var dnsSubscriptionIdResolved = dnsIntegrationMode == 'zone-group'
+  ? (_validateZoneGroupDnsScope ? dnsSubscriptionId : '')
+  : subscription().subscriptionId
+var dnsResourceGroupNameResolved = dnsIntegrationMode == 'zone-group'
+  ? (_validateZoneGroupDnsScope ? dnsResourceGroupName : '')
+  : networkResourceGroupName
+
 var zoneGroupDnsResourceIds = {
-  cognitiveServices: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', cognitiveServicesDns.name)
-  openAi: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', openAiDns.name)
-  servicesAi: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', servicesAiDns.name)
-  blob: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', blobDns.name)
-  keyVault: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', keyVaultDns.name)
-  cosmosDB: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', documentsDns.name)
-  aiSearch: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', searchDns.name)
+  cognitiveServices: resourceId(dnsSubscriptionIdResolved, dnsResourceGroupNameResolved, 'Microsoft.Network/privateDnsZones', cognitiveServicesDns.name)
+  openAi: resourceId(dnsSubscriptionIdResolved, dnsResourceGroupNameResolved, 'Microsoft.Network/privateDnsZones', openAiDns.name)
+  servicesAi: resourceId(dnsSubscriptionIdResolved, dnsResourceGroupNameResolved, 'Microsoft.Network/privateDnsZones', servicesAiDns.name)
+  blob: resourceId(dnsSubscriptionIdResolved, dnsResourceGroupNameResolved, 'Microsoft.Network/privateDnsZones', blobDns.name)
+  keyVault: resourceId(dnsSubscriptionIdResolved, dnsResourceGroupNameResolved, 'Microsoft.Network/privateDnsZones', keyVaultDns.name)
+  cosmosDB: resourceId(dnsSubscriptionIdResolved, dnsResourceGroupNameResolved, 'Microsoft.Network/privateDnsZones', documentsDns.name)
+  aiSearch: resourceId(dnsSubscriptionIdResolved, dnsResourceGroupNameResolved, 'Microsoft.Network/privateDnsZones', searchDns.name)
 }
 
 var vnetLinkDnsResourceIds = {

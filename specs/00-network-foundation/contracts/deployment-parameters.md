@@ -116,11 +116,11 @@ For the currently approved profiles:
   production recommendation `/24` (see `spec.md` FR-013e). A `/26` caps concurrent agent sessions
   at ~50 under the default 1:1 IP-to-session ratio and MUST be recorded as an explicit capacity
   trade-off when the admin-allocated VNet cannot fit `/24`.
-- Classic Premium APIM: technical minimum `/29`, blueprint POC recommendation `/27`.
-- Private endpoint, compute, and CI/CD values are calculated from their expected consumers and
-  current service requirements.
-- See `spec.md` FR-013e for a worked brownfield sizing example fitting all five purpose-keyed
-  subnets into an admin-allocated `/25` VNet.
+- Confirmed `stv2` APIM: technical minimum `/27`.
+- Private endpoint and merged compute/CI/CD values are calculated from their expected consumers
+  and current service requirements.
+- See `spec.md` FR-013e for the POC `/25` example: Foundry `/27`, APIM `/27`, private endpoints
+  `/28`, merged compute/CI/CD `/28`, and one `/27` spare.
 
 ## Brownfield DNS parameters
 

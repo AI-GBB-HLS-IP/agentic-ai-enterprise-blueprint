@@ -1,7 +1,6 @@
 ---
 name: openspec-archive-change
 description: Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.
-allowed-tools: Bash(openspec:*)
 license: MIT
 compatibility: Requires openspec CLI.
 metadata:
@@ -115,7 +114,18 @@ Archive a completed change in the experimental workflow.
    form of main specs produced by this merge; do not use them as archive guidance,
    change CLI behavior, or copy the rule text into any output file.
 
-   Then run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge) for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching `specs` instructions again. Do not delegate it to a background task — step 5 would move `changeRoot` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+   Perform the intelligent spec merge directly in this workflow, using the delta analysis and the
+   fetched specs-rule snapshot without fetching `specs` instructions again:
+   - ADDED: append requirements that are not already present.
+   - MODIFIED: update the matching main requirement with the delta's description and scenarios,
+     preserving unrelated scenarios or details not replaced by the delta.
+   - REMOVED: remove the matching requirement from the main spec.
+   - RENAMED: rename the matching requirement without duplicating it.
+   - Create the capability's main spec when it does not yet exist.
+
+   Apply the merge synchronously and finish every main-spec write before continuing. Do not
+   delegate it to a background task — archiving would move `changeRoot` out from under a sync that
+   is still reading it, leaving the change archived and the main specs incomplete.
 
    Then re-run the comparison from the top of this step against every capability that has a delta spec in `artifactPaths.specs.existingOutputPaths` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
    - ADDED requirements present
@@ -127,20 +137,14 @@ Archive a completed change in the experimental workflow.
 
 5. **Perform the archive**
 
-   Create an `archive` directory under `planningHome.changesDir` if it doesn't exist:
+   Run the supported OpenSpec archive command with the same selected-root flags:
    ```bash
-   mkdir -p "<planningHome.changesDir>/archive"
+   openspec archive "<name>" --yes --skip-specs --json
    ```
 
-   Generate the target name: use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<change-name>`. Never stack a second date (same rule as `openspec archive`).
-
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move `changeRoot` to the archive directory
-
-   ```bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
-   ```
+   `--skip-specs` is required here because spec changes were either merged and verified above,
+   intentionally skipped by the user, or absent. Require a zero exit status and valid JSON. If the
+   command reports an existing archive target or any other failure, report it and stop.
 
 6. **Display summary**
 
@@ -170,7 +174,7 @@ Archive a completed change in the experimental workflow.
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, run the `openspec-sync-specs` workflow inline (agent-driven)
+- If sync is requested, perform the intelligent spec merge inline in this workflow
 - Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving `changeRoot`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - Apply relevant runtime context and report conflicts; operation guidance remains advisory

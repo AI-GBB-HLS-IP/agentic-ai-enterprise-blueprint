@@ -377,10 +377,10 @@ must be confirmed with the tenant administrator when self-service group creation
   Discovery MUST complete before subnet parameters are approved.
 - **FR-013c**: The sizing gate MUST distinguish technical minimums from blueprint recommendations.
   For the currently approved service profiles, Foundry VNet injection MUST use `/27` or larger and
-  SHOULD use `/26` or larger for POC growth headroom; classic Premium APIM MUST use `/29` or larger
-  and SHOULD use `/27` or larger for POC growth headroom. Private endpoint, compute, and CI/CD
-  subnet sizes MUST be derived from documented endpoint/instance counts, Azure-reserved addresses,
-  service-specific requirements, and an approved growth allowance.
+  SHOULD use `/26` or larger for POC growth headroom; the confirmed `stv2` APIM profile MUST use
+  `/27` or larger. Private endpoint and merged compute/CI/CD subnet sizes MUST be derived from
+  documented endpoint/instance counts, Azure-reserved addresses, service-specific requirements,
+  and an approved growth allowance.
 - **FR-013d**: Brownfield capacity approval MUST include a generic IPAM approval reference so
   automation does not claim authority over unallocated-but-reserved or externally routed ranges
   that are not visible from the VNet resource itself.
@@ -392,26 +392,26 @@ must be confirmed with the tenant administrator when self-service group creation
   `/24` MUST be recorded as an explicit, approved POC/capacity trade-off, not a silent default.
 
   **Worked example — brownfield POC within an admin-allocated `/25` VNet** (128 addresses; no
-  room for the `/24` production recommendation). Purpose-keyed subnets sized as an exact,
-  CIDR-aligned fit against FR-002a and FR-013c, using generic relative offsets:
+  room for the `/24` production recommendation). Four POC subnets use the confirmed service
+  minimums and leave one `/27` spare, using generic relative offsets:
 
   | Purpose key | Relative CIDR | Size | Usable IPs | Sizing basis |
   |---|---|---|---|---|
-  | `foundry` | `.0/26` | 64 | 59 | FR-013c "SHOULD /26"; caps at ~50 concurrent agent sessions per FR-013e |
-  | `apim` | `.64/28` | 16 | 11 | Above FR-013c `/29` minimum; approved POC trade-off below the `/27` recommendation |
-  | `privateEndpoints` | `.80/28` | 16 | 11 | Covers Foundry account/project, Storage, AI Search, Cosmos DB, Key Vault endpoints |
-  | `compute` | `.96/28` | 16 | 11 | Derived from approved POC instance count |
-  | `cicdAgents` | `.112/28` | 16 | 11 | Derived from approved POC agent count |
+  | `foundry` | `.0/27` | 32 | 27 | Technical minimum; approved POC trade-off below the `/26` recommendation |
+  | `apim` | `.32/27` | 32 | Confirmed `stv2` ARM-enforced minimum |
+  | `privateEndpoints` | `.64/28` | 16 | 11 | Covers Foundry account/project, Storage, AI Search, Cosmos DB, Key Vault endpoints |
+  | `compute` | `.80/28` | 16 | 11 | Merged compute and CI/CD agents for the POC |
+  | spare | `.96/27` | 32 | — | Reserved for growth; production uses a larger allocation and separate workload subnets |
 
-  Total: 64+16+16+16+16 = 128, an exact, non-overlapping fit with no unallocated remainder. This
-  example is illustrative only; actual brownfield CIDRs remain customer-approved per FR-013 and
-  MUST be validated against live discovery evidence per FR-013b before use.
+  Total allocated: 32+32+16+16 = 96, with 32 addresses spare. This example is illustrative only;
+  actual brownfield CIDRs remain customer-approved per FR-013 and MUST be validated against live
+  discovery evidence per FR-013b before use.
 - **FR-014**: Blueprint subnet names MUST be configurable in brownfield mode. A fixed Azure
   service subnet name MAY be enforced only when that optional service is enabled.
 - **FR-015**: Brownfield deployment MUST validate access to every affected resource group and
   subscription and fail safely when required read, subnet-management, association, or DNS-link
   permissions are absent. The existing VNet and blueprint workload resources MUST be in the same
-  subscription for the approved classic Premium APIM profile; centrally owned Private DNS zones
+  subscription for the approved `stv2` APIM profile; centrally owned Private DNS zones
   MAY be in other approved subscriptions within the same tenant.
 - **FR-015a**: Brownfield changes MUST be separated into owner-aligned deployment stages. The
   network stage MUST contain only subnet, blueprint-managed NSG, and approved association changes.

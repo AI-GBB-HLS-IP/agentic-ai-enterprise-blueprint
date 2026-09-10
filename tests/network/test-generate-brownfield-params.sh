@@ -178,6 +178,36 @@ assert_contains "$foundry_param" "param dnsIntegrationMode = 'zone-group'" \
 assert_contains "$foundry_param" "param dnsSubscriptionId = '${dns_subscription_id}'" \
   "cross-subscription DNS ID not written to Foundry params"
 
+az bicep build-params --file "$foundry_param" --stdout >"$workdir/zone-group-foundry.json" \
+  || fail "generated zone-group Foundry parameters should compile"
+python3 - "$workdir/zone-group-foundry.json" "$dns_subscription_id" <<'PY' || exit 1
+import json
+import sys
+
+compiled = json.load(open(sys.argv[1]))
+template = json.loads(compiled["templateJson"])
+parameters = json.loads(compiled["parametersJson"])["parameters"]
+
+if parameters["dnsIntegrationMode"]["value"] != "zone-group":
+    sys.exit("compiled Foundry parameters lost zone-group mode")
+if parameters["dnsSubscriptionId"]["value"] != sys.argv[2]:
+    sys.exit("compiled Foundry parameters lost the DNS subscription")
+
+zone_ids = json.dumps(template.get("variables", {}).get("zoneGroupDnsResourceIds", {}))
+for required in ("dnsSubscriptionIdResolved", "dnsResourceGroupNameResolved", "Microsoft.Network/privateDnsZones"):
+    if required not in zone_ids:
+        sys.exit(f"compiled cross-subscription zone IDs do not reference {required}")
+
+for resource in template.get("resources", []):
+    if resource.get("type") in (
+        "Microsoft.Network/privateDnsZones",
+        "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+    ):
+        condition = resource.get("condition", "")
+        if "dnsIntegrationMode" not in condition or "vnet-link" not in condition:
+            sys.exit("Foundry-managed services.ai DNS resources are not gated to vnet-link mode")
+PY
+
 # --- subnet name collision is fail-closed -------------------------------------------------------
 python3 - "$workdir/discovery.json" "$workdir/collision.json" <<'PY'
 import json
@@ -278,7 +308,7 @@ PY
 run_generator --discovery "$workdir/fragmented.json" --out-dir "$outdir" --force \
   || fail "generator should find a free block in a partially allocated VNet"
 assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.2.128/27'" \
-  "generator should skip the occupied 10.0.2.0/25 and land on 10.0.2.128/25"
+  "generator should skip the occupied 10.0.2.0/25 and allocate Foundry at 10.0.2.128/27"
 
 # --- no free block of the requested size ---------------------------------------------------------
 python3 - "$workdir/tight.json" <<'PY'

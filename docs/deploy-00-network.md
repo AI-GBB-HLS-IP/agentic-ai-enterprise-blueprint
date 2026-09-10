@@ -394,7 +394,8 @@ In `zone-group` mode, skip this stage: `brownfield-dns.bicep` intentionally depl
 DNS-owner-scoped resources. Deploy Foundry with
 `infra/envs/poc/brownfield-foundry.bicepparam`; its private endpoints reference the approved
 cross-subscription zones directly. The deploying identity or DNS-owning team must already provide
-the required zone-group RBAC.
+the required zone-group RBAC. The central DNS scope must contain all zones referenced by Foundry,
+including `privatelink.services.ai.azure.com` in addition to the service zones listed below.
 
 In `vnet-link` mode, this stage only **links** existing private DNS zones to the VNet. It never
 creates or modifies a zone, so the zones must already exist. Required zones:

@@ -56,6 +56,21 @@ if ! az bicep build --file "$FOUNDRY_ENTRY" --stdout >"$workdir/foundry.json" 2>
   exit 1
 fi
 
+echo "==> foundry.bicep: zone-group DNS scope fails closed"
+python3 - "$workdir/foundry.json" <<'PY' || exit 1
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+variables = arm.get("variables", {})
+serialized = json.dumps(variables)
+
+if "dnsSubscriptionId and dnsResourceGroupName are required" not in serialized:
+    sys.exit("missing zone-group DNS scope validation")
+if "dnsSubscriptionIdResolved" not in serialized or "dnsResourceGroupNameResolved" not in serialized:
+    sys.exit("zone-group resource IDs do not use validated DNS scope values")
+PY
+
 echo "==> brownfield-dns.bicep: zone-group mode gates every VNet link"
 python3 - "$workdir/dns.json" <<'PY' || exit 1
 import json
