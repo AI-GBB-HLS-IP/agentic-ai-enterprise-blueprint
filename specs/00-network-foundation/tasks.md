@@ -175,6 +175,16 @@ NSGs, and existing-zone VNet links are allowed.
 
 ### DNS-Owner Tests and Implementation
 
+> **Revision note (2026-09-10)**: T048–T053 and T055 below were scoped for VNet-link mode only.
+> Per the Session 2026-09-10 clarifications and FR-016/FR-016a/FR-016b, brownfield DNS now has two
+> explicit modes (`vnet-link`, `zone-group`). These tasks need re-scoping before implementation:
+> T048/T049/T052/T053 should branch on `dnsIntegrationMode` (in `zone-group` mode, skip the DNS-owner VNet-link what-if stage and link-specific checks,
+> but still validate that the referenced zone resource IDs resolve and are in-tenant/approved); T050 remains
+> VNet-link-mode-specific; a new task is needed for zone-group mode's cross-subscription zone-ID
+> resolution in workload modules (e.g. `foundry.bicep`) via `resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', <zoneName>)`; T055's
+> "zone-reference status" output should be mode-aware. Do not implement against the task text below
+> as originally written without first re-scoping for both modes.
+
 - [ ] T048 [P] [US4] Add failing DNS preflight tests for unresolved zones, cross-tenant scopes, mixed subscription or resource-group ownership in one invocation, missing link permissions, unapproved VNets, duplicate link names, unrelated existing links, and enabled registration in `tests/network/test-validate-dns-inputs.sh`
 - [ ] T049 [US4] Implement read-only existing-zone and VNet-link preflight validation in `scripts/network/validate-dns-inputs.sh`
 - [ ] T050 [US4] Implement the DNS-owner resource-group-scoped entry point in `infra/envs/poc/brownfield-dns.bicep`, requiring one explicit DNS subscription and resource group per invocation and creating only links beneath approved existing zones

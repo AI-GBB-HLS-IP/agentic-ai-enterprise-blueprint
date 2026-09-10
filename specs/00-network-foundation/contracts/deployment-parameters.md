@@ -81,6 +81,22 @@ Existing greenfield defaults remain backward compatible.
 - Blueprint-owned NSG names used only when an existing NSG ID is absent
 - Optional Bastion subnet request and resource names
 
+## Brownfield DNS parameters
+
+- `dnsIntegrationMode`: `vnet-link` or `zone-group`, explicit and required; never inferred
+- `dnsSubscriptionId`: subscription ID hosting the approved existing DNS zones; MAY differ from
+  the workload/VNet subscription (cross-subscription DNS hub)
+- `dnsResourceGroupName`: resource group hosting the approved existing DNS zones
+- Per-service-role approved existing zone resource IDs (built from `dnsSubscriptionId` +
+  `dnsResourceGroupName` + zone name), required only for roles deployed behind a private endpoint
+  (see FR-016a)
+- In `vnet-link` mode only: VNet-link request inputs (link name, registration flag, always
+  disabled) — one deployment per DNS-zone resource group/subscription
+- In `zone-group` mode only: no additional DNS-owner-scoped inputs; zone resource IDs are passed
+  straight to the workload modules that build `privateDnsZoneConfigs`
+- APIM is excluded from the per-service-role zone list when it uses VNet injection; it uses its
+  own self-owned `azure-api.net` zone (blueprint-created, not centrally owned) instead
+
 Parameters are not approved until discovery confirms address containment and available capacity.
 
 ## Sizing profile
