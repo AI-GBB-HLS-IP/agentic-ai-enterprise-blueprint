@@ -5,9 +5,14 @@
       update every existing caller and parameter file to pass an explicit mode.
 - [ ] 1.2 In `zone-group` mode, build each Private DNS zone ID via
       `resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', zoneName)`
-      instead of declaring local `existing` zone resources.
+      instead of declaring local `existing` zone resources. This includes the `services.ai.azure.com`
+      zone: make the `servicesAiDns` zone resource and `servicesAiDnsLink` VNet-link resource in
+      `foundry.bicep` conditional on `dnsIntegrationMode == 'vnet-link'`; in `zone-group` mode,
+      reference the DNS-owner-approved existing `privatelink.services.ai.azure.com` zone via
+      `resourceId()` and do not manage its VNet link.
 - [ ] 1.3 In `vnet-link` mode, preserve the current same-subscription `existing` zone
-      resource behavior unchanged.
+      resource behavior unchanged, including creating the `servicesAiDns` zone and
+      `servicesAiDnsLink` VNet link as today.
 - [ ] 1.4 Verify `az bicep build` succeeds for both modes (no missing param errors, no
       unused-param warnings).
 
