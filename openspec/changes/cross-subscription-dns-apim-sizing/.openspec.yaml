@@ -6,6 +6,6 @@ affected_areas:
   - infra/modules/foundry
   - scripts/network
 # Requirement deltas for this change already live in specs/00-network-foundation/spec.md
-# (FR-016b, FR-015a/b, FR-013e clarifications), merged via PR #62. This change folder is
+# (FR-016b, FR-015a/b, FR-013e clarifications), tracked in PR #62. This change folder is
 # implementation-tracking only (Bicep + script work), not a new spec delta.
 skip_specs: true
