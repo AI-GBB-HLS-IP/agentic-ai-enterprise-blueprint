@@ -103,7 +103,7 @@ firewall. This is documented here so the deviation is never silently permanent.
   worked example (foundry `/27` + four `/29`s, one for `apim`) still hold?
   A: No — the `/29` APIM subnet size in that worked example assumed private-endpoint sizing,
   not VNet injection. Live evidence from a production APIM instance
-  (`azr-hji-mtaxon-apim-dev`, Developer tier, VNet-injected) shows an active subnet
+  (`<apim-instance-name>`, Developer tier, VNet-injected) shows an active subnet
   consumption of 9 addresses inside a `/28` (16 addresses, 11 usable) — already more than a
   `/29`'s 8 total addresses could physically hold. Microsoft's official documentation confirms
   this: classic-tier (Developer/Premium) VNet injection is documented at a `/29` technical
