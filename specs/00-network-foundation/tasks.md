@@ -181,7 +181,7 @@ NSGs, and existing-zone VNet links are allowed.
 > T048/T049/T052/T053 should branch on `dnsIntegrationMode` (zone-group mode skips the VNet-link
 > preflight/what-if entirely, since it creates no DNS-owner-scoped resource); T050 remains
 > VNet-link-mode-specific; a new task is needed for zone-group mode's cross-subscription zone-ID
-> resolution in workload modules (e.g. `foundry.bicep`) via `subscriptionResourceId()`; T055's
+> resolution in workload modules (e.g. `foundry.bicep`) via `resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', <zoneName>)`; T055's
 > "zone-reference status" output should be mode-aware. Do not implement against the task text below
 > as originally written without first re-scoping for both modes.
 
