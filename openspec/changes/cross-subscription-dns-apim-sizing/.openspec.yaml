@@ -1,0 +1,11 @@
+schema: spec-driven
+created: 2026-09-10
+goal: Implement cross-subscription DNS zone-group mode and corrected APIM subnet sizing
+affected_areas:
+  - infra/envs/poc
+  - infra/modules/foundry
+  - scripts/network
+# Requirement deltas for this change already live in specs/00-network-foundation/spec.md
+# (FR-016b, FR-015a/b, FR-013e clarifications), merged via PR #62. This change folder is
+# implementation-tracking only (Bicep + script work), not a new spec delta.
+skip_specs: true
