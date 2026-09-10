@@ -1,0 +1,77 @@
+## 1. `foundry.bicep` — cross-subscription DNS zone support
+
+- [ ] 1.1 Add `dnsIntegrationMode` param (`'vnet-link' | 'zone-group'`, default `'vnet-link'`)
+      and `dnsSubscriptionId` / `dnsResourceGroupName` params (used only in `zone-group` mode).
+- [ ] 1.2 In `zone-group` mode, build each Private DNS zone ID via
+      `resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', zoneName)`
+      instead of declaring local `existing` zone resources.
+- [ ] 1.3 In `vnet-link` mode, preserve the current same-subscription `existing` zone
+      resource behavior unchanged.
+- [ ] 1.4 Verify `az bicep build` succeeds for both modes (no missing param errors, no
+      unused-param warnings).
+
+## 2. `brownfield-dns.bicep` — conditional VNet-link creation
+
+- [ ] 2.1 Add the same `dnsIntegrationMode` param, defaulting to `'vnet-link'`.
+- [ ] 2.2 Make VNet-link resource creation conditional (`if (dnsIntegrationMode == 'vnet-link')`)
+      so nothing DNS-owner-scoped is deployed in `zone-group` mode.
+- [ ] 2.3 Verify `az bicep build` succeeds and the compiled template has zero resources in the
+      VNet-link resource group when `dnsIntegrationMode == 'zone-group'`.
+
+## 3. `generate-brownfield-params.sh` — flags and corrected block split
+
+- [ ] 3.1 Add `--dns-integration-mode <vnet-link|zone-group>` flag (default `vnet-link`),
+      validated against the allowed values.
+- [ ] 3.2 Add `--dns-subscription-id <id>` flag, required only when
+      `--dns-integration-mode zone-group` is passed; fail with a clear error if omitted in
+      that mode.
+- [ ] 3.3 Replace the block split with: raise `RECOMMENDED_BLOCK_PREFIX` /
+      `MIN_VIABLE_BLOCK_PREFIX` / `MAX_BLOCK_PREFIX` from `/26` to `/25`; split into
+      `foundry /27`, `apim /27`, `privateEndpoints /28`, merged `compute+cicdAgents /28`
+      (32 addresses spare); update `MINIMUM_PREFIX` from `{"foundry": 27, "apim": 29}` to
+      `{"foundry": 27, "apim": 27}`.
+- [ ] 3.4 Update the minimum-viable-block help text/error messages to describe the new `/25`
+      split and `stv2`-confirmed `/27` APIM minimum (currently says "four /29s" / implies
+      `/29` for apim; update throughout, including the `free_blocks()` hint message).
+- [ ] 3.5 When APIM uses VNet injection, drop `privatelink.azure-api.net` from the
+      generated/required Private DNS zone list.
+- [ ] 3.6 Thread `dnsIntegrationMode` / `dnsSubscriptionId` through into the generated
+      `foundry.bicepparam` / `brownfield-dns.bicepparam` output.
+
+## 4. Regenerate example params
+
+- [ ] 4.1 Regenerate `infra/envs/poc/brownfield-network.bicepparam.example` (and any other
+      checked-in example params affected) using the corrected script output, so committed
+      examples match the new `/25`-based split rather than the old `/26`-based layouts.
+
+## 5. Documentation
+
+- [ ] 5.1 Remove the "Known limitation (2026-09-10)" callout in
+      `docs/deploy-00-network.md`.
+- [ ] 5.2 Document the new `--dns-integration-mode` / `--dns-subscription-id` flags and the
+      corrected `/27 + /28 + /29 + /29` split, replacing the old four-equal-`/29` description.
+- [ ] 5.3 Document the `zone-group` mode precondition (deploying identity / DNS-owning team
+      must already handle zone-group RBAC) as a known precondition, not a limitation.
+
+## 6. Tests
+
+- [ ] 6.1 Update `tests/network/test-generate-brownfield-params.sh` so the `/25` block-size
+      case asserts the corrected split (`foundry /27`, `apim /27`, `privateEndpoints /28`,
+      `compute+cicdAgents /28`) instead of any prior `/26`-based split.
+- [ ] 6.2 Add a test case for `--dns-integration-mode zone-group` (with
+      `--dns-subscription-id`), asserting the generated params reflect cross-subscription
+      zone IDs and no VNet-link output.
+- [ ] 6.3 Add a test case asserting `--dns-integration-mode zone-group` without
+      `--dns-subscription-id` fails with a clear error.
+- [ ] 6.4 Add a test case asserting `privatelink.azure-api.net` is absent from the generated
+      zone list when APIM VNet injection is used.
+- [ ] 6.5 Run `tests/network/run-tests.sh` (full suite) and confirm all existing tests still
+      pass alongside the new ones.
+
+## 7. Final validation
+
+- [ ] 7.1 Run `az bicep build` across all touched `.bicep` files one more time after all
+      edits (regression check).
+- [ ] 7.2 Run `az deployment group what-if` against the confirmed `/25` free block
+      (`10.0.1.128/25` in `<VNET_NAME>`, or the real target block) using the
+      regenerated params, per spec FR-008.

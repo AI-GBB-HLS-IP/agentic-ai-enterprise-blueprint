@@ -1,7 +1,10 @@
 # Change: Cross-subscription DNS zone-group mode + real APIM subnet sizing
 
 ## Status
-In review. Once the spec changes are merged, this change is ready to implement.
+Ready to implement. Spec approved in PR #62 (merged into `specs/00-network-foundation/spec.md`,
+`data-model.md`, `contracts/deployment-parameters.md`, `tasks.md`). **Re-sized 2026-09-10** after
+confirming the real APIM platform version is `stv2` (see below) — the block moved from `/26` to
+`/25` and APIM's subnet minimum moved from `/29` to `/27`.
 
 ## Problem
 Live discovery against a real brownfield target (`<SUBSCRIPTION_ALIAS>` / `<VNET_NAME>`) found two gaps
@@ -12,8 +15,14 @@ between the spec's original assumptions and reality:
    VNet links exist on any zone we checked. The blueprint's Bicep only supports same-subscription
    `existing` zone references today.
 2. APIM VNet injection (already correctly implemented in `apim/main.bicep`) needs a realistic
-   `/28` subnet, not the `/29` the generator script and docs assume — confirmed against a real
-   production instance using 9 addresses (more than a `/29`'s 8 total).
+   `/27` subnet, not the `/28`/`/29` the generator script and docs assume. Confirmed via
+   `az apim show --query platformVersion` against **two separate, independently checked
+   Premium-tier instances** (one in the customer's environment, one in a private validation
+   environment): both run on the **`stv2`** compute platform, whose hard, ARM-enforced subnet
+   minimum is `/27` — not the `/29` a prior, never-actually-verified assumption about
+   `<apim-example-instance>` (Developer tier) had implied. "Classic Premium" tier name and
+   `stv1`/`stv2` platform version are independent axes; a classic-tier instance can (and, per
+   both checked instances, does) run on `stv2` infrastructure.
 
 ## What changes
 
@@ -28,8 +37,12 @@ between the spec's original assumptions and reality:
   created in that mode).
 - `scripts/network/generate-brownfield-params.sh`:
   - add `--dns-integration-mode`, `--dns-subscription-id` flags
-  - change the `/26` block split: `foundry /27` + `apim /28` + `privateEndpoints /29` +
-    `compute+cicdAgents /29` (merged), replacing the current four-equal-`/29` split
+  - raise `RECOMMENDED_BLOCK_PREFIX`/`MIN_VIABLE_BLOCK_PREFIX`/`MAX_BLOCK_PREFIX` from `/26` to
+    `/25` and change the split to: `foundry /27` + `apim /27` + `privateEndpoints /28` +
+    `compute+cicdAgents /28` (merged), replacing both the old four-equal-`/29` split and the
+    intermediate `/26`-based `/27+/28+/29+/29` split (both assumed `stv1`; the real, verified
+    platform is `stv2`, which needs `/27` for APIM, not `/28`/`/29`)
+  - update `MINIMUM_PREFIX = {"foundry": 27, "apim": 29}` to `{"foundry": 27, "apim": 27}`
   - drop `privatelink.azure-api.net` from the required-zone list when APIM uses VNet injection
 - `docs/deploy-00-network.md`: replace the "Known limitation" callout with the actual new
   behavior once implemented; document the new CLI flags.
@@ -39,35 +52,39 @@ between the spec's original assumptions and reality:
 ## Out of scope (do not do in this change)
 - Re-scoping/rewriting T048-T057 in `tasks.md` wholesale (only the two touched scripts above).
 - `vnet-link` mode changes — it already works; only add the `zone-group` branch.
-- stv2 APIM support — classic tier (Developer/Premium) only, per the confirmed POC profile.
-- Requesting more address space from the network team — POC proceeds within the confirmed `/26`.
+- Requesting more address space from the network team **for the POC** — POC proceeds within the
+  confirmed `/25` that the customer already handed over. (Production is a separate, later
+  request for a larger allocation and is explicitly out of scope for this POC-sizing change.)
 
 ## Reference (read before starting)
 - `specs/00-network-foundation/spec.md` — Session 2026-09-10 clarifications, FR-016/FR-016a/FR-016b
-- `docs/deploy-00-network.md` — "Minimum viable block: /26" section + its Known limitation callout
+- `docs/deploy-00-network.md` — "Minimum viable block" section + its Known limitation callout
 - Confirmed target CIDR plan (see below)
 
-## Pre-implementation check (do this first, before writing any code)
+## Pre-implementation check — RESOLVED 2026-09-10
 
-Confirm the APIM platform version, not just SKU name — `/28` sizing was observed on
-`<apim-example-instance>` (Developer tier), but classic vs. stv2 platform depends on
-`platformVersion`, not the SKU name alone. If the POC's target instance resolves to stv2, it
-needs `/27` minimum and the entire `/26` plan in this proposal collapses (see spec.md's
-Session 2026-09-10 clarification on stv2). Run:
+APIM platform version is confirmed **`stv2`**, checked directly (not inferred):
 
 ```
-az account set --subscription "AZR-HJI"
-az apim show -n azr-hji-mtaxon-apim-dev -g AZR-HJI-MT-Axon-dev \
+az apim show -n <apim-example-instance> -g <resource-group> \
   --query "{sku:sku.name, platformVersion:platformVersion}" -o table
+# -> Premium, stv2
 ```
 
-If `platformVersion` is `stv1`, the `/28` plan below holds. If `stv2`, stop and revisit sizing
-with the network team before proceeding.
+Checked against two separate, independently owned Premium-tier instances (the customer's real
+environment and a private validation environment); both returned `stv2`.
+
+The earlier `/28`/`/29` sizing was based on an unverified assumption about
+`<apim-example-instance>` (Developer tier) that was never actually queried. With `stv2`
+confirmed, APIM's hard subnet minimum is `/27` (ARM-enforced — deployment fails below this, per
+Microsoft Learn's virtual-network-concepts subnet-size-requirements). Foundry's agent subnet
+minimum is also `/27`. Both minimums together consume exactly `/26` of address space, which is
+why the block moved from `/26` to `/25` (see target CIDR plan below).
 
 ## Acceptance criteria
-- [ ] `generate-brownfield-params.sh --block-size 26` against the real discovery file produces
-      exactly: `foundry /27`, `apim /28`, `privateEndpoints /29`, `compute+cicdAgents /29`
-      (merged), with zero remaining address space.
+- [ ] `generate-brownfield-params.sh --block-size 25` against the real discovery file produces
+      exactly: `foundry /27`, `apim /27`, `privateEndpoints /28`, `compute+cicdAgents /28`
+      (merged), with 32 addresses spare.
 - [ ] Generated `foundry.bicepparam`/`brownfield-dns.bicepparam` support a cross-subscription
       `dnsSubscriptionId` distinct from the workload subscription.
 - [ ] `privatelink.azure-api.net` is no longer requested/required when APIM uses VNet injection.
@@ -75,11 +92,17 @@ with the network team before proceeding.
 - [ ] `docs/deploy-00-network.md` no longer contains the "Known limitation" callout — it
       describes actual behavior.
 
-## Example target CIDR plan (<region>, free block 10.0.1.192/26)
+## Example target CIDR plan (<VNET_NAME>, free `/25` = `10.0.1.128/25`)
 
-| Purpose | CIDR | Total | Usable |
-|---|---|---|---|
-| `foundry` | `10.0.1.192/27` | 32 | 27 |
-| `apim` | `10.0.1.224/28` | 16 | 11 |
-| `privateEndpoints` | `10.0.1.240/29` | 8 | 3 |
-| `compute+cicdAgents` (merged) | `10.0.1.248/29` | 8 | 3 |
+Existing `hybridsubnet-privateendpoints` (`10.0.1.136/29`) already hosts Key Vault + Storage
+private endpoints and is left untouched. Remaining free blocks: `.128/29`, `.144/28`, `.160/28`,
+`.176/28`, `.192/26`. Subnet names follow the `hybridsubnet-<purpose>` convention already used
+in the reference environment.
+
+| Purpose | Subnet name | CIDR | Total | Usable |
+|---|---|---|---|---|
+| Foundry agent | `hybridsubnet-foundry` | `10.0.1.192/27` | 32 | 27 |
+| APIM VNet injection | `hybridsubnet-apim` | `10.0.1.224/27` | 32 | 27 |
+| Private endpoints (new, if needed beyond `hybridsubnet-privateendpoints`) | `hybridsubnet-privateendpoints-2` | `10.0.1.144/28` | 16 | 11 |
+| Compute + CI/CD agents (merged) | `hybridsubnet-compute` | `10.0.1.160/28` | 16 | 11 |
+| spare/reserved | — | `10.0.1.128/29` + `10.0.1.176/28` | 24 | — |
