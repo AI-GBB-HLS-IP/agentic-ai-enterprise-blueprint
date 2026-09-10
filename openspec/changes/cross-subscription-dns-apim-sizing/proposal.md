@@ -92,17 +92,16 @@ why the block moved from `/26` to `/25` (see target CIDR plan below).
 - [ ] `docs/deploy-00-network.md` no longer contains the "Known limitation" callout — it
       describes actual behavior.
 
-## Example target CIDR plan (<VNET_NAME>, free `/25` = `10.0.1.128/25`)
+## Example target CIDR plan (<VNET_NAME>, free `/25` = `10.0.2.128/25`)
 
 Existing `hybridsubnet-privateendpoints` (`10.0.1.136/29`) already hosts Key Vault + Storage
-private endpoints and is left untouched. Remaining free blocks: `.128/29`, `.144/28`, `.160/28`,
-`.176/28`, `.192/26`. Subnet names follow the `hybridsubnet-<purpose>` convention already used
-in the reference environment.
+private endpoints and is left untouched outside the target block. Subnet names follow the
+`hybridsubnet-<purpose>` convention already used in the reference environment.
 
 | Purpose | Subnet name | CIDR | Total | Usable |
 |---|---|---|---|---|
-| Foundry agent | `hybridsubnet-foundry` | `10.0.1.192/27` | 32 | 27 |
-| APIM VNet injection | `hybridsubnet-apim` | `10.0.1.224/27` | 32 | 27 |
-| Private endpoints (new, if needed beyond `hybridsubnet-privateendpoints`) | `hybridsubnet-privateendpoints-2` | `10.0.1.144/28` | 16 | 11 |
-| Compute + CI/CD agents (merged) | `hybridsubnet-compute` | `10.0.1.160/28` | 16 | 11 |
-| spare/reserved | — | `10.0.1.128/29` + `10.0.1.176/28` | 24 | — |
+| Foundry agent | `hybridsubnet-foundry` | `10.0.2.128/27` | 32 | 27 |
+| APIM VNet injection | `hybridsubnet-apim` | `10.0.2.160/27` | 32 | 27 |
+| Private endpoints (new, if needed beyond `hybridsubnet-privateendpoints`) | `hybridsubnet-privateendpoints-2` | `10.0.2.192/28` | 16 | 11 |
+| Compute + CI/CD agents (merged) | `hybridsubnet-compute` | `10.0.2.208/28` | 16 | 11 |
+| spare/reserved | — | `10.0.2.224/27` | 32 | — |
