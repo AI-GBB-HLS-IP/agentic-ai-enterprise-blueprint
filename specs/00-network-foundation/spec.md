@@ -44,8 +44,9 @@ firewall. This is documented here so the deviation is never silently permanent.
   tables remain customer-managed: the blueprint may associate an approved existing route table
   but does not create or modify route tables or routes in brownfield mode.
 - Q: Who creates and manages VNet links to centrally owned Private DNS zones in brownfield mode?
-  A: The central DNS team owns the zones and DNS records. The blueprint creates and manages only
-  the approved VNet links using supplied zone resource IDs.
+  A: The central DNS team owns the zones and DNS records. In VNet-link mode, the blueprint creates
+  and manages only the approved VNet links using supplied zone resource IDs. In zone-group mode,
+  the blueprint creates no VNet links; each private endpoint references the approved existing zone.
 - Q: How are subnet address sizes determined?
   A: Greenfield mode retains the fixed blueprint sizes for predictable deployment. Brownfield
   subnet sizes are configurable but must meet current Azure service minimums, include documented
