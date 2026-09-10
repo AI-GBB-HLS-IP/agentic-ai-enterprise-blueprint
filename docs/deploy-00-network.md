@@ -213,18 +213,27 @@ az network vnet peering list -g "$RG" --vnet-name "$VNET" \
 
 ### 5.2 Generate the parameter files
 
-The generator turns discovery output into both `.bicepparam` files for you, picking the first
-free block in the VNet and carving it into the five subnets.
+The generator turns discovery output into the network, DNS, and Foundry `.bicepparam` files,
+picking the first free block in the VNet and carving it into four POC subnets.
 
 ```bash
 ./scripts/network/generate-brownfield-params.sh \
   --discovery ./network-discovery-<vnet>.json \
+  --dns-integration-mode zone-group \
+  --dns-subscription-id "<dns-zone-subscription-id>" \
   --dns-resource-group "<dns-zone-resource-group>"
 ```
 
-It prints the proposed allocation, then writes `infra/envs/poc/brownfield-network.bicepparam` and
-`infra/envs/poc/brownfield-dns.bicepparam` (both git-ignored). Add `--dry-run` to see the proposal
-without writing anything, and `--force` to overwrite a previous run.
+Use `zone-group` when private endpoints reference centrally owned zones directly. Use `vnet-link`
+when the DNS owner expects this deployment to create registration-disabled VNet links. The mode is
+required and is never inferred. In `zone-group` mode, both `--dns-subscription-id` and
+`--dns-resource-group` are required; the deploying identity or DNS-owning team must already provide
+the RBAC needed for each private endpoint's zone-group association.
+
+The script writes `infra/envs/poc/brownfield-network.bicepparam`,
+`infra/envs/poc/brownfield-dns.bicepparam`, and
+`infra/envs/poc/brownfield-foundry.bicepparam` (all git-ignored). Add `--dry-run` to see the
+proposal without writing anything, and `--force` to overwrite a previous run.
 
 The generated allocation is a **proposal for review, not an approval.** Read it, then get IPAM
 sign-off on the CIDRs before deploying.
@@ -245,7 +254,10 @@ sign-off on the CIDRs before deploying.
 | Option | Use it when |
 | --- | --- |
 | `--block <cidr>` | IPAM handed you a specific range — skips auto-selection but still validates it |
-| `--block-size <n>` | You want something other than a `/25` (`/25` recommended; `/26` is the minimum viable size — see below) |
+| `--block-size <n>` | You want a block larger than the minimum viable `/25` |
+| `--dns-integration-mode <vnet-link\|zone-group>` | Select the required DNS integration mechanism explicitly |
+| `--dns-subscription-id <id>` | DNS zones are in this subscription; required with `zone-group` |
+| `--dns-resource-group <rg>` | DNS zone resource group; required with `zone-group` |
 | `--name-prefix <prefix>` | Default `hybridsubnet-*` names collide, or your naming standard differs |
 | `--shared-hybrid-nsg-id <id>` | NSG mode 1 (see below) |
 | `--reuse-existing-nsgs` + `--existing-apim-nsg-id` + `--existing-compute-nsg-id` | NSG mode 2 |
@@ -257,43 +269,27 @@ occupied ranges — including `GatewaySubnet`, `AzureFirewallSubnet`, and non-co
 skipped automatically. If no block of that size is free, it reports the largest free ranges it
 found so you can pass one with `--block` or take the numbers to the network admin.
 
-**How the block is split:** the first half becomes the foundry subnet, the second half is divided
-into four equal subnets. A `/25` therefore yields `/26` foundry plus four `/28`s — the worked
-example below. Platform minimums: foundry `/27`, APIM (classic Premium, VNet-injected) `/29`;
-every subnet loses 5 addresses to Azure.
+**How the block is split:** the minimum viable `/25` yields Foundry `/27`, APIM `/27`, private
+endpoints `/28`, and a merged compute + CI/CD agents `/28`, leaving one `/27` (32 addresses)
+spare. APIM's `/27` is the ARM-enforced minimum for the confirmed `stv2` platform. Merging compute
+and CI/CD agents is a POC-only isolation trade-off; production should request a larger allocation
+and use separate workload subnets.
 
-**Minimum viable block: `/26`.** If your VNet can't spare a full `/25` (for example, an existing
-subnet already fragments the space), pass `--block-size 26` or `--block <a /26 you have free>`.
-A `/26` splits into `/27` foundry (meets the platform minimum with zero slack) plus four `/29`s —
-apim meets its `/29` minimum with zero slack, and private endpoints/compute/CI/CD agents each get
-only **3 usable addresses** after the 5 Azure-reserved. Check that 3 is actually enough before
-relying on it: the Foundry module can create up to 5 private endpoints in the `privateEndpoints`
-subnet (foundry, key vault, storage, Cosmos DB, AI Search) unless you point it at existing
-resources via `existingStoragePrivateEndpoint` / `existingCosmosDBPrivateEndpoint` /
-`existingAISearchPrivateEndpoint` in `foundry.bicepparam` to cut that count down. Treat `/26` as a
-stopgap for when you can't extend or reclaim VNet space, and get a larger allocation when
-possible. Anything smaller than `/26` cannot satisfy the platform minimums and the generator
-rejects it.
-
-> **Known limitation (2026-09-10):** the `/29` APIM sizing above reflects a *documented technical floor* for classic-tier (Developer/Premium) VNet injection, but live production evidence shows a VNet-injected Developer-tier APIM instance actively using 9 addresses — more than a `/29` (8 total, **3 usable** after Azure reservation) can provide. Treat `/28` (16 addresses, 11 usable) as a practical classic-tier minimum; Premium v2/Standard v2 (stv2) VNet injection requires `/27` (32 addresses), enforced by the Azure portal.
-> four equal `/29`s and has not yet been updated for this; see
-> `specs/00-network-foundation/spec.md` (Session 2026-09-10 clarifications) for the full
-> analysis and the planned fix (APIM sized at `/28`, with `compute` and `cicdAgents` merged into
-> one shared `/29` to keep an exact fit within the `/26`). Do not rely on the four-equal-`/29`
-> split for APIM sizing until that fix lands.
+Anything smaller than `/25` is rejected because the two `/27` service subnets plus the two `/28`
+supporting subnets cannot fit.
 
 | Subnet | Platform minimum | Recommended |
 | --- | --- | --- |
 | Foundry (delegated) | `/27` | `/26` or larger |
-| APIM (classic Premium, VNet-injected) | `/29` | `/27` or larger |
+| APIM (`stv2`, VNet-injected) | `/27` | `/27` or larger |
 | Private endpoints | endpoint count + 5 Azure-reserved + growth | |
-| Compute, CI/CD agents | workload + 5 Azure-reserved + growth | |
+| Compute + CI/CD agents (merged for POC) | workload + 5 Azure-reserved + growth | separate production subnets |
 
 **Choose one NSG mode:**
 
 | Mode | How to select | NSGs created | Subnets associated |
 | --- | --- | --- | --- |
-| 1 — shared hybrid NSG | `--shared-hybrid-nsg-id` | none | all five |
+| 1 — shared hybrid NSG | `--shared-hybrid-nsg-id` | none | all four |
 | 2 — per-purpose existing | `--reuse-existing-nsgs` + both `--existing-*-nsg-id` | none | APIM, compute |
 | 3 — blueprint-owned (default) | pass nothing | APIM + compute | APIM, compute |
 
@@ -315,7 +311,7 @@ cp infra/envs/poc/brownfield-network.bicepparam.example \
 
 Replace **every** `<placeholder>` in the copy: `existingVnetName` and
 `existingVnetResourceGroupName` from the network admin, `location` from the existing VNet, the
-five `*SubnetPrefix` from your IPAM-approved sizing, the five `*SubnetName` (defaults are fine
+four `*SubnetPrefix` from your IPAM-approved sizing, the four `*SubnetName` (defaults are fine
 unless the name already exists), the NSG parameters for your chosen mode, and
 `privateEndpointsNetworkPolicies`.
 
@@ -330,8 +326,9 @@ The generator already fails closed on name collisions, overlap, and containment,
 against fresh discovery output *is* the collision check. Re-run discovery immediately before
 deploying if the VNet may have changed since.
 
-Still yours to confirm manually: IPAM approval of the block, the same-subscription boundary, your
-permissions at the target scope, and the `what-if` review in step 5.4.
+Still yours to confirm manually: IPAM approval of the block, the network-resource
+same-subscription boundary, your permissions at every target scope, and the `what-if` review in
+step 5.4.
 
 <details>
 <summary>Manual collision check, if you wrote the parameter file by hand</summary>
@@ -342,7 +339,7 @@ VNET=<existing-vnet-name>
 
 existing="$(az network vnet subnet list -g "$RG" --vnet-name "$VNET" --query "[].name" -o tsv)"
 for want in hybridsubnet-foundry hybridsubnet-apim hybridsubnet-privateendpoints \
-            hybridsubnet-compute hybridsubnet-cicdagents; do
+            hybridsubnet-compute; do
   if grep -qx "$want" <<<"$existing"; then
     echo "COLLISION: $want already exists — rename yours, or confirm it is blueprint-owned"
   else
@@ -375,7 +372,7 @@ az deployment group what-if \
 
 | Symbol | Meaning | Action |
 | --- | --- | --- |
-| `+ Create` | new resource | ✅ expected: the five subnets, plus NSGs in mode 3 |
+| `+ Create` | new resource | ✅ expected: the four subnets, plus NSGs in mode 3 |
 | `~ Modify` | existing resource changes | 🛑 **stop** unless you created it in a previous run |
 | `- Delete` | existing resource removed | 🛑 **stop**, always |
 | `= NoChange` / `* Ignore` | untouched | ✅ fine |
@@ -391,14 +388,20 @@ az deployment group create \
   --parameters infra/envs/poc/brownfield-network.bicepparam
 ```
 
-### 5.5 DNS-owner stage
+### 5.5 DNS integration
 
-This stage only **links** existing private DNS zones to the VNet. It never creates or modifies a
-zone, so the zones must already exist. Required zones:
+In `zone-group` mode, skip this stage: `brownfield-dns.bicep` intentionally deploys zero
+DNS-owner-scoped resources. Deploy Foundry with
+`infra/envs/poc/brownfield-foundry.bicepparam`; its private endpoints reference the approved
+cross-subscription zones directly. The deploying identity or DNS-owning team must already provide
+the required zone-group RBAC.
+
+In `vnet-link` mode, this stage only **links** existing private DNS zones to the VNet. It never
+creates or modifies a zone, so the zones must already exist. Required zones:
 
 ```
 privatelink.cognitiveservices.azure.com   privatelink.openai.azure.com
-privatelink.azure-api.net                 privatelink.vaultcore.azure.net
+privatelink.vaultcore.azure.net
 privatelink.blob.core.windows.net         privatelink.database.windows.net
 privatelink.documents.azure.com           privatelink.search.windows.net
 ```
@@ -419,6 +422,7 @@ Then:
 #      infra/envs/poc/brownfield-dns.bicepparam
 
 az deployment group what-if \
+  --subscription "<dns-zone-subscription-id>" \
   --resource-group "<dns-zone-resource-group>" \
   --template-file infra/envs/poc/brownfield-dns.bicep \
   --parameters infra/envs/poc/brownfield-dns.bicepparam
@@ -427,7 +431,8 @@ az deployment group what-if \
 Accept only `+ Create` on virtual network links. Reject any change to a zone or record set
 (T053 not built). Then run `az deployment group create` with the same arguments.
 
-Run this stage once per DNS owner scope if the zones are split across resource groups.
+Run this stage once per DNS owner scope if the zones are split across resource groups. APIM is
+VNet-injected and therefore does not require `privatelink.azure-api.net`.
 
 ---
 
@@ -452,7 +457,9 @@ Expected:
 - every subnet has the approved name and prefix;
 - `hybridsubnet-foundry` shows the `Microsoft.App/environments` delegation;
 - NSG associations match the mode you chose;
-- each required zone reports at least one VNet link;
+- in `vnet-link` mode, each required zone reports at least one VNet link;
+- in `zone-group` mode, no blueprint-managed VNet links exist and private endpoints resolve
+  through their approved zone groups;
 - no public IP, except Bastion's in greenfield.
 
 **Idempotency:** re-run `what-if` with unchanged parameters and expect no changes. In greenfield,

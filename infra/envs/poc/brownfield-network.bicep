@@ -1,6 +1,6 @@
 targetScope = 'resourceGroup'
 
-// Network-owner entry point for brownfield deployments: adds the 5 purpose-keyed subnets (and
+// Network-owner entry point for brownfield deployments: adds the 4 purpose-keyed subnets (and
 // their NSGs) to an admin-provided existing VNet. Deploy this template at any resource-group
 // scope in the same subscription, but set existingVnetResourceGroupName to the VNet's resource
 // group so subnet writes land alongside their parent VNet; it never creates, modifies, or
@@ -26,31 +26,25 @@ param location string = resourceGroup().location
 param foundrySubnetName string = 'hybridsubnet-foundry'
 
 @description('Foundry delegated subnet CIDR. Default matches the /25 worked example in infra/modules/network/README.md; override to the admin-approved value for the real existing VNet.')
-param foundrySubnetPrefix string = '10.0.0.0/26'
+param foundrySubnetPrefix string = '10.0.0.0/27'
 
 @description('APIM subnet name.')
 param apimSubnetName string = 'hybridsubnet-apim'
 
 @description('APIM subnet CIDR.')
-param apimSubnetPrefix string = '10.0.0.64/28'
+param apimSubnetPrefix string = '10.0.0.32/27'
 
 @description('Private endpoints subnet name.')
 param privateEndpointsSubnetName string = 'hybridsubnet-privateendpoints'
 
 @description('Private endpoints subnet CIDR.')
-param privateEndpointsSubnetPrefix string = '10.0.0.80/28'
+param privateEndpointsSubnetPrefix string = '10.0.0.64/28'
 
-@description('Compute subnet name.')
+@description('Merged compute and CI/CD agents subnet name.')
 param computeSubnetName string = 'hybridsubnet-compute'
 
-@description('Compute subnet CIDR.')
-param computeSubnetPrefix string = '10.0.0.96/28'
-
-@description('CI/CD agents subnet name.')
-param cicdAgentsSubnetName string = 'hybridsubnet-cicdagents'
-
-@description('CI/CD agents subnet CIDR.')
-param cicdAgentsSubnetPrefix string = '10.0.0.112/28'
+@description('Merged compute and CI/CD agents subnet CIDR.')
+param computeSubnetPrefix string = '10.0.0.80/28'
 
 // ---------------------------------------------------------------------------------------------
 // NSG association. Three mutually exclusive modes, in precedence order:
@@ -60,7 +54,7 @@ param cicdAgentsSubnetPrefix string = '10.0.0.112/28'
 //      with ALL subnets created here. No NSG is created or modified by this template. This is the
 //      mode required by customer network policies that mandate the hybrid NSG on every subnet.
 //   2. reuseExistingNsgs true -> per-purpose existing NSGs. Associates the supplied APIM and
-//      compute NSGs on those two subnets only; foundry, private endpoints, and CI/CD agents get
+//      compute NSGs on those two subnets only; foundry and private endpoints get
 //      no NSG. Retained for environments without a single shared hybrid NSG.
 //   3. neither                -> blueprint-owned mode. Creates the two blueprint APIM/compute
 //      NSGs (distinct rule sets, per the greenfield design in infra/modules/network/README.md).
@@ -154,7 +148,7 @@ var apimNsgIdResolved = useSharedHybridNsg ? sharedHybridNsgId : (reuseExistingN
 #disable-next-line BCP318
 var computeNsgIdResolved = useSharedHybridNsg ? sharedHybridNsgId : (reuseExistingNsgs ? existingComputeNsgId : nsg.outputs.computeNsgId)
 
-// Only the shared-hybrid-NSG mode attaches an NSG to the foundry, private endpoints, and CI/CD
+// Only the shared-hybrid-NSG mode attaches an NSG to the foundry and private endpoints
 // subnets; in the other two modes these objects contribute no `nsgId` key and those subnets are
 // created without an NSG.
 var sharedNsgAssociation = useSharedHybridNsg ? { nsgId: sharedHybridNsgId } : {}
@@ -185,10 +179,6 @@ module subnets '../../modules/network/subnets.bicep' = {
         addressPrefix: computeSubnetPrefix
         nsgId: computeNsgIdResolved
       }
-      union({
-        name: cicdAgentsSubnetName
-        addressPrefix: cicdAgentsSubnetPrefix
-      }, sharedNsgAssociation)
     ]
   }
 }

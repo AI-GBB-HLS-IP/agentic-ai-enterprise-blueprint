@@ -8,6 +8,8 @@ using './brownfield-dns.bicep'
 // Deploy this template scoped to a single, explicit DNS zone resource group (one DNS-owner
 // invocation per scope) — it must be run separately from brownfield-network.bicepparam.
 
+param dnsIntegrationMode = 'vnet-link'
+param dnsSubscriptionId = '<dns-zone-subscription-id>'
 param dnsResourceGroupName = '<dns-zone-resource-group>'
 param vnetId = '<full-arm-resource-id-of-existing-vnet>'
 param vnetName = '<existing-vnet-name>'

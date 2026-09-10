@@ -43,21 +43,22 @@ under that account — a project never needs its own delegated subnet. Recommend
 | `/24` | ~251 | absorbs platform upgrade/scaling spikes | **Microsoft's production recommendation** |
 
 **Worked example** — brownfield POC constrained to an admin-allocated `/25` VNet (128 addresses,
-too small to fit the `/24` production recommendation). All 5 purpose-keyed subnets fit as an exact,
-CIDR-aligned allocation (illustrative CIDRs; real values remain customer-approved per FR-013):
+too small to fit the `/24` production recommendation). Four purpose-keyed subnets fit with one
+`/27` left spare (illustrative CIDRs; real values remain customer-approved per FR-013):
 
 | Purpose key | Relative CIDR | Size | Usable IPs |
 |---|---|---|---|
-| `foundry` | `.0/26` | 64 | 59 |
-| `apim` | `.64/28` | 16 | 11 |
-| `privateEndpoints` | `.80/28` | 16 | 11 |
-| `compute` | `.96/28` | 16 | 11 |
-| `cicdAgents` | `.112/28` | 16 | 11 |
+| `foundry` | `.0/27` | 32 | 27 |
+| `apim` | `.32/27` | 32 | 27 |
+| `privateEndpoints` | `.64/28` | 16 | 11 |
+| `compute` (also CI/CD agents) | `.80/28` | 16 | 11 |
+| spare | `.96/27` | 32 | — |
 
-This caps the POC at ~50 concurrent agent sessions (~47 at the recommended 80% utilization
-target) — an explicit, documented capacity trade-off versus Microsoft's `/24` production sizing,
-not a silent default. See `specs/00-network-foundation/spec.md` FR-013c–FR-013e for the full
-sizing gate and `contracts/deployment-parameters.md` for the parameter contract.
+The `/27` Foundry subnet and `/27` APIM subnet meet the confirmed platform minimums. Sharing the
+compute subnet with CI/CD agents is an explicit POC-only isolation trade-off; production should
+request more address space and separate those workloads. See `specs/00-network-foundation/spec.md`
+FR-013c–FR-013e for the full sizing gate and `contracts/deployment-parameters.md` for the
+parameter contract.
 
 
 ## Optional Bastion
@@ -81,7 +82,7 @@ Both entry points create their subnets through **`subnets.bicep`**:
 | Caller | VNet | Subnets |
 | --- | --- | --- |
 | `modules/network/main.bicep` (greenfield) | declares it as a **managed** resource | `subnets.bicep` (6, including `AzureBastionSubnet`) |
-| `envs/poc/brownfield-network.bicep` | never declares it | `subnets.bicep` (5) |
+| `envs/poc/brownfield-network.bicep` | never declares it | `subnets.bicep` (4) |
 
 This keeps subnet shape — delegation, NSG association, private-endpoint policy — and the
 serialized `@batchSize(1)` write behaviour in one implementation. The ownership boundary is
@@ -116,7 +117,7 @@ overlapping existing subnets; that is stated in the `subnets` parameter descript
 deferred with the rest of the preflight tooling (issue #48).
 
 Until `validate-brownfield-inputs.sh` and `validate-network-what-if.sh` exist, confirm out of band
-that all five requested subnet names are unused, and reject any `what-if` result containing
+that all four requested subnet names are unused, and reject any `what-if` result containing
 `~ Modify` or `- Delete` on a resource the blueprint did not create.
 
 ## NSG association modes (brownfield)
@@ -126,7 +127,7 @@ greenfield module always uses mode 3.
 
 | Mode | How to select | NSGs created | Subnets associated |
 | --- | --- | --- | --- |
-| 1 — shared hybrid NSG | set `sharedHybridNsgId` | none | all five |
+| 1 — shared hybrid NSG | set `sharedHybridNsgId` | none | all four |
 | 2 — per-purpose existing | `reuseExistingNsgs = true` + both `existing*NsgId` | none | APIM, compute |
 | 3 — blueprint-owned (default) | leave the above unset | APIM + compute | APIM, compute |
 

@@ -5,6 +5,19 @@ param location string = resourceGroup().location
 @description('Resource group containing the network foundation (vnet, subnets, private DNS zones). Defaults to this resource group for single-RG deployments.')
 param networkResourceGroupName string = resourceGroup().name
 
+@description('Private DNS integration mechanism. Use vnet-link for same-subscription zones linked to the VNet, or zone-group for existing zones referenced by private endpoints.')
+@allowed([
+  'vnet-link'
+  'zone-group'
+])
+param dnsIntegrationMode string
+
+@description('Subscription containing the existing private DNS zones. Used only in zone-group mode.')
+param dnsSubscriptionId string = subscription().subscriptionId
+
+@description('Resource group containing the existing private DNS zones. Used only in zone-group mode.')
+param dnsResourceGroupName string = networkResourceGroupName
+
 param foundryAccountName string = 'foundry-agent-factory-poc'
 param projectName string = 'prj-agent-factory-poc'
 param projectDisplayName string = 'Agent Factory POC'
@@ -70,12 +83,12 @@ resource openAiDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
 
 // Not part of the existing network foundation; the unified Foundry account endpoint
 // (services.ai.azure.com) requires this zone per the official BYO VNet private-link table.
-resource servicesAiDns 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource servicesAiDns 'Microsoft.Network/privateDnsZones@2020-06-01' = if (dnsIntegrationMode == 'vnet-link') {
   name: 'privatelink.services.ai.azure.com'
   location: 'global'
 }
 
-resource servicesAiDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource servicesAiDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (dnsIntegrationMode == 'vnet-link') {
   parent: servicesAiDns
   name: '${vnetName}-link'
   location: 'global'
@@ -110,6 +123,30 @@ resource searchDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
   name: 'privatelink.search.windows.net'
 }
 
+var zoneGroupDnsResourceIds = {
+  cognitiveServices: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', cognitiveServicesDns.name)
+  openAi: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', openAiDns.name)
+  servicesAi: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', servicesAiDns.name)
+  blob: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', blobDns.name)
+  keyVault: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', keyVaultDns.name)
+  cosmosDB: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', documentsDns.name)
+  aiSearch: resourceId(dnsSubscriptionId, dnsResourceGroupName, 'Microsoft.Network/privateDnsZones', searchDns.name)
+}
+
+var vnetLinkDnsResourceIds = {
+  cognitiveServices: cognitiveServicesDns.id
+  openAi: openAiDns.id
+  servicesAi: servicesAiDns.id
+  blob: blobDns.id
+  keyVault: keyVaultDns.id
+  cosmosDB: documentsDns.id
+  aiSearch: searchDns.id
+}
+
+var privateDnsZoneIds = dnsIntegrationMode == 'zone-group'
+  ? zoneGroupDnsResourceIds
+  : vnetLinkDnsResourceIds
+
 module foundry '../../modules/foundry/main.bicep' = {
   name: 'foundry-platform'
   params: {
@@ -119,15 +156,7 @@ module foundry '../../modules/foundry/main.bicep' = {
     projectDisplayName: projectDisplayName
     foundrySubnetId: foundrySubnet.id
     privateEndpointSubnetId: privateEndpointSubnet.id
-    privateDnsZoneIds: {
-      cognitiveServices: cognitiveServicesDns.id
-      openAi: openAiDns.id
-      servicesAi: servicesAiDns.id
-      blob: blobDns.id
-      keyVault: keyVaultDns.id
-      cosmosDB: documentsDns.id
-      aiSearch: searchDns.id
-    }
+    privateDnsZoneIds: privateDnsZoneIds
     storageAccountName: storageAccountName
     keyVaultName: keyVaultName
     aiSearchServiceName: aiSearchServiceName

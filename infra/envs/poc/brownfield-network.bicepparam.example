@@ -21,7 +21,6 @@ param foundrySubnetPrefix = '<admin-approved-cidr>'
 param apimSubnetPrefix = '<admin-approved-cidr>'
 param privateEndpointsSubnetPrefix = '<admin-approved-cidr>'
 param computeSubnetPrefix = '<admin-approved-cidr>'
-param cicdAgentsSubnetPrefix = '<admin-approved-cidr>'
 
 // NSG association. Choose ONE of the three modes below.
 //

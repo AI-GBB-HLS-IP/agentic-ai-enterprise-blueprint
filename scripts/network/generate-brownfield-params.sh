@@ -4,8 +4,9 @@ set -euo pipefail
 # Generates reviewable brownfield .bicepparam files from read-only VNet discovery output.
 #
 # Input : the JSON produced by scripts/network/discover-existing-vnet.sh
-# Output: infra/envs/poc/brownfield-network.bicepparam and brownfield-dns.bicepparam
-#         (both git-ignored), plus a human-readable allocation report on stdout.
+# Output: infra/envs/poc/brownfield-network.bicepparam, brownfield-dns.bicepparam, and
+#         brownfield-foundry.bicepparam (all git-ignored), plus a human-readable allocation
+#         report on stdout.
 #
 # The generated files are a PROPOSAL. Review them, get IPAM approval for the CIDRs, and run
 # `az deployment group what-if` before deploying. This script deploys nothing.
@@ -17,19 +18,22 @@ Usage: generate-brownfield-params.sh --discovery <discovery.json> [options]
 Address plan:
   --block <cidr>                 Use this exact free block instead of auto-selecting one
   --block-size <n>               Prefix length of the block to auto-select (default: 25).
-                                 Minimum viable is /26 (foundry /27 + four /29s, each losing 5
-                                 addresses to Azure -- only 3 usable IPs per non-foundry subnet).
-                                 Prefer /25 or larger whenever the VNet has the room.
+                                 Minimum viable is /25: foundry /27 + APIM /27 +
+                                 private endpoints /28 + merged compute/CI/CD /28,
+                                 leaving one /27 spare.
   --name-prefix <prefix>         Subnet name prefix (default: hybridsubnet)
   --location <region>            Override the location from discovery
 
 NSG mode (choose one; default is blueprint-owned):
-  --shared-hybrid-nsg-id <id>    Mode 1: associate one existing NSG with all five subnets
+  --shared-hybrid-nsg-id <id>    Mode 1: associate one existing NSG with all four subnets
   --reuse-existing-nsgs          Mode 2: reuse per-purpose NSGs (requires the two IDs below)
   --existing-apim-nsg-id <id>
   --existing-compute-nsg-id <id>
 
 Other:
+  --dns-integration-mode <mode>  Required: vnet-link | zone-group
+  --dns-subscription-id <id>     Subscription holding the private DNS zones; required for
+                                 zone-group mode
   --private-endpoints-network-policies <value>
                                  Disabled (default) | Enabled | NetworkSecurityGroupEnabled |
                                  RouteTableEnabled
@@ -57,6 +61,8 @@ existing_apim_nsg_id=""
 existing_compute_nsg_id=""
 pe_policies="Disabled"
 dns_resource_group=""
+dns_integration_mode=""
+dns_subscription_id=""
 out_dir="${REPO_ROOT}/infra/envs/poc"
 allow_name_collision="false"
 force="false"
@@ -78,6 +84,8 @@ while [[ $# -gt 0 ]]; do
     --existing-apim-nsg-id) require_value "$1" $#; existing_apim_nsg_id="$2"; shift 2 ;;
     --existing-compute-nsg-id) require_value "$1" $#; existing_compute_nsg_id="$2"; shift 2 ;;
     --private-endpoints-network-policies) require_value "$1" $#; pe_policies="$2"; shift 2 ;;
+    --dns-integration-mode) require_value "$1" $#; dns_integration_mode="$2"; shift 2 ;;
+    --dns-subscription-id) require_value "$1" $#; dns_subscription_id="$2"; shift 2 ;;
     --dns-resource-group) require_value "$1" $#; dns_resource_group="$2"; shift 2 ;;
     --out-dir) require_value "$1" $#; out_dir="$2"; shift 2 ;;
     --allow-name-collision) allow_name_collision="true"; shift ;;
@@ -99,18 +107,37 @@ if [[ ! -f "$discovery" ]]; then
   exit 1
 fi
 
+if [[ -z "$dns_integration_mode" ]]; then
+  echo "--dns-integration-mode is required and must be one of: vnet-link, zone-group." >&2
+  exit 1
+fi
+
+if [[ "$dns_integration_mode" != "vnet-link" && "$dns_integration_mode" != "zone-group" ]]; then
+  echo "--dns-integration-mode must be one of: vnet-link, zone-group." >&2
+  exit 1
+fi
+
+if [[ "$dns_integration_mode" == "zone-group" ]]; then
+  if [[ -z "$dns_subscription_id" || -z "$dns_resource_group" ]]; then
+    echo "--dns-integration-mode zone-group requires both --dns-subscription-id and --dns-resource-group." >&2
+    exit 1
+  fi
+fi
+
 command -v python3 >/dev/null 2>&1 || { echo "Required tool not found: python3" >&2; exit 1; }
 
 CONFIG="$(python3 - "$block" "$block_size" "$name_prefix" "$location" "$shared_nsg_id" \
   "$reuse_existing_nsgs" "$existing_apim_nsg_id" "$existing_compute_nsg_id" "$pe_policies" \
-  "$dns_resource_group" "$out_dir" "$allow_name_collision" "$force" "$dry_run" <<'PY'
+  "$dns_integration_mode" "$dns_subscription_id" "$dns_resource_group" "$out_dir" \
+  "$allow_name_collision" "$force" "$dry_run" <<'PY'
 import json
 import sys
 
 keys = [
     "block", "blockSize", "namePrefix", "location", "sharedHybridNsgId",
     "reuseExistingNsgs", "existingApimNsgId", "existingComputeNsgId",
-    "privateEndpointsNetworkPolicies", "dnsResourceGroup", "outDir",
+    "privateEndpointsNetworkPolicies", "dnsIntegrationMode", "dnsSubscriptionId",
+    "dnsResourceGroup", "outDir",
     "allowNameCollision", "force", "dryRun",
 ]
 print(json.dumps(dict(zip(keys, sys.argv[1:]))))
@@ -187,20 +214,15 @@ for subnet in subnets:
             used_networks.append((subnet.get("name"), network))
 
 # ---------------------------------------------------------------------------------------------
-# Address plan. The block is split as: first half -> foundry (delegated, needs the most room),
-# second half -> four equal subnets for apim, private endpoints, compute, and CI/CD agents.
-# With the default /25 block this yields /26 + 4x/28, matching the worked example in
-# infra/modules/network/README.md.
+# Address plan. A /25 supplies fixed POC minimums: foundry /27, APIM stv2 /27, private
+# endpoints /28, and one merged compute/CI/CD agents /28. The final /27 remains spare.
 #
 # RECOMMENDED_BLOCK_PREFIX is the default and the size to prefer whenever the VNet has the room.
-# MIN_VIABLE_BLOCK_PREFIX is the hard floor: a /26 halves to /27 (meets the foundry platform
-# minimum with zero slack) and quarters to /29 (meets the apim platform minimum with zero slack,
-# and leaves only 3 usable addresses -- after the 5 Azure-reserved -- for private endpoints,
-# compute, and CI/CD agents). Anything smaller than /26 cannot satisfy those minimums and is
-# rejected below by the per-subnet MINIMUM_PREFIX check regardless.
+# MIN_VIABLE_BLOCK_PREFIX is the hard floor because Foundry and APIM each require a /27, while
+# private endpoints and the merged compute/CI/CD workload each require a /28.
 # ---------------------------------------------------------------------------------------------
 RECOMMENDED_BLOCK_PREFIX = 25
-MIN_VIABLE_BLOCK_PREFIX = 26
+MIN_VIABLE_BLOCK_PREFIX = 25
 MAX_BLOCK_PREFIX = MIN_VIABLE_BLOCK_PREFIX
 
 def free_blocks(networks, used_list):
@@ -233,8 +255,8 @@ if config["block"]:
     if chosen.prefixlen > MAX_BLOCK_PREFIX:
         fail(
             f"--block {chosen} is too small: /{MIN_VIABLE_BLOCK_PREFIX} or larger is required so "
-            "the foundry subnet meets its /27 platform minimum and every other subnet meets its "
-            "/29 platform minimum."
+            "the foundry and APIM stv2 subnets each meet their /27 platform minimum, with /28 "
+            "subnets for private endpoints and merged compute/CI/CD agents."
         )
     if not any(chosen.subnet_of(network) for network in vnet_networks):
         fail(f"--block {chosen} is not contained in any VNet address prefix {address_prefixes}.")
@@ -271,7 +293,8 @@ else:
             hint = (
                 f"Largest free ranges in this VNet: {largest}. If one of them is at least a "
                 f"/{MIN_VIABLE_BLOCK_PREFIX}, pass it with --block-size {MIN_VIABLE_BLOCK_PREFIX} "
-                "or --block (this yields the minimum-viable /27 foundry + four /29 subnets); "
+                "or --block (this yields /27 foundry + /27 APIM + /28 private endpoints + "
+                "/28 merged compute/CI/CD agents); "
                 "otherwise ask the network admin to extend the VNet address space or hand you a "
                 "larger allocation."
             )
@@ -283,20 +306,22 @@ else:
         fail(f"no free /{block_size} block found in {address_prefixes}. {hint}")
     auto_selected = True
 
-halves = list(chosen.subnets(prefixlen_diff=1))
-foundry_net = halves[0]
-quarters = list(halves[1].subnets(prefixlen_diff=2))
+minimum_blocks = list(chosen.subnets(new_prefix=27))
+foundry_net = minimum_blocks[0]
+apim_net = minimum_blocks[1]
+shared_quarters = list(minimum_blocks[2].subnets(new_prefix=28))
+private_endpoints_net = shared_quarters[0]
+compute_net = shared_quarters[1]
 
 prefix = config["namePrefix"].rstrip("-")
 plan = [
     ("foundry", f"{prefix}-foundry", foundry_net, "Delegated to Microsoft.App/environments; platform minimum /27"),
-    ("apim", f"{prefix}-apim", quarters[0], "APIM Premium VNet injection; platform minimum /29"),
-    ("privateendpoints", f"{prefix}-privateendpoints", quarters[1], "Private endpoints; 5 Azure-reserved addresses"),
-    ("compute", f"{prefix}-compute", quarters[2], "Compute workloads; 5 Azure-reserved addresses"),
-    ("cicdagents", f"{prefix}-cicdagents", quarters[3], "CI/CD agents; 5 Azure-reserved addresses"),
+    ("apim", f"{prefix}-apim", apim_net, "APIM stv2 VNet injection; platform minimum /27"),
+    ("privateendpoints", f"{prefix}-privateendpoints", private_endpoints_net, "Private endpoints; 5 Azure-reserved addresses"),
+    ("compute", f"{prefix}-compute", compute_net, "Merged compute and CI/CD agents; 5 Azure-reserved addresses"),
 ]
 
-MINIMUM_PREFIX = {"foundry": 27, "apim": 29}
+MINIMUM_PREFIX = {"foundry": 27, "apim": 27}
 for key, name, network, _ in plan:
     minimum = MINIMUM_PREFIX.get(key, 29)
     if network.prefixlen > minimum:
@@ -348,7 +373,7 @@ apim_nsg_id = config["existingApimNsgId"]
 compute_nsg_id = config["existingComputeNsgId"]
 
 if shared_nsg_id:
-    nsg_mode = "1 - shared hybrid NSG (associated with all five subnets; none created)"
+    nsg_mode = "1 - shared hybrid NSG (associated with all four subnets; none created)"
     if reuse or apim_nsg_id or compute_nsg_id:
         warnings.append(
             "--shared-hybrid-nsg-id overrides --reuse-existing-nsgs and the per-purpose NSG IDs."
@@ -379,9 +404,15 @@ for name, network in used_networks:
         fail(f"internal error: proposed allocation overlaps existing subnet '{name}' ({network}).")
 
 if not vnet_id:
-    warnings.append("discovery file has no vnet.id; the DNS parameter file keeps a placeholder.")
+    warnings.append("discovery file has no vnet.id; generated DNS and Foundry parameters keep placeholders.")
 
+dns_mode = config["dnsIntegrationMode"]
+dns_subscription_id = config["dnsSubscriptionId"]
 dns_rg = config["dnsResourceGroup"]
+if not dns_subscription_id and vnet_id:
+    vnet_id_parts = vnet_id.strip("/").split("/")
+    if len(vnet_id_parts) >= 2 and vnet_id_parts[0].lower() == "subscriptions":
+        dns_subscription_id = vnet_id_parts[1]
 if not dns_rg:
     warnings.append(
         "no --dns-resource-group given; fill in dnsResourceGroupName in the DNS parameter file."
@@ -406,6 +437,7 @@ def template_using_path(filename):
 
 network_bicep_path = template_using_path("brownfield-network.bicep")
 dns_bicep_path = template_using_path("brownfield-dns.bicep")
+foundry_bicep_path = template_using_path("foundry.bicep")
 
 header = f"""using '{network_bicep_path}'
 
@@ -450,13 +482,40 @@ dns_param_text = f"""using '{dns_bicep_path}'
 // GENERATED by scripts/network/generate-brownfield-params.sh. Review before deploying.
 // Deploy once per DNS-owner resource group scope. This file is git-ignored; never commit it.
 
+param dnsIntegrationMode = {bicep_string(dns_mode)}
+param dnsSubscriptionId = {bicep_string(dns_subscription_id) if dns_subscription_id else "'<dns-zone-subscription-id>'"}
 param dnsResourceGroupName = {bicep_string(dns_rg) if dns_rg else "'<dns-zone-resource-group>'"}
 param vnetId = {bicep_string(vnet_id) if vnet_id else "'<full-arm-resource-id-of-existing-vnet>'"}
 param vnetName = {bicep_string(vnet_name)}
+param privateDnsZoneNames = {{
+  cognitiveServices: 'privatelink.cognitiveservices.azure.com'
+  azureOpenAI: 'privatelink.openai.azure.com'
+  keyVault: 'privatelink.vaultcore.azure.net'
+  storageBlob: 'privatelink.blob.core.windows.net'
+  sql: 'privatelink.database.windows.net'
+  cosmosDB: 'privatelink.documents.azure.com'
+  aiSearch: 'privatelink.search.windows.net'
+}}
+"""
+
+foundry_param_text = f"""using '{foundry_bicep_path}'
+
+// GENERATED by scripts/network/generate-brownfield-params.sh for a brownfield deployment.
+// This file is git-ignored; never commit it.
+
+param location = {bicep_string(location)}
+param networkResourceGroupName = {bicep_string(vnet_rg)}
+param dnsIntegrationMode = {bicep_string(dns_mode)}
+param dnsSubscriptionId = {bicep_string(dns_subscription_id) if dns_subscription_id else "'<dns-zone-subscription-id>'"}
+param dnsResourceGroupName = {bicep_string(dns_rg) if dns_rg else "'<dns-zone-resource-group>'"}
+param vnetName = {bicep_string(vnet_name)}
+param foundrySubnetName = {bicep_string(plan[0][1])}
+param privateEndpointSubnetName = {bicep_string(plan[2][1])}
 """
 
 network_path = os.path.join(out_dir, "brownfield-network.bicepparam")
 dns_path = os.path.join(out_dir, "brownfield-dns.bicepparam")
+foundry_path = os.path.join(out_dir, "brownfield-foundry.bicepparam")
 
 print("Proposed brownfield allocation")
 print(f"  VNet             : {vnet_name} (resource group {vnet_rg})")
@@ -465,6 +524,7 @@ print(f"  VNet space       : {', '.join(address_prefixes)}")
 print(f"  Existing subnets : {len(subnets)}")
 print(f"  Allocated block  : {chosen} ({'auto-selected' if auto_selected else 'operator supplied'})")
 print(f"  NSG mode         : {nsg_mode}")
+print(f"  DNS mode         : {dns_mode}")
 print()
 print(f"  {'SUBNET':<40} {'CIDR':<20} USABLE")
 for _, name, network, _ in plan:
@@ -479,12 +539,14 @@ if config["dryRun"] == "true":
     print(network_param_text)
     print("--- brownfield-dns.bicepparam (dry run) ---")
     print(dns_param_text)
+    print("--- brownfield-foundry.bicepparam (dry run) ---")
+    print(foundry_param_text)
     raise SystemExit(0)
 
 if not os.path.isdir(out_dir):
     fail(f"output directory does not exist: {out_dir}")
 
-for path in (network_path, dns_path):
+for path in (network_path, dns_path, foundry_path):
     if os.path.exists(path) and config["force"] != "true":
         fail(f"{path} already exists. Re-run with --force to overwrite.")
 
@@ -492,10 +554,13 @@ with open(network_path, "w", encoding="utf-8") as handle:
     handle.write(network_param_text)
 with open(dns_path, "w", encoding="utf-8") as handle:
     handle.write(dns_param_text)
+with open(foundry_path, "w", encoding="utf-8") as handle:
+    handle.write(foundry_param_text)
 
 print(f"Wrote {network_path}")
 print(f"Wrote {dns_path}")
+print(f"Wrote {foundry_path}")
 print()
-print("Review both files, obtain IPAM approval for the CIDRs, then run `az deployment group")
+print("Review all three files, obtain IPAM approval for the CIDRs, then run `az deployment group")
 print("what-if` as described in docs/deploy-00-network.md sections 5.4 and 5.5.")
 PY
