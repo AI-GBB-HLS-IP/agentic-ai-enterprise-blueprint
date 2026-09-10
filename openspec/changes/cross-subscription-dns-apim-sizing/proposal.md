@@ -1,8 +1,7 @@
 # Change: Cross-subscription DNS zone-group mode + real APIM subnet sizing
 
 ## Status
-Ready to implement. Spec approved in PR #62 (merged into `specs/00-network-foundation/spec.md`,
-`data-model.md`, `contracts/deployment-parameters.md`, `tasks.md`).
+In review. Once the spec changes are merged, this change is ready to implement.
 
 ## Problem
 Live discovery against a real brownfield target (`<SUBSCRIPTION_ALIAS>` / `<VNET_NAME>`) found two gaps
