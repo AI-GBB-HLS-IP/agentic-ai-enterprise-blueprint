@@ -79,7 +79,7 @@ with the network team before proceeding.
 
 | Purpose | CIDR | Total | Usable |
 |---|---|---|---|
-| `foundry` | `10.75.139.192/27` | 32 | 27 |
-| `apim` | `10.75.139.224/28` | 16 | 11 |
-| `privateEndpoints` | `10.75.139.240/29` | 8 | 3 |
-| `compute+cicdAgents` (merged) | `10.75.139.248/29` | 8 | 3 |
+| `foundry` | `10.0.1.192/27` | 32 | 27 |
+| `apim` | `10.0.1.224/28` | 16 | 11 |
+| `privateEndpoints` | `10.0.1.240/29` | 8 | 3 |
+| `compute+cicdAgents` (merged) | `10.0.1.248/29` | 8 | 3 |
