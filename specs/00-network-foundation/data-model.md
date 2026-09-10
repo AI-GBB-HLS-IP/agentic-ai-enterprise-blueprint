@@ -11,8 +11,10 @@
 | Subnet request | purpose, name, CIDR, service profile, delegation, private-endpoint policy, NSG mode/ID, route-table ID | Brownfield requests always create new subnets. Name and CIDR must not conflict; CIDR must be contained, service-compatible, approved, and include documented headroom. |
 | NSG selection | `blueprint-managed` or `existing`, resource ID, required rule profile | Blueprint-managed NSGs may be created/updated. Existing NSGs are referenced and validated but never modified. |
 | Route-table selection | optional existing resource ID | Brownfield reference only. The feature can associate it with a new subnet but cannot create or modify route tables or routes. |
-| Private DNS zone reference | service role, zone resource ID, zone name, owner scope | Brownfield prerequisite; zone and records are read-only. |
-| VNet-link request | zone resource ID, VNet resource ID, link name, registration flag | Blueprint-managed child resource; registration must be disabled. |
+| Private DNS zone reference | service role, zone resource ID, zone name, owner scope, DNS subscription ID | Brownfield prerequisite; zone and records are read-only. Zone resource ID and subscription ID may differ from the workload subscription (cross-subscription DNS hub). |
+| DNS integration mode | `vnet-link` or `zone-group` | Explicit, required brownfield input; never inferred from discovery. Selects which of the two FR-016 mechanisms is used for the deployment. |
+| VNet-link request | zone resource ID, VNet resource ID, link name, registration flag | Blueprint-managed child resource; registration must be disabled. Applies only when DNS integration mode is `vnet-link`. |
+| DNS zone group reference | private endpoint resource ID, zone resource ID (full ARM ID, may be cross-subscription), group config name | No blueprint-managed link resource is created. Applies only when DNS integration mode is `zone-group`; used by `private-endpoint.bicep`'s `privateDnsZoneConfigs`. |
 | Bastion selection | enabled, subnet CIDR, host name, public IP name, tags | Optional. Disabled means no Bastion-related resources. |
 | Policy inputs | `publicNetworkAccessDisabled`, `localAuthDisabled`, `allowedModelSkus` | Required deployment-time object. Both booleans must be present and `true`; `allowedModelSkus` must be a non-empty array of unique, non-empty, case-sensitive SKU strings with no wildcards or patterns. This spec creates no resource exposing public-network-access or local-auth settings and no model/serving resource; it validates schema/posture, then forwards the values unchanged to Foundry/APIM, which enforce applicability. |
 | Approval evidence | stage, owner role, what-if digest, decision, timestamp, redaction status | Required before each mutating stage; committed evidence contains no customer identifiers. |
@@ -43,8 +45,9 @@ Deployment mode
                     -> subnet requests
                        -> blueprint or existing NSG
                        -> optional existing route table
-                    -> existing DNS zone references
-                       -> blueprint-managed VNet links
+                    -> existing DNS zone references (same- or cross-subscription)
+                       -> DNS integration mode: vnet-link -> blueprint-managed VNet links
+                       -> DNS integration mode: zone-group -> per-PE DNS zone group refs
                     -> optional Bastion
 ```
 

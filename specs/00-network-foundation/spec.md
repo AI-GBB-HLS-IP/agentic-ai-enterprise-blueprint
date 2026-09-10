@@ -59,6 +59,47 @@ firewall. This is documented here so the deviation is never silently permanent.
   correct the DNS issue, rerun and approve the DNS-scoped what-if, and retry the DNS stage
   idempotently. Do not automatically remove approved resources across ownership boundaries.
 
+### Session 2026-09-10
+
+- Q: Live discovery against a real brownfield target (subscription `AZR-133`, VNet
+  `azr-133-eastus`) found centrally owned Private DNS zones hosted in a **different
+  subscription** than the target VNet (a per-tier DNS hub, e.g.
+  `VPCXAzureDevelopmentHub-VPCx`), and found **zero VNet-level links** registered on any zone
+  (`az network private-dns link vnet list` returned empty for every checked zone). The DNS
+  owner confirmed there is no VNet-linking process at all: private endpoints are simply
+  created with a DNS zone group referencing the existing hub zone directly, and access to
+  link is granted implicitly to the resource owner. Does the spec's VNet-link-only DNS
+  mechanism (FR-016) still hold?
+  A: No — it was one of two valid mechanisms, and evidently not the one this environment
+  uses. Brownfield mode MUST support two mutually exclusive, per-deployment DNS integration
+  mechanisms, selected explicitly, not inferred: (1) **VNet-link mode** (original design):
+  the blueprint creates and manages registration-disabled VNet-to-zone links, staged and
+  approved via a DNS-scoped what-if, as already specified. (2) **Zone-group mode** (new): the
+  blueprint does not create or manage any VNet-to-zone link at all; each private endpoint's
+  own `privateDnsZoneConfigs` (DNS zone group) references the existing zone directly by full
+  resource ID, which may be in another subscription. No DNS-owner-approved what-if stage is
+  required for zone-group mode beyond the existing per-resource deployment approval, since no
+  DNS-owner-scoped resource (a VNet link) is being created. The existing zone still MUST be
+  read-only and pre-existing; the blueprint MUST NOT create, replace, or take ownership of it
+  in either mode.
+- Q: Does zone-group mode change the same-subscription assumption for DNS zones?
+  A: No new assumption is needed — FR-015 already permits centrally owned Private DNS zones
+  in another approved subscription within the same tenant. What changes is that zone-group
+  mode requires the deployment to resolve and pass a full cross-subscription zone resource ID
+  (via an explicit `dnsSubscriptionId` input, not inferred from the workload subscription) to
+  each downstream module (e.g. `foundry.bicep`) that builds `privateDnsZoneConfigs`, since
+  same-subscription-only `existing` zone resource declarations cannot resolve across
+  subscriptions.
+- Q: Does APIM's `privatelink.azure-api.net` zone requirement (FR-016a) still apply when APIM
+  uses VNet injection instead of a private endpoint?
+  A: No. FR-016a's zone list applies only to private-endpoint-based service roles. When APIM
+  uses VNet injection (`virtualNetworkType: Internal`), it has no private endpoint and
+  therefore no `privatelink.azure-api.net` DNS zone group dependency; instead it depends on
+  its own self-owned, blueprint-created zone (conventionally named `azure-api.net`, no
+  `privatelink.` prefix) for gateway hostname resolution, unrelated to centrally owned zones.
+  FR-016a is corrected to state the zone list applies only when the corresponding service role
+  is deployed behind a private endpoint.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Platform Engineer provisions the network from zero (Priority: P1)
@@ -352,23 +393,40 @@ must be confirmed with the tenant administrator when self-service group creation
   MAY be in other approved subscriptions within the same tenant.
 - **FR-015a**: Brownfield changes MUST be separated into owner-aligned deployment stages. The
   network stage MUST contain only subnet, blueprint-managed NSG, and approved association changes.
-  The DNS stage MUST contain only approved VNet-link changes. Each owner MUST review and approve a
-  scoped what-if before applying its stage.
+  In VNet-link mode (FR-016), the DNS stage MUST contain only approved VNet-link changes and each
+  owner MUST review and approve a scoped what-if before applying its stage. In zone-group mode
+  (FR-016b), there is no separate DNS-owner stage: zone-group references are deployed as part of
+  the same workload deployment that creates the private endpoint.
 - **FR-015b**: A failed later stage MUST block downstream deployment but MUST NOT automatically
   roll back a successfully applied earlier owner-approved stage. Recovery MUST correct the failed
-  stage, regenerate and reapprove its scoped what-if, and retry it idempotently.
-- **FR-016**: Brownfield mode MUST support centrally owned private DNS zones without creating,
-  replacing, or taking ownership of those zones or their records. The blueprint MUST accept
-  approved zone resource IDs and create and manage only the VNet links to the selected existing
-  VNet. DNS links MUST be deployed once per DNS-zone resource group and subscription so each
-  deployment has one explicit owner scope.
-- **FR-016a**: Brownfield DNS inputs MUST provide approved existing zones for active
-  Cognitive Services/Foundry, Azure OpenAI, APIM, Key Vault, and Storage Blob roles. Optional
-  service roles, including SQL, are required only when the corresponding downstream service is
-  enabled. Cosmos DB (`privatelink.documents.azure.com`) and AI Search
-  (`privatelink.search.windows.net`) zones MUST be supplied whenever the Foundry Agent Service
-  capability host is enabled, since both are required dependent resources for agent thread storage
-  and vector-store connections.
+  stage, regenerate and reapprove its scoped what-if, and retry it idempotently. This applies to
+  VNet-link mode; zone-group mode has no separate DNS stage to roll forward independently.
+- **FR-016**: Brownfield mode MUST support two mutually exclusive, explicitly selected DNS
+  integration mechanisms against centrally owned private DNS zones, in both cases without
+  creating, replacing, or taking ownership of those zones or their records:
+  - **VNet-link mode**: the blueprint accepts approved zone resource IDs and creates and manages
+    only registration-disabled VNet links to the selected existing VNet. DNS links MUST be
+    deployed once per DNS-zone resource group and subscription so each deployment has one
+    explicit owner scope.
+- **FR-016b**: In zone-group mode, the blueprint MUST NOT create or manage any VNet-to-zone link.
+  Each private endpoint's DNS zone group MUST reference the approved existing zone directly by
+  full resource ID, resolved from an explicit `dnsSubscriptionId` and `dnsResourceGroupName` input
+  pair rather than inferred from the workload subscription, so the reference resolves correctly
+  whether the zone is same-subscription or cross-subscription. Mode selection (VNet-link vs.
+  zone-group) MUST be an explicit deployment input; the blueprint MUST NOT silently infer the mode
+  from discovery results.
+- **FR-016a**: Brownfield DNS inputs MUST provide approved existing zones for every active service
+  role that is deployed behind a private endpoint, among Cognitive Services/Foundry, Azure OpenAI,
+  Key Vault, and Storage Blob. Optional service roles, including SQL, are required only when the
+  corresponding downstream service is enabled and deployed behind a private endpoint. Cosmos DB
+  (`privatelink.documents.azure.com`) and AI Search (`privatelink.search.windows.net`) zones MUST
+  be supplied whenever the Foundry Agent Service capability host is enabled, since both are
+  required dependent resources for agent thread storage and vector-store connections. APIM is
+  excluded from this list: when APIM uses VNet injection (see the Foundry/APIM specs' approved
+  profile), it has no private endpoint and depends instead on its own self-owned,
+  blueprint-created zone (conventionally named `azure-api.net`, no `privatelink.` prefix) for
+  gateway hostname resolution; a centrally owned `privatelink.azure-api.net` zone is required only
+  if a future APIM profile uses a private endpoint instead of VNet injection.
 - **FR-017**: Azure Bastion MUST be optional in both greenfield and brownfield modes. When
   disabled, no Bastion subnet, host, or public IP may be proposed.
 - **FR-018**: NSG and route-table integration MUST be explicit and limited to approved new
