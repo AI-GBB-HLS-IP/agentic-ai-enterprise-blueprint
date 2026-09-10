@@ -5,7 +5,7 @@ Ready to implement. Spec approved in PR #62 (merged into `specs/00-network-found
 `data-model.md`, `contracts/deployment-parameters.md`, `tasks.md`).
 
 ## Problem
-Live discovery against a real brownfield target (`AZR-133` / `azr-133-eastus`) found two gaps
+Live discovery against a real brownfield target (`<SUBSCRIPTION_ALIAS>` / `<VNET_NAME>`) found two gaps
 between the spec's original assumptions and reality:
 
 1. Centrally owned Private DNS zones live in a **different subscription** than the target VNet,
