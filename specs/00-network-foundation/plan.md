@@ -182,10 +182,11 @@ No `NEEDS CLARIFICATION` items remain.
    - Define new dedicated subnet names and CIDRs only after discovery.
    - Require Foundry `/27` as the current platform minimum and `/26` or larger as the blueprint
      POC recommendation.
-   - Require classic Premium APIM `/29` as the technical platform minimum and `/27` or larger as
-     the blueprint POC recommendation.
-   - Size private endpoint, compute, and CI/CD subnets from expected endpoint/instance counts,
-     Azure-reserved addresses, service-specific requirements, and documented growth allowance.
+   - Require `/27` for the Premium SKU running on the confirmed `stv2` platform; SKU tier and
+     platform version are separate properties, so this does not select Premium v2.
+   - Size the private endpoint and merged compute/CI/CD subnets from expected endpoint/instance
+     counts, Azure-reserved addresses, service-specific requirements, and documented growth
+     allowance.
    - Record a generic IPAM approval reference outside committed customer-specific artifacts.
 
 4. **Brownfield read-only preflight**

@@ -71,6 +71,10 @@ if "dnsResourceGroupName is required when dnsIntegrationMode is zone-group" not 
     sys.exit("missing zone-group DNS resource-group validation")
 if "effectiveDnsSubscriptionId" not in serialized or "effectiveDnsResourceGroupName" not in serialized:
     sys.exit("zone-group resource IDs do not use validated DNS scope values")
+if "dnsSubscriptionId must be empty or match the workload subscription" not in serialized:
+    sys.exit("missing vnet-link DNS subscription scope validation")
+if "dnsResourceGroupName must be empty or match networkResourceGroupName" not in serialized:
+    sys.exit("missing vnet-link DNS resource-group scope validation")
 PY
 
 echo "==> brownfield-dns.bicep: zone-group mode gates every VNet link"
@@ -80,12 +84,14 @@ import sys
 
 arm = json.load(open(sys.argv[1]))
 resources = arm.get("resources", [])
-if len(resources) != 7:
-    sys.exit(f"expected 7 DNS link deployments after removing APIM, found {len(resources)}")
+if len(resources) != 6:
+    sys.exit(f"expected 6 DNS link deployments for the enabled Foundry services, found {len(resources)}")
 
 serialized = json.dumps(resources)
 if "privatelink.azure-api.net" in serialized or "brownfield-link-apim" in serialized:
     sys.exit("APIM private-link DNS must be absent for the VNet-injected APIM profile")
+if "privatelink.database.windows.net" in serialized or "brownfield-link-sql" in serialized:
+    sys.exit("optional SQL private-link DNS must be absent when no SQL service role is enabled")
 
 for resource in resources:
     condition = resource.get("condition", "")

@@ -1,7 +1,7 @@
 targetScope = 'resourceGroup'
 
 // DNS-owner entry point for brownfield deployments. In vnet-link mode, links the existing VNet
-// to the 7 required private DNS zones. Each link is deployed at the DNS zone resource-group scope
+// to the 6 required private DNS zones. Each link is deployed at the DNS zone resource-group scope
 // (dnsResourceGroupName); this template never creates or modifies a zone — only VNet links, with
 // registration always disabled. In zone-group mode, it deploys no resources.
 //
@@ -35,7 +35,6 @@ param privateDnsZoneNames object = {
   azureOpenAI: 'privatelink.openai.azure.com'
   keyVault: 'privatelink.vaultcore.azure.net'
   storageBlob: 'privatelink.blob.core.windows.net'
-  sql: 'privatelink.database.windows.net'
   cosmosDB: 'privatelink.documents.azure.com'
   aiSearch: 'privatelink.search.windows.net'
 }
@@ -80,16 +79,6 @@ module storageBlobLink '../../modules/network/private-dns-link.bicep' = if (dnsI
   }
 }
 
-module sqlLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
-  scope: resourceGroup(dnsSubscriptionId, dnsResourceGroupName)
-  name: 'brownfield-link-sql'
-  params: {
-    zoneName: privateDnsZoneNames.sql
-    vnetId: vnetId
-    vnetName: vnetName
-  }
-}
-
 module cosmosDBLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
   scope: resourceGroup(dnsSubscriptionId, dnsResourceGroupName)
   name: 'brownfield-link-cosmosdb'
@@ -119,8 +108,6 @@ output linkIds object = dnsIntegrationMode == 'vnet-link' ? {
   keyVault: keyVaultLink.outputs.linkId
   #disable-next-line BCP318
   storageBlob: storageBlobLink.outputs.linkId
-  #disable-next-line BCP318
-  sql: sqlLink.outputs.linkId
   #disable-next-line BCP318
   cosmosDB: cosmosDBLink.outputs.linkId
   #disable-next-line BCP318

@@ -43,7 +43,9 @@ Implement tasks from an OpenSpec change.
    - Optional `operationGuidance`: current advisory guidance for apply
 
    **Handle states:**
-   - If `state: "blocked"` (missing artifacts): show message, suggest using `/opsx-continue` (if it is not installed, run `openspec status --change "<name>" --json` to see the next artifact and `openspec instructions <artifact-id> --change "<name>" --json` for how to create it)
+   - If `state: "blocked"` (missing artifacts): show the message, run
+     `openspec status --change "<name>" --json` to identify the next artifact, then run
+     `openspec instructions <artifact-id> --change "<name>" --json` and explain how to create it
    - If `state: "all_done"`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 

@@ -141,19 +141,19 @@ NSGs, and existing-zone VNet links are allowed.
 ### Discovery and Capacity Tests
 
 - [ ] T030 [P] [US4] Add failing tests proving discovery uses read-only Azure operations and inventories VNet prefixes, subnet names and CIDRs, delegations, NSG and route-table associations, peerings, DNS configuration, DDoS settings, and unallocated ranges in `tests/network/test-discover-existing-vnet.sh`
-- [ ] T031 [P] [US4] Add failing capacity tests for missing IPAM evidence, Azure-reserved addresses, insufficient growth allowance, Foundry prefixes smaller than `/27`, Foundry allocations below `/26` without rationale, classic Premium APIM prefixes smaller than `/29`, APIM allocations below `/27` without rationale, and workload-derived private endpoint, compute, and CI/CD sizing in `tests/network/test-calculate-subnet-capacity.sh`
+- [ ] T031 [P] [US4] Add failing capacity tests for missing IPAM evidence, Azure-reserved addresses, insufficient growth allowance, Foundry prefixes smaller than `/27`, Foundry allocations below `/26` without rationale, Premium-on-`stv2` APIM prefixes smaller than `/27`, and workload-derived private endpoint and merged compute/CI/CD sizing in `tests/network/test-calculate-subnet-capacity.sh`
 
 ### Discovery and Capacity Implementation
 
 - [x] T032 [US4] Implement read-only existing-VNet discovery and local JSON output in `scripts/network/discover-existing-vnet.sh`, ensuring it proposes no changes and never writes discovery values into repository artifacts
 - [~] T033 [US4] Implement service-profile and workload-derived capacity calculation in `scripts/network/calculate-subnet-capacity.sh`, including minimums, recommendations, expected consumers, Azure-reserved addresses, growth allowance, rationale, and generic IPAM approval status
-  *Partial:* `scripts/network/generate-brownfield-params.sh` derives the allocation from discovery, enforces the Foundry `/27` and APIM `/29` platform minimums, reports Azure-reserved usable counts, and emits reviewable `.bicepparam` files. Workload-derived consumer counts, growth allowance, and IPAM approval status remain open.
+  *Partial:* `scripts/network/generate-brownfield-params.sh` derives the allocation from discovery, enforces the Foundry `/27` and Premium-on-`stv2` APIM `/27` platform minimums, reports Azure-reserved usable counts, and emits reviewable `.bicepparam` files. Workload-derived consumer counts, growth allowance, and IPAM approval status remain open.
 - [ ] T034 [P] [US4] Define placeholder-only discovery, capacity, deployment-key, ownership, adoption, NSG, route-table, and subnet-request inputs in `infra/envs/poc/brownfield-network.bicepparam.example`
 
 ### Brownfield Preflight Tests
 
 - [ ] T035 [P] [US4] Add failing tests for duplicate requested names, existing customer-managed names, malformed CIDRs, containment failures, overlaps with existing subnets, and overlaps among requested subnets in `tests/network/test-brownfield-address-validation.sh`
-- [ ] T036 [P] [US4] Add failing tests for delegation, private-endpoint policy, Foundry, classic Premium APIM, private endpoint, compute, CI/CD, and growth-headroom rules in `tests/network/test-brownfield-service-profiles.sh`
+- [ ] T036 [P] [US4] Add failing tests for delegation, private-endpoint policy, Foundry, Premium-on-`stv2` APIM, private endpoint, merged compute/CI/CD, and growth-headroom rules in `tests/network/test-brownfield-service-profiles.sh`
 - [ ] T037 [P] [US4] Add failing tests for missing prior deployment ownership, mismatched deployment keys, changed live subnet properties, implicit adoption, incomplete adoption approval, and exact-match adoption fallback in `tests/network/test-brownfield-ownership.sh`
 - [ ] T038 [P] [US4] Add failing tests for cross-tenant references, VNet and blueprint resource groups in different subscriptions, unresolved or unapproved NSGs, unresolved or unapproved route tables, and missing read or association permissions in `tests/network/test-brownfield-scope-and-references.sh`
 

@@ -377,10 +377,11 @@ must be confirmed with the tenant administrator when self-service group creation
   Discovery MUST complete before subnet parameters are approved.
 - **FR-013c**: The sizing gate MUST distinguish technical minimums from blueprint recommendations.
   For the currently approved service profiles, Foundry VNet injection MUST use `/27` or larger and
-  SHOULD use `/26` or larger for POC growth headroom; the confirmed `stv2` APIM profile MUST use
-  `/27` or larger. Private endpoint and merged compute/CI/CD subnet sizes MUST be derived from
-  documented endpoint/instance counts, Azure-reserved addresses, service-specific requirements,
-  and an approved growth allowance.
+  SHOULD use `/26` or larger for POC growth headroom; the approved Premium SKU running on the
+  confirmed `stv2` platform MUST use `/27` or larger. SKU tier and platform version are separate
+  properties; this requirement does not select Premium v2. Private endpoint and merged
+  compute/CI/CD subnet sizes MUST be derived from documented endpoint/instance counts,
+  Azure-reserved addresses, service-specific requirements, and an approved growth allowance.
 - **FR-013d**: Brownfield capacity approval MUST include a generic IPAM approval reference so
   automation does not claim authority over unallocated-but-reserved or externally routed ranges
   that are not visible from the VNet resource itself.
@@ -398,7 +399,7 @@ must be confirmed with the tenant administrator when self-service group creation
   | Purpose key | Relative CIDR | Size | Usable IPs | Sizing basis |
   |---|---|---|---|---|
   | `foundry` | `.0/27` | 32 | 27 | Technical minimum; approved POC trade-off below the `/26` recommendation |
-  | `apim` | `.32/27` | 32 | Confirmed `stv2` ARM-enforced minimum |
+  | `apim` | `.32/27` | 32 | 27 | Premium SKU on confirmed `stv2`; ARM-enforced platform minimum |
   | `privateEndpoints` | `.64/28` | 16 | 11 | Covers Foundry account/project, Storage, AI Search, Cosmos DB, Key Vault endpoints |
   | `compute` | `.80/28` | 16 | 11 | Merged compute and CI/CD agents for the POC |
   | spare | `.96/27` | 32 | — | Reserved for growth; production uses a larger allocation and separate workload subnets |

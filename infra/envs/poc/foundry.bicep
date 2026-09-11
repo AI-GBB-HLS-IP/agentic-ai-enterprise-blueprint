@@ -12,23 +12,27 @@ param networkResourceGroupName string = resourceGroup().name
 ])
 param dnsIntegrationMode string
 
-@description('Subscription containing the existing private DNS zones. Required in zone-group mode; ignored in vnet-link mode, where it defaults to this subscription.')
+@description('Subscription containing the private DNS zones. Required in zone-group mode. In vnet-link mode it must be empty or match the workload subscription.')
 param dnsSubscriptionId string = ''
 
-@description('Resource group containing the existing private DNS zones. Required in zone-group mode; ignored in vnet-link mode, where it defaults to networkResourceGroupName.')
+@description('Resource group containing the private DNS zones. Required in zone-group mode. In vnet-link mode it must be empty or match networkResourceGroupName.')
 param dnsResourceGroupName string = ''
 
 var effectiveDnsSubscriptionId = dnsIntegrationMode == 'zone-group'
   ? (empty(dnsSubscriptionId)
       ? fail('dnsSubscriptionId is required when dnsIntegrationMode is zone-group; it must not be inferred from the workload subscription.')
       : dnsSubscriptionId)
-  : (empty(dnsSubscriptionId) ? subscription().subscriptionId : dnsSubscriptionId)
+  : (empty(dnsSubscriptionId) || dnsSubscriptionId == subscription().subscriptionId
+      ? subscription().subscriptionId
+      : fail('dnsSubscriptionId must be empty or match the workload subscription when dnsIntegrationMode is vnet-link.'))
 
 var effectiveDnsResourceGroupName = dnsIntegrationMode == 'zone-group'
   ? (empty(dnsResourceGroupName)
       ? fail('dnsResourceGroupName is required when dnsIntegrationMode is zone-group; it must not be inferred from the workload resource group.')
       : dnsResourceGroupName)
-  : (empty(dnsResourceGroupName) ? networkResourceGroupName : dnsResourceGroupName)
+  : (empty(dnsResourceGroupName) || dnsResourceGroupName == networkResourceGroupName
+      ? networkResourceGroupName
+      : fail('dnsResourceGroupName must be empty or match networkResourceGroupName when dnsIntegrationMode is vnet-link.'))
 
 param foundryAccountName string = 'foundry-agent-factory-poc'
 param projectName string = 'prj-agent-factory-poc'

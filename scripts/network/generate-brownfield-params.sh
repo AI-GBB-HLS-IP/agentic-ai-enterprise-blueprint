@@ -185,6 +185,12 @@ if not vnet_rg:
 if not location:
     fail("discovery file is missing vnet.location; pass --location.")
 
+if config["dnsIntegrationMode"] == "vnet-link":
+    if config["dnsSubscriptionId"]:
+        fail("--dns-subscription-id is not supported in vnet-link mode; use zone-group for cross-subscription DNS.")
+    if config["dnsResourceGroup"] and config["dnsResourceGroup"] != vnet_rg:
+        fail("--dns-resource-group must match the VNet resource group in vnet-link mode; use zone-group for a separate DNS scope.")
+
 address_prefixes = vnet.get("addressPrefixes") or []
 if not address_prefixes:
     fail("discovery file lists no VNet address prefixes.")
@@ -306,17 +312,18 @@ else:
         fail(f"no free /{block_size} block found in {address_prefixes}. {hint}")
     auto_selected = True
 
-minimum_blocks = list(chosen.subnets(new_prefix=27))
-foundry_net = minimum_blocks[0]
-apim_net = minimum_blocks[1]
-shared_quarters = list(minimum_blocks[2].subnets(new_prefix=28))
-private_endpoints_net = shared_quarters[0]
-compute_net = shared_quarters[1]
+minimum_blocks = chosen.subnets(new_prefix=27)
+foundry_net = next(minimum_blocks)
+apim_net = next(minimum_blocks)
+support_net = next(minimum_blocks)
+support_subnets = support_net.subnets(new_prefix=28)
+private_endpoints_net = next(support_subnets)
+compute_net = next(support_subnets)
 
 prefix = config["namePrefix"].rstrip("-")
 plan = [
     ("foundry", f"{prefix}-foundry", foundry_net, "Delegated to Microsoft.App/environments; platform minimum /27"),
-    ("apim", f"{prefix}-apim", apim_net, "APIM stv2 VNet injection; platform minimum /27"),
+    ("apim", f"{prefix}-apim", apim_net, "APIM Premium SKU on confirmed stv2 platform; minimum /27"),
     ("privateendpoints", f"{prefix}-privateendpoints", private_endpoints_net, "Private endpoints; 5 Azure-reserved addresses"),
     ("compute", f"{prefix}-compute", compute_net, "Merged compute and CI/CD agents; 5 Azure-reserved addresses"),
 ]
@@ -404,10 +411,11 @@ for name, network in used_networks:
         fail(f"internal error: proposed allocation overlaps existing subnet '{name}' ({network}).")
 
 if not vnet_id:
-    warnings.append("discovery file has no vnet.id; generated DNS and Foundry parameters keep placeholders.")
+    warnings.append("discovery file has no vnet.id; the generated DNS parameter file keeps a placeholder.")
 
 dns_mode = config["dnsIntegrationMode"]
-dns_subscription_id = config["dnsSubscriptionId"]
+requested_dns_subscription_id = config["dnsSubscriptionId"]
+dns_subscription_id = requested_dns_subscription_id
 dns_rg = config["dnsResourceGroup"]
 if not dns_subscription_id and vnet_id:
     vnet_id_parts = vnet_id.strip("/").split("/")
@@ -492,7 +500,6 @@ param privateDnsZoneNames = {{
   azureOpenAI: 'privatelink.openai.azure.com'
   keyVault: 'privatelink.vaultcore.azure.net'
   storageBlob: 'privatelink.blob.core.windows.net'
-  sql: 'privatelink.database.windows.net'
   cosmosDB: 'privatelink.documents.azure.com'
   aiSearch: 'privatelink.search.windows.net'
 }}
@@ -506,8 +513,8 @@ foundry_param_text = f"""using '{foundry_bicep_path}'
 param location = {bicep_string(location)}
 param networkResourceGroupName = {bicep_string(vnet_rg)}
 param dnsIntegrationMode = {bicep_string(dns_mode)}
-param dnsSubscriptionId = {bicep_string(dns_subscription_id) if dns_subscription_id else "'<dns-zone-subscription-id>'"}
-param dnsResourceGroupName = {bicep_string(dns_rg) if dns_rg else "'<dns-zone-resource-group>'"}
+param dnsSubscriptionId = {bicep_string(requested_dns_subscription_id) if requested_dns_subscription_id else "''"}
+param dnsResourceGroupName = {bicep_string(dns_rg) if dns_rg else "''"}
 param vnetName = {bicep_string(vnet_name)}
 param foundrySubnetName = {bicep_string(plan[0][1])}
 param privateEndpointSubnetName = {bicep_string(plan[2][1])}

@@ -16,10 +16,11 @@ read it to deploy. Links to it appear at the bottom if you want the reasoning be
 | **Creates the VNet?** | Yes | No — writes subnets into theirs |
 | **Entry point** | `infra/envs/poc/main.bicep` | `infra/envs/poc/brownfield-network.bicep`, then `brownfield-dns.bicep` |
 | **Parameters** | `infra/envs/poc/network.parameters.json` (tracked) | `brownfield-*.bicepparam` (you create, git-ignored) |
-| **Stages** | One | Two — network owner, then DNS owner |
+| **Stages** | One | Network owner; `vnet-link` adds a DNS-owner stage |
 | **Go to** | [Section 4](#4-greenfield-deployment) | [Section 5](#5-brownfield-deployment) |
 
-Both modes produce the same shape: five purpose-keyed subnets and eight private DNS zones.
+Greenfield creates five purpose-keyed subnets and its DNS zones. The constrained brownfield POC
+creates four subnets by merging compute with CI/CD agents; DNS zones remain externally owned.
 
 ---
 
@@ -225,10 +226,12 @@ picking the first free block in the VNet and carving it into four POC subnets.
 ```
 
 Use `zone-group` when private endpoints reference centrally owned zones directly. Use `vnet-link`
-when the DNS owner expects this deployment to create registration-disabled VNet links. The mode is
-required and is never inferred. In `zone-group` mode, both `--dns-subscription-id` and
-`--dns-resource-group` are required; the deploying identity or DNS-owning team must already provide
-the RBAC needed for each private endpoint's zone-group association.
+when the DNS zones are in the workload subscription and VNet resource group and the deployment
+should create registration-disabled VNet links. The mode is required and is never inferred.
+Separate DNS subscriptions or resource groups require `zone-group`. In that mode, both
+`--dns-subscription-id` and `--dns-resource-group` are required; the deploying identity or
+DNS-owning team must already provide the RBAC needed for each private endpoint's zone-group
+association.
 
 The script writes `infra/envs/poc/brownfield-network.bicepparam`,
 `infra/envs/poc/brownfield-dns.bicepparam`, and
@@ -256,8 +259,8 @@ sign-off on the CIDRs before deploying.
 | `--block <cidr>` | IPAM handed you a specific range — skips auto-selection but still validates it |
 | `--block-size <n>` | You want a block larger than the minimum viable `/25` |
 | `--dns-integration-mode <vnet-link\|zone-group>` | Select the required DNS integration mechanism explicitly |
-| `--dns-subscription-id <id>` | DNS zones are in this subscription; required with `zone-group` |
-| `--dns-resource-group <rg>` | DNS zone resource group; required with `zone-group` |
+| `--dns-subscription-id <id>` | DNS zones are in this subscription; required with `zone-group` and rejected with `vnet-link` |
+| `--dns-resource-group <rg>` | DNS zone resource group; required with `zone-group`; with `vnet-link`, it must match the VNet resource group |
 | `--name-prefix <prefix>` | Default `hybridsubnet-*` names collide, or your naming standard differs |
 | `--shared-hybrid-nsg-id <id>` | NSG mode 1 (see below) |
 | `--reuse-existing-nsgs` + `--existing-apim-nsg-id` + `--existing-compute-nsg-id` | NSG mode 2 |
@@ -271,7 +274,8 @@ found so you can pass one with `--block` or take the numbers to the network admi
 
 **How the block is split:** the minimum viable `/25` yields Foundry `/27`, APIM `/27`, private
 endpoints `/28`, and a merged compute + CI/CD agents `/28`, leaving one `/27` (32 addresses)
-spare. APIM's `/27` is the ARM-enforced minimum for the confirmed `stv2` platform. Merging compute
+spare. APIM's `/27` is the ARM-enforced minimum for the Premium SKU's confirmed `stv2` platform.
+The SKU tier and platform version are separate properties; this does not select Premium v2. Merging compute
 and CI/CD agents is a POC-only isolation trade-off; production should request a larger allocation
 and use separate workload subnets.
 
@@ -281,7 +285,7 @@ supporting subnets cannot fit.
 | Subnet | Platform minimum | Recommended |
 | --- | --- | --- |
 | Foundry (delegated) | `/27` | `/26` or larger |
-| APIM (`stv2`, VNet-injected) | `/27` | `/27` or larger |
+| APIM (Premium SKU, confirmed `stv2` platform, VNet-injected) | `/27` | `/27` or larger |
 | Private endpoints | endpoint count + 5 Azure-reserved + growth | |
 | Compute + CI/CD agents (merged for POC) | workload + 5 Azure-reserved + growth | separate production subnets |
 
@@ -403,7 +407,7 @@ creates or modifies a zone, so the zones must already exist. Required zones:
 ```
 privatelink.cognitiveservices.azure.com   privatelink.openai.azure.com
 privatelink.vaultcore.azure.net
-privatelink.blob.core.windows.net         privatelink.database.windows.net
+privatelink.blob.core.windows.net
 privatelink.documents.azure.com           privatelink.search.windows.net
 ```
 
@@ -473,7 +477,12 @@ properties and are expected false positives.
 
 ```bash
 ./scripts/network/discover-existing-vnet.sh --resource-group <rg> --vnet <name>   # read-only
-./scripts/network/generate-brownfield-params.sh --discovery <discovery.json>
+./scripts/network/generate-brownfield-params.sh \
+  --discovery <discovery.json> \
+  --dns-integration-mode vnet-link \
+  --dns-resource-group <dns-zone-resource-group>
+# For zone-group mode, replace the mode and also pass:
+#   --dns-subscription-id <dns-zone-subscription-id>
 ./scripts/network/validate-policy-inputs.sh --input policy-inputs.local.json
 ./scripts/network/scan-confidentiality.sh
 ./tests/network/run-tests.sh
