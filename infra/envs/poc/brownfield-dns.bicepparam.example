@@ -9,7 +9,7 @@ using './brownfield-dns.bicep'
 // invocation per scope) — it must be run separately from brownfield-network.bicepparam.
 
 param dnsIntegrationMode = 'vnet-link'
-param dnsSubscriptionId = '<dns-zone-subscription-id>'
-param dnsResourceGroupName = '<dns-zone-resource-group>'
+param dnsSubscriptionId = '<vnet-subscription-id>'
+param dnsResourceGroupName = '<vnet-resource-group>'
 param vnetId = '<full-arm-resource-id-of-existing-vnet>'
 param vnetName = '<existing-vnet-name>'
