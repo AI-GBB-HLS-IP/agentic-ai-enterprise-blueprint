@@ -1,9 +1,9 @@
 targetScope = 'resourceGroup'
 
-// DNS-owner entry point for brownfield deployments: links the existing VNet to the 8 required
-// private DNS zones. Each link is deployed at the DNS zone resource-group scope
+// DNS-owner entry point for brownfield deployments. In vnet-link mode, links the existing VNet
+// to the 6 required private DNS zones. Each link is deployed at the DNS zone resource-group scope
 // (dnsResourceGroupName); this template never creates or modifies a zone — only VNet links, with
-// registration always disabled.
+// registration always disabled. In zone-group mode, it deploys no resources.
 //
 // Fast-POC-pass scope (see issue #48): the deferred DNS preflight validator and what-if guard
 // (specs/00-network-foundation/tasks.md T048-T049, T052-T053) will add cross-tenant/ownership
@@ -13,26 +13,63 @@ targetScope = 'resourceGroup'
 @description('Resource group containing the existing private DNS zones. This template must be deployed scoped to this resource group.')
 param dnsResourceGroupName string = resourceGroup().name
 
+@description('Subscription containing the existing private DNS zones.')
+param dnsSubscriptionId string = subscription().subscriptionId
+
+@description('Private DNS integration mechanism. Zone-group mode intentionally creates no VNet links.')
+@allowed([
+  'vnet-link'
+  'zone-group'
+])
+param dnsIntegrationMode string
+
 @description('Resource ID of the existing VNet to link.')
 param vnetId string
 
 @description('Existing VNet name, used to build a deterministic link name.')
 param vnetName string
 
+var vnetIdSegments = split(vnetId, '/')
+var vnetIdSegmentCount = 9
+var vnetProviderPath = '/providers/microsoft.network/virtualnetworks/'
+var _validateVnetId = (startsWith(toLower(vnetId), '/subscriptions/') && contains(toLower(vnetId), '/resourcegroups/') && contains(toLower(vnetId), vnetProviderPath) && length(vnetIdSegments) == vnetIdSegmentCount)
+  ? true
+  : fail('vnetId must be a full ARM resource ID for Microsoft.Network/virtualNetworks with no trailing slash.')
+var vnetSubscriptionId = _validateVnetId ? vnetIdSegments[2] : ''
+var vnetResourceGroupName = _validateVnetId ? vnetIdSegments[4] : ''
+var validatedVnetSubscriptionId = dnsIntegrationMode == 'vnet-link'
+  ? (toLower(vnetSubscriptionId) == toLower(subscription().subscriptionId)
+      ? vnetSubscriptionId
+      : fail('vnetId must be in the deployment subscription when dnsIntegrationMode is vnet-link. Deploy brownfield-dns.bicep at the VNet resource-group scope.'))
+  : vnetSubscriptionId
+var validatedVnetResourceGroupName = dnsIntegrationMode == 'vnet-link'
+  ? (toLower(vnetResourceGroupName) == toLower(resourceGroup().name)
+      ? vnetResourceGroupName
+      : fail('vnetId must be in the deployment resource group when dnsIntegrationMode is vnet-link. Deploy brownfield-dns.bicep at the VNet resource-group scope.'))
+  : vnetResourceGroupName
+var effectiveDnsSubscriptionId = dnsIntegrationMode == 'vnet-link'
+  ? (toLower(dnsSubscriptionId) == toLower(validatedVnetSubscriptionId)
+      ? dnsSubscriptionId
+      : fail('dnsSubscriptionId must match the VNet subscription when dnsIntegrationMode is vnet-link.'))
+  : dnsSubscriptionId
+var effectiveDnsResourceGroupName = dnsIntegrationMode == 'vnet-link'
+  ? (toLower(dnsResourceGroupName) == toLower(validatedVnetResourceGroupName)
+      ? dnsResourceGroupName
+      : fail('dnsResourceGroupName must match the VNet resource group when dnsIntegrationMode is vnet-link.'))
+  : dnsResourceGroupName
+
 @description('Existing private DNS zone names required by Foundry and its supporting resources. Every zone must already exist in dnsResourceGroupName.')
 param privateDnsZoneNames object = {
   cognitiveServices: 'privatelink.cognitiveservices.azure.com'
   azureOpenAI: 'privatelink.openai.azure.com'
-  apim: 'privatelink.azure-api.net'
   keyVault: 'privatelink.vaultcore.azure.net'
   storageBlob: 'privatelink.blob.core.windows.net'
-  sql: 'privatelink.database.windows.net'
   cosmosDB: 'privatelink.documents.azure.com'
   aiSearch: 'privatelink.search.windows.net'
 }
 
-module cognitiveServicesLink '../../modules/network/private-dns-link.bicep' = {
-  scope: resourceGroup(dnsResourceGroupName)
+module cognitiveServicesLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-cognitiveservices'
   params: {
     zoneName: privateDnsZoneNames.cognitiveServices
@@ -41,8 +78,8 @@ module cognitiveServicesLink '../../modules/network/private-dns-link.bicep' = {
   }
 }
 
-module azureOpenAILink '../../modules/network/private-dns-link.bicep' = {
-  scope: resourceGroup(dnsResourceGroupName)
+module azureOpenAILink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-openai'
   params: {
     zoneName: privateDnsZoneNames.azureOpenAI
@@ -51,18 +88,8 @@ module azureOpenAILink '../../modules/network/private-dns-link.bicep' = {
   }
 }
 
-module apimLink '../../modules/network/private-dns-link.bicep' = {
-  scope: resourceGroup(dnsResourceGroupName)
-  name: 'brownfield-link-apim'
-  params: {
-    zoneName: privateDnsZoneNames.apim
-    vnetId: vnetId
-    vnetName: vnetName
-  }
-}
-
-module keyVaultLink '../../modules/network/private-dns-link.bicep' = {
-  scope: resourceGroup(dnsResourceGroupName)
+module keyVaultLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-keyvault'
   params: {
     zoneName: privateDnsZoneNames.keyVault
@@ -71,8 +98,8 @@ module keyVaultLink '../../modules/network/private-dns-link.bicep' = {
   }
 }
 
-module storageBlobLink '../../modules/network/private-dns-link.bicep' = {
-  scope: resourceGroup(dnsResourceGroupName)
+module storageBlobLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-blob'
   params: {
     zoneName: privateDnsZoneNames.storageBlob
@@ -81,18 +108,8 @@ module storageBlobLink '../../modules/network/private-dns-link.bicep' = {
   }
 }
 
-module sqlLink '../../modules/network/private-dns-link.bicep' = {
-  scope: resourceGroup(dnsResourceGroupName)
-  name: 'brownfield-link-sql'
-  params: {
-    zoneName: privateDnsZoneNames.sql
-    vnetId: vnetId
-    vnetName: vnetName
-  }
-}
-
-module cosmosDBLink '../../modules/network/private-dns-link.bicep' = {
-  scope: resourceGroup(dnsResourceGroupName)
+module cosmosDBLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-cosmosdb'
   params: {
     zoneName: privateDnsZoneNames.cosmosDB
@@ -101,8 +118,8 @@ module cosmosDBLink '../../modules/network/private-dns-link.bicep' = {
   }
 }
 
-module aiSearchLink '../../modules/network/private-dns-link.bicep' = {
-  scope: resourceGroup(dnsResourceGroupName)
+module aiSearchLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-aisearch'
   params: {
     zoneName: privateDnsZoneNames.aiSearch
@@ -111,13 +128,17 @@ module aiSearchLink '../../modules/network/private-dns-link.bicep' = {
   }
 }
 
-output linkIds object = {
+output linkIds object = dnsIntegrationMode == 'vnet-link' ? {
+  #disable-next-line BCP318
   cognitiveServices: cognitiveServicesLink.outputs.linkId
+  #disable-next-line BCP318
   azureOpenAI: azureOpenAILink.outputs.linkId
-  apim: apimLink.outputs.linkId
+  #disable-next-line BCP318
   keyVault: keyVaultLink.outputs.linkId
+  #disable-next-line BCP318
   storageBlob: storageBlobLink.outputs.linkId
-  sql: sqlLink.outputs.linkId
+  #disable-next-line BCP318
   cosmosDB: cosmosDBLink.outputs.linkId
+  #disable-next-line BCP318
   aiSearch: aiSearchLink.outputs.linkId
-}
+} : {}

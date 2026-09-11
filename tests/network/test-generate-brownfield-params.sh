@@ -18,11 +18,17 @@ fail() {
 }
 
 run_generator() {
-  "$GENERATOR" "$@" >"$workdir/run.out" 2>&1
+  "$GENERATOR" --dns-integration-mode vnet-link "$@" >"$workdir/run.out" 2>&1
 }
 
 assert_contains() {
-  grep -qF "$2" "$1" || fail "$3"
+  grep -qF -- "$2" "$1" || fail "$3"
+}
+
+assert_not_contains() {
+  if grep -qF -- "$2" "$1"; then
+    fail "$3"
+  fi
 }
 
 # Placeholder-only fixture: address space inside the blueprint's own 10.0.0.0/16 plan and the
@@ -59,14 +65,16 @@ JSON
 
 # --- happy path: auto-selected block ----------------------------------------------------------
 run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" \
-  --dns-resource-group "rg-dns-placeholder" \
+  --dns-resource-group "rg-placeholder" \
   || fail "generator should succeed on a clean discovery document"
 
 network_param="$outdir/brownfield-network.bicepparam"
 dns_param="$outdir/brownfield-dns.bicepparam"
+foundry_param="$outdir/brownfield-foundry.bicepparam"
 
 [[ -f "$network_param" ]] || fail "network parameter file was not written"
 [[ -f "$dns_param" ]] || fail "dns parameter file was not written"
+[[ -f "$foundry_param" ]] || fail "Foundry parameter file was not written"
 
 expected_using_prefix="$(python3 -c "import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" \
   "${REPO_ROOT}/infra/envs/poc" "$outdir")"
@@ -75,15 +83,22 @@ assert_contains "$network_param" "using '${expected_using_prefix}/brownfield-net
 assert_contains "$network_param" "param existingVnetName = 'vnet-placeholder'" "wrong vnet name"
 assert_contains "$network_param" "param existingVnetResourceGroupName = 'rg-placeholder'" "wrong rg"
 assert_contains "$network_param" "param location = 'placeholderregion'" "wrong location"
-assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.1.0/26'" "wrong foundry CIDR"
-assert_contains "$network_param" "param apimSubnetPrefix = '10.0.1.64/28'" "wrong apim CIDR"
-assert_contains "$network_param" "param privateEndpointsSubnetPrefix = '10.0.1.80/28'" "wrong pe CIDR"
-assert_contains "$network_param" "param computeSubnetPrefix = '10.0.1.96/28'" "wrong compute CIDR"
-assert_contains "$network_param" "param cicdAgentsSubnetPrefix = '10.0.1.112/28'" "wrong cicd CIDR"
+assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.1.0/27'" "wrong foundry CIDR"
+assert_contains "$network_param" "param apimSubnetPrefix = '10.0.1.32/27'" "wrong apim CIDR"
+assert_contains "$network_param" "param privateEndpointsSubnetPrefix = '10.0.1.64/28'" "wrong pe CIDR"
+assert_contains "$network_param" "param computeSubnetPrefix = '10.0.1.80/28'" "wrong merged compute CIDR"
+assert_not_contains "$network_param" "cicdAgentsSubnet" "CI/CD agents must use the merged compute subnet"
 assert_contains "$network_param" "param reuseExistingNsgs = false" "default NSG mode should be 3"
 assert_contains "$network_param" "param privateEndpointsNetworkPolicies = 'Disabled'" "wrong PE policy"
-assert_contains "$dns_param" "param dnsResourceGroupName = 'rg-dns-placeholder'" "wrong dns rg"
+assert_contains "$dns_param" "param dnsResourceGroupName = 'rg-placeholder'" "wrong dns rg"
+assert_contains "$dns_param" "param dnsIntegrationMode = 'vnet-link'" "wrong DNS integration mode"
 assert_contains "$dns_param" "param vnetName = 'vnet-placeholder'" "wrong dns vnet name"
+assert_not_contains "$dns_param" "privatelink.azure-api.net" \
+  "APIM VNet injection must not request privatelink.azure-api.net"
+assert_not_contains "$dns_param" "privatelink.database.windows.net" \
+  "Foundry-only generation must not request the optional SQL private DNS zone"
+assert_contains "$foundry_param" "param privateEndpointSubnetName = 'hybridsubnet-privateendpoints'" \
+  "Foundry params do not use the allocated private endpoint subnet"
 
 # --- overwrite protection ---------------------------------------------------------------------
 if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir"; then
@@ -92,11 +107,35 @@ fi
 
 run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   || fail "--force should allow overwriting"
+assert_contains "$foundry_param" "param dnsResourceGroupName = ''" \
+  "vnet-link Foundry params must preserve the template's same-resource-group fallback"
+assert_contains "$foundry_param" "param dnsSubscriptionId = ''" \
+  "vnet-link Foundry params must preserve the template's same-subscription fallback"
+
+if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  --dns-resource-group "rg-separate-dns-placeholder"; then
+  fail "vnet-link mode should reject a DNS resource group separate from the VNet"
+fi
+assert_contains "$workdir/run.out" "must match the VNet resource group in vnet-link mode" \
+  "missing vnet-link DNS resource-group mismatch diagnostic"
+
+run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  --dns-resource-group "RG-PLACEHOLDER" \
+  || fail "vnet-link mode should accept case-insensitive VNet resource-group matches"
+assert_contains "$foundry_param" "param dnsResourceGroupName = 'RG-PLACEHOLDER'" \
+  "case-preserving vnet-link DNS resource group not written to Foundry params"
+
+if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  --dns-subscription-id "separate-subscription-placeholder"; then
+  fail "vnet-link mode should reject a separate DNS subscription"
+fi
+assert_contains "$workdir/run.out" "is not supported in vnet-link mode" \
+  "missing vnet-link DNS subscription mismatch diagnostic"
 
 # --- explicit block ---------------------------------------------------------------------------
 run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   --block "10.0.8.0/25" || fail "explicit in-range block should be accepted"
-assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.8.0/26'" "explicit block ignored"
+assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.8.0/27'" "explicit block ignored"
 
 # --- explicit block that overlaps an existing subnet -------------------------------------------
 if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
@@ -118,18 +157,99 @@ if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --for
   fail "undersized block should be rejected"
 fi
 
-# --- /26 minimum-viable block is accepted (foundry /27 + four /29s) ----------------------------
+# --- /25 minimum-viable block is accepted -------------------------------------------------------
 run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
-  --block-size 26 || fail "minimum-viable /26 block-size should be accepted"
-assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.1.0/27'" "wrong /26-split foundry CIDR"
-assert_contains "$network_param" "param apimSubnetPrefix = '10.0.1.32/29'" "wrong /26-split apim CIDR"
+  --block-size 25 || fail "minimum-viable /25 block-size should be accepted"
+assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.1.0/27'" "wrong /25-split foundry CIDR"
+assert_contains "$network_param" "param apimSubnetPrefix = '10.0.1.32/27'" "wrong /25-split apim CIDR"
+assert_contains "$network_param" "param privateEndpointsSubnetPrefix = '10.0.1.64/28'" \
+  "wrong /25-split private endpoints CIDR"
+assert_contains "$network_param" "param computeSubnetPrefix = '10.0.1.80/28'" \
+  "wrong /25-split merged compute CIDR"
 
-# --- block-size below the /26 floor is rejected -------------------------------------------------
+# --- block-size below the /25 floor is rejected -------------------------------------------------
 if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
-  --block-size 27; then
-  fail "--block-size below the /26 floor should be rejected"
+  --block-size 26; then
+  fail "--block-size below the /25 floor should be rejected"
 fi
-assert_contains "$workdir/run.out" "must be between 8 and 26" "missing block-size floor diagnostic"
+assert_contains "$workdir/run.out" "must be between 8 and 25" "missing block-size floor diagnostic"
+
+# --- DNS mode is explicit and zone-group requires cross-subscription inputs ---------------------
+if "$GENERATOR" --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  >"$workdir/run.out" 2>&1; then
+  fail "omitting --dns-integration-mode should be rejected"
+fi
+assert_contains "$workdir/run.out" "--dns-integration-mode is required" \
+  "missing required DNS mode diagnostic"
+
+if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  --dns-integration-mode zone-group --dns-resource-group "rg-dns-placeholder"; then
+  fail "zone-group mode without --dns-subscription-id should be rejected"
+fi
+assert_contains "$workdir/run.out" "requires both --dns-subscription-id and --dns-resource-group" \
+  "missing zone-group DNS subscription diagnostic"
+
+dns_subscription_id="dns-subscription-placeholder"
+run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  --dns-integration-mode zone-group \
+  --dns-subscription-id "$dns_subscription_id" \
+  --dns-resource-group "rg-dns-placeholder" \
+  || fail "zone-group mode should succeed with explicit DNS scope"
+assert_contains "$dns_param" "param dnsIntegrationMode = 'zone-group'" \
+  "zone-group mode not written to DNS params"
+assert_contains "$dns_param" "param dnsSubscriptionId = '${dns_subscription_id}'" \
+  "cross-subscription DNS ID not written to DNS params"
+assert_contains "$foundry_param" "param dnsIntegrationMode = 'zone-group'" \
+  "zone-group mode not written to Foundry params"
+assert_contains "$foundry_param" "param dnsSubscriptionId = '${dns_subscription_id}'" \
+  "cross-subscription DNS ID not written to Foundry params"
+
+if command -v az >/dev/null 2>&1; then
+  az bicep build-params --file "$foundry_param" --stdout >"$workdir/zone-group-foundry.json" \
+    || fail "generated zone-group Foundry parameters should compile"
+  python3 - "$workdir/zone-group-foundry.json" "$dns_subscription_id" <<'PY' || exit 1
+import json
+import sys
+
+compiled = json.load(open(sys.argv[1]))
+template = json.loads(compiled["templateJson"])
+parameters = json.loads(compiled["parametersJson"])["parameters"]
+
+if parameters["dnsIntegrationMode"]["value"] != "zone-group":
+    sys.exit("compiled Foundry parameters lost zone-group mode")
+if parameters["dnsSubscriptionId"]["value"] != sys.argv[2]:
+    sys.exit("compiled Foundry parameters lost the DNS subscription")
+
+variables = template.get("variables", {})
+zone_ids = json.dumps(variables.get("zoneGroupDnsResourceIds", {}))
+for required in ("effectiveDnsSubscriptionId", "effectiveDnsResourceGroupName", "Microsoft.Network/privateDnsZones"):
+    if required not in zone_ids:
+        sys.exit(f"compiled cross-subscription zone IDs do not reference {required}")
+
+selection = json.dumps(variables.get("privateDnsZoneIds", ""))
+if "dnsIntegrationMode" not in selection or "zoneGroupDnsResourceIds" not in selection:
+    sys.exit("compiled Foundry template does not select zone-group DNS IDs by mode")
+
+for resource in template.get("resources", []):
+    if resource.get("type") in (
+        "Microsoft.Network/privateDnsZones",
+        "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+    ):
+        condition = resource.get("condition", "")
+        if "dnsIntegrationMode" not in condition or "vnet-link" not in condition:
+            sys.exit("Foundry-managed services.ai DNS resources are not gated to vnet-link mode")
+
+foundry_module = next(
+    resource for resource in template["resources"]
+    if resource.get("type") == "Microsoft.Resources/deployments"
+    and resource.get("name") == "foundry-platform"
+)
+inner_template = json.dumps(foundry_module["properties"]["template"])
+for required in ("privateDnsZoneConfigs", "cognitiveServicesDnsZoneId", "servicesAiDnsZoneId"):
+    if required not in inner_template:
+        sys.exit(f"compiled private endpoint zone-group wiring is missing {required}")
+PY
+fi
 
 # --- subnet name collision is fail-closed -------------------------------------------------------
 python3 - "$workdir/discovery.json" "$workdir/collision.json" <<'PY'
@@ -230,8 +350,8 @@ PY
 
 run_generator --discovery "$workdir/fragmented.json" --out-dir "$outdir" --force \
   || fail "generator should find a free block in a partially allocated VNet"
-assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.2.128/26'" \
-  "generator should skip the occupied 10.0.2.0/25 and land on 10.0.2.128/25"
+assert_contains "$network_param" "param foundrySubnetPrefix = '10.0.2.128/27'" \
+  "generator should skip the occupied 10.0.2.0/25 and allocate Foundry at 10.0.2.128/27"
 
 # --- no free block of the requested size ---------------------------------------------------------
 python3 - "$workdir/tight.json" <<'PY'

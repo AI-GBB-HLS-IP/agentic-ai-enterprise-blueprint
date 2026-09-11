@@ -85,13 +85,14 @@ Existing greenfield defaults remain backward compatible.
 
 - `dnsIntegrationMode`: `vnet-link` or `zone-group`, explicit and required; never inferred
 - `dnsSubscriptionId`: subscription ID hosting the approved existing DNS zones; MAY differ from
-  the workload/VNet subscription (cross-subscription DNS hub)
-- `dnsResourceGroupName`: resource group hosting the approved existing DNS zones
+  the workload/VNet subscription only in `zone-group` mode
+- `dnsResourceGroupName`: resource group hosting the approved existing DNS zones; in `vnet-link`
+  mode it MUST match the VNet resource group
 - Per-service-role approved existing zone resource IDs (built from `dnsSubscriptionId` +
   `dnsResourceGroupName` + zone name), required only for roles deployed behind a private endpoint
   (see FR-016a)
 - In `vnet-link` mode only: VNet-link request inputs (link name, registration flag, always
-  disabled) — one deployment per DNS-zone resource group/subscription
+  disabled) for zones in the workload subscription and VNet resource group
 - In `zone-group` mode only: no additional DNS-owner-scoped inputs; zone resource IDs are passed
   straight to the workload modules that build `privateDnsZoneConfigs`
 - APIM is excluded from the per-service-role zone list when it uses VNet injection; it uses its
@@ -116,11 +117,12 @@ For the currently approved profiles:
   production recommendation `/24` (see `spec.md` FR-013e). A `/26` caps concurrent agent sessions
   at ~50 under the default 1:1 IP-to-session ratio and MUST be recorded as an explicit capacity
   trade-off when the admin-allocated VNet cannot fit `/24`.
-- Classic Premium APIM: technical minimum `/29`, blueprint POC recommendation `/27`.
-- Private endpoint, compute, and CI/CD values are calculated from their expected consumers and
-  current service requirements.
-- See `spec.md` FR-013e for a worked brownfield sizing example fitting all five purpose-keyed
-  subnets into an admin-allocated `/25` VNet.
+- Premium SKU on the confirmed `stv2` platform: technical minimum `/27`; SKU tier and platform
+  version are separate properties, so this does not select Premium v2.
+- Private endpoint and merged compute/CI/CD values are calculated from their expected consumers
+  and current service requirements.
+- See `spec.md` FR-013e for the POC `/25` example: Foundry `/27`, APIM `/27`, private endpoints
+  `/28`, merged compute/CI/CD `/28`, and one `/27` spare.
 
 ## Brownfield DNS parameters
 

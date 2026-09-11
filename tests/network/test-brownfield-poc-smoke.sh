@@ -6,6 +6,7 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 NETWORK_ENTRY="${REPO_ROOT}/infra/envs/poc/brownfield-network.bicep"
 DNS_ENTRY="${REPO_ROOT}/infra/envs/poc/brownfield-dns.bicep"
+FOUNDRY_ENTRY="${REPO_ROOT}/infra/envs/poc/foundry.bicep"
 SUBNETS_MODULE="${REPO_ROOT}/infra/modules/network/subnets.bicep"
 DNS_LINK_MODULE="${REPO_ROOT}/infra/modules/network/private-dns-link.bicep"
 NETWORK_PARAM_EXAMPLE="${REPO_ROOT}/infra/envs/poc/brownfield-network.bicepparam.example"
@@ -48,6 +49,73 @@ if [[ ! -s "$workdir/dns.json" ]]; then
   exit 1
 fi
 
+echo "==> az bicep build: foundry.bicep"
+if ! az bicep build --file "$FOUNDRY_ENTRY" --stdout >"$workdir/foundry.json" 2>"$workdir/foundry.err"; then
+  echo "FAIL: az bicep build failed for foundry.bicep" >&2
+  cat "$workdir/foundry.err" >&2
+  exit 1
+fi
+
+echo "==> foundry.bicep: zone-group DNS scope fails closed"
+python3 - "$workdir/foundry.json" <<'PY' || exit 1
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+variables = arm.get("variables", {})
+serialized = json.dumps(variables)
+
+if "dnsSubscriptionId is required when dnsIntegrationMode is zone-group" not in serialized:
+    sys.exit("missing zone-group DNS scope validation")
+if "dnsResourceGroupName is required when dnsIntegrationMode is zone-group" not in serialized:
+    sys.exit("missing zone-group DNS resource-group validation")
+if "effectiveDnsSubscriptionId" not in serialized or "effectiveDnsResourceGroupName" not in serialized:
+    sys.exit("zone-group resource IDs do not use validated DNS scope values")
+if "dnsSubscriptionId must be empty or match the workload subscription" not in serialized:
+    sys.exit("missing vnet-link DNS subscription scope validation")
+if "dnsResourceGroupName must be empty or match networkResourceGroupName" not in serialized:
+    sys.exit("missing vnet-link DNS resource-group scope validation")
+PY
+if ! grep -q "toLower(dnsResourceGroupName) == toLower(networkResourceGroupName)" "$FOUNDRY_ENTRY"; then
+  echo "FAIL: Foundry vnet-link DNS resource-group comparison must be case-insensitive" >&2
+  exit 1
+fi
+
+echo "==> brownfield-dns.bicep: zone-group mode gates every VNet link"
+python3 - "$workdir/dns.json" <<'PY' || exit 1
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+resources = arm.get("resources", [])
+if len(resources) != 6:
+    sys.exit(f"expected 6 DNS link deployments for the enabled Foundry services, found {len(resources)}")
+
+serialized = json.dumps(resources)
+if "privatelink.azure-api.net" in serialized or "brownfield-link-apim" in serialized:
+    sys.exit("APIM private-link DNS must be absent for the VNet-injected APIM profile")
+if "privatelink.database.windows.net" in serialized or "brownfield-link-sql" in serialized:
+    sys.exit("optional SQL private-link DNS must be absent when no SQL service role is enabled")
+variables = json.dumps(arm.get("variables", {}))
+for required in (
+    "vnetId must be in the deployment subscription",
+    "vnetId must be in the deployment resource group",
+    "dnsSubscriptionId must match the VNet subscription",
+    "dnsResourceGroupName must match the VNet resource group",
+    "validatedVnetSubscriptionId",
+    "validatedVnetResourceGroupName",
+    "effectiveDnsSubscriptionId",
+    "effectiveDnsResourceGroupName",
+):
+    if required not in variables:
+        sys.exit(f"brownfield DNS template is missing vnet-link scope validation: {required}")
+
+for resource in resources:
+    condition = resource.get("condition", "")
+    if "dnsIntegrationMode" not in condition or "vnet-link" not in condition:
+        sys.exit(f"DNS link deployment is not gated by dnsIntegrationMode: {resource.get('name')}")
+PY
+
 echo "==> subnets.bicep: serialized writes, no VNet mutation"
 if ! grep -q '@batchSize(1)' "$SUBNETS_MODULE"; then
   echo "FAIL: subnets.bicep must serialize subnet writes with @batchSize(1)" >&2
@@ -76,7 +144,7 @@ echo "==> .bicepparam.example files contain placeholders only"
 # Allowed on the right-hand side of a tracked .example param: an angle-bracket placeholder, an
 # empty string, a boolean, or a non-customer-identifying Azure enum literal from the allowlist
 # below. Anything else risks leaking a real deployment value into a tracked file.
-safe_enum_literals="Disabled|Enabled|NetworkSecurityGroupEnabled|RouteTableEnabled"
+safe_enum_literals="Disabled|Enabled|NetworkSecurityGroupEnabled|RouteTableEnabled|vnet-link|zone-group"
 placeholder_pattern="^param [A-Za-z][A-Za-z0-9]* = ('<[^']*>'|''|true|false|'(${safe_enum_literals})')\$"
 for example in "$NETWORK_PARAM_EXAMPLE" "$DNS_PARAM_EXAMPLE"; do
   while IFS= read -r line; do
@@ -91,9 +159,9 @@ echo "==> brownfield-network.bicep: shared hybrid NSG reaches every subnet"
 # Some customer policies require every blueprint subnet to be associated with a single shared hybrid NSG
 # (often named like hybrid-nsg-<subscription>-<region>). The APIM and compute subnets resolve their NSG
 # through the three-mode ternary; the foundry, private endpoint, and CI/CD subnets pick it up by
-# union() with sharedNsgAssociation. Assert all five paths are wired.
+# union() with sharedNsgAssociation. Assert all four paths are wired.
 network_arm="$workdir/network.json"
-for subnet_param in foundrySubnetName privateEndpointsSubnetName cicdAgentsSubnetName; do
+for subnet_param in foundrySubnetName privateEndpointsSubnetName; do
   if ! python3 - "$network_arm" "$subnet_param" <<'PY'
 import json, sys
 arm, subnet_param = json.load(open(sys.argv[1])), sys.argv[2]
@@ -129,6 +197,11 @@ PY
     exit 1
   fi
 done
+
+if grep -q "cicdAgentsSubnet" "$NETWORK_ENTRY"; then
+  echo "FAIL: brownfield-network.bicep must use the merged compute/CI/CD subnet" >&2
+  exit 1
+fi
 
 echo "==> brownfield-network.bicep: no NSG is created in shared hybrid NSG mode"
 if ! python3 - "$network_arm" <<'PY'
@@ -168,6 +241,7 @@ if ! az bicep build-params --file "$network_tmp_param" --stdout >/dev/null 2>"$w
 fi
 
 sed \
+  -e "s/<dns-zone-subscription-id>/00000000-0000-0000-0000-000000000000/" \
   -e "s/<dns-zone-resource-group>/rg-example-dns/" \
   -e "s/<full-arm-resource-id-of-existing-vnet>/vnet-id-example/" \
   -e "s/<existing-vnet-name>/vnet-example/" \

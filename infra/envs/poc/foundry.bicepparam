@@ -6,6 +6,7 @@ using './foundry.bicep'
 // template into.
 param location = 'eastus2'
 param networkResourceGroupName = 'rg-agent-blueprint-poc-network'
+param dnsIntegrationMode = 'vnet-link'
 param foundryAccountName = 'foundry-agent-factory-poc'
 param projectName = 'prj-agent-factory-poc'
 param projectDisplayName = 'Agent Factory POC'

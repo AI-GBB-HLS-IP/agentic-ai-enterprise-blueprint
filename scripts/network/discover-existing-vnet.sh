@@ -187,4 +187,8 @@ printf '%s\n' "$document" > "$output_path"
 chmod 600 "$output_path" 2>/dev/null || true
 
 echo "Discovery written to ${output_path} (untracked — do not commit)." >&2
-echo "Next: ./scripts/network/generate-brownfield-params.sh --discovery ${output_path}" >&2
+echo "Next: choose a DNS integration mode, then run one of:" >&2
+printf '  ./scripts/network/generate-brownfield-params.sh --discovery "%s" --dns-integration-mode vnet-link\n' \
+  "$output_path" >&2
+printf '  ./scripts/network/generate-brownfield-params.sh --discovery "%s" --dns-integration-mode zone-group --dns-subscription-id "<dns-zone-subscription-id>" --dns-resource-group "<dns-zone-resource-group>"\n' \
+  "$output_path" >&2
