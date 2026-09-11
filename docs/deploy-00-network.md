@@ -427,8 +427,8 @@ Then:
 #      infra/envs/poc/brownfield-dns.bicepparam
 
 az deployment group what-if \
-  --subscription "<dns-zone-subscription-id>" \
-  --resource-group "<dns-zone-resource-group>" \
+  --subscription "<vnet-subscription-id>" \
+  --resource-group "<vnet-resource-group>"
   --template-file infra/envs/poc/brownfield-dns.bicep \
   --parameters infra/envs/poc/brownfield-dns.bicepparam
 ```
