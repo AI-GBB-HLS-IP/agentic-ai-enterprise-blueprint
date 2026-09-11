@@ -66,7 +66,10 @@ Expected: the intended subscription, `state` is `Enabled`.
 
 You need **Owner**, or **Contributor + User Access Administrator**, at the target scope.
 Contributor alone covers the network resources here; User Access Administrator is required later
-for role assignments in Chapter 01.
+for role assignments in Chapter 01. For brownfield Foundry deployment, also verify that the
+deploying identity can write every resource type in the Foundry resource group and can join
+private DNS zones owned by another subscription or resource group. A successful template
+validation does not prove that subsequent resource writes will be authorized.
 
 ```bash
 az role assignment list \
@@ -235,8 +238,13 @@ association.
 
 The script writes `infra/envs/poc/brownfield-network.bicepparam`,
 `infra/envs/poc/brownfield-dns.bicepparam`, and
-`infra/envs/poc/brownfield-foundry.bicepparam` (all git-ignored). Add `--dry-run` to see the
-proposal without writing anything, and `--force` to overwrite a previous run.
+`infra/envs/poc/brownfield-foundry.bicepparam` (all git-ignored). The generated Foundry file
+contains the brownfield network and DNS settings; review it and add customer-approved resource
+names and model settings before deployment. Alternatively, copy the tracked
+`infra/envs/poc/foundry.bicepparam` to a local, git-ignored
+`infra/envs/poc/foundry.customer.bicepparam` and apply the same brownfield settings there.
+Add `--dry-run` to see the proposal without writing anything, and `--force` to overwrite a
+previous run.
 
 The generated allocation is a **proposal for review, not an approval.** Read it, then get IPAM
 sign-off on the CIDRs before deploying.
@@ -332,7 +340,8 @@ deploying if the VNet may have changed since.
 
 Still yours to confirm manually: IPAM approval of the block, the network-resource
 same-subscription boundary, your permissions at every target scope, and the `what-if` review in
-step 5.4.
+step 5.4. For cross-subscription `zone-group`, confirm the DNS owner has granted the required
+private DNS zone join permission before starting Foundry.
 
 <details>
 <summary>Manual collision check, if you wrote the parameter file by hand</summary>
@@ -365,6 +374,11 @@ children.
 ```bash
 az bicep build --file infra/envs/poc/brownfield-network.bicep --stdout > /dev/null
 
+az deployment group validate \
+  --resource-group "<existing-vnet-resource-group>" \
+  --template-file infra/envs/poc/brownfield-network.bicep \
+  --parameters infra/envs/poc/brownfield-network.bicepparam
+
 az deployment group what-if \
   --resource-group "<existing-vnet-resource-group>" \
   --template-file infra/envs/poc/brownfield-network.bicep \
@@ -384,6 +398,12 @@ az deployment group what-if \
 A `~ Modify` on a subnet you did not create is the destructive collision case. Expand it and look
 for `routeTable`, `serviceEndpoints` or `natGateway` being removed. If you see any, abort and
 rename your subnet.
+
+If `what-if` fails with a client-side response-handler error such as
+`RuntimeError: The content for this response was already consumed`, capture the complete command
+output and debug log, then use `validate` as the preflight gate. This exception does not identify
+the ARM result reliably; do not infer that the deployment is safe from the exception alone.
+Review the validated parameters and run `create` only after the scope and RBAC checks above pass.
 
 ```bash
 az deployment group create \
@@ -441,6 +461,45 @@ resource group. If the approved zones are split across resource groups or subscr
 `zone-group` mode and skip this stage. APIM is VNet-injected and therefore does not require
 `privatelink.azure-api.net`.
 
+### 5.6 Foundry owner stage
+
+Deploy Foundry into the resource group that owns the workload resources. For a brownfield VNet,
+use the generated `brownfield-foundry.bicepparam` or a separate local customer override copied
+from `foundry.bicepparam`; keep the tracked generic example unchanged.
+
+```bash
+# Optional local override pattern:
+cp infra/envs/poc/foundry.bicepparam \
+   infra/envs/poc/foundry.customer.bicepparam
+# Edit the local copy with the approved location, networkResourceGroupName, vnetName,
+# dnsIntegrationMode, dnsSubscriptionId, dnsResourceGroupName, and globally unique names.
+
+az bicep build --file infra/envs/poc/foundry.bicep --stdout > /dev/null
+
+az deployment group validate \
+  --subscription "<workload-subscription-id>" \
+  --resource-group "<foundry-resource-group>" \
+  --template-file infra/envs/poc/foundry.bicep \
+  --parameters infra/envs/poc/foundry.customer.bicepparam
+```
+
+Before `create`, confirm the deploying identity has write permissions for the resource types
+being created: Foundry/Cognitive Services, Key Vault, Storage, AI Search, Cosmos DB, private
+endpoints, and private DNS zone groups. For cross-subscription `zone-group`, the DNS-owning team
+must additionally grant the identity permission to join each approved private DNS zone, commonly
+through the organization's approved custom role or an appropriate built-in DNS role. If
+`validate` succeeds but `create` returns `AuthorizationFailed`, treat it as an RBAC scope issue;
+do not weaken the template or switch to `what-if`.
+
+```bash
+az deployment group create \
+  --subscription "<workload-subscription-id>" \
+  --resource-group "<foundry-resource-group>" \
+  --name foundry-platform \
+  --template-file infra/envs/poc/foundry.bicep \
+  --parameters infra/envs/poc/foundry.customer.bicepparam
+```
+
 ---
 
 ## 6. Verify
@@ -494,8 +553,9 @@ Pass `--help` to any of them for the full option list. Run the last two before e
 tenant GUIDs, resolved ARM resource IDs, real email addresses, absolute home directory paths, and
 private address ranges outside the blueprint's own plan.
 
-Never commit `what-if` output, discovery output, or your `.bicepparam` files. `.gitignore` already
-excludes `**/brownfield-*.bicepparam`.
+Never commit `what-if` output, discovery output, or customer-specific `.bicepparam` files.
+`.gitignore` excludes `**/brownfield-*.bicepparam` and
+`**/foundry.customer.bicepparam`; the tracked `foundry.bicepparam` remains a generic example.
 
 ---
 
