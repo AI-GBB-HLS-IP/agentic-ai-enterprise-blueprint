@@ -436,8 +436,10 @@ az deployment group what-if \
 Accept only `+ Create` on virtual network links. Reject any change to a zone or record set
 (T053 not built). Then run `az deployment group create` with the same arguments.
 
-Run this stage once per DNS owner scope if the zones are split across resource groups. APIM is
-VNet-injected and therefore does not require `privatelink.azure-api.net`.
+All zones used by this `vnet-link` stage must be in the workload subscription and the VNet
+resource group. If the approved zones are split across resource groups or subscriptions, use
+`zone-group` mode and skip this stage. APIM is VNet-injected and therefore does not require
+`privatelink.azure-api.net`.
 
 ---
 

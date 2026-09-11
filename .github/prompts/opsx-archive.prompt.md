@@ -84,7 +84,10 @@ Archive a completed change in the experimental workflow.
    delta specs from other artifacts.
 
    **If delta specs exist:**
-   - Compare each delta spec with its corresponding main spec at `<planningHome.root>/openspec/specs/<capability>/spec.md` (use the store-aware `planningHome.root` from step 2, not a hardcoded repo path)
+   - Derive each capability path relative to `<changeRoot>/specs/`, then compare the delta
+     with its corresponding main spec at `<planningHome.root>/specs/<capability>/spec.md`.
+     Use the store-aware `planningHome.root` from step 2; do not insert an extra `openspec/`
+     segment or hardcode the current repository path.
    - Determine what changes would be applied (adds, modifications, removals, renames)
    - Show a combined summary before prompting
 
