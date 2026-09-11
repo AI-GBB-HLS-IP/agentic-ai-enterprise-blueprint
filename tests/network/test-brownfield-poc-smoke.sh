@@ -94,8 +94,12 @@ if "privatelink.database.windows.net" in serialized or "brownfield-link-sql" in 
     sys.exit("optional SQL private-link DNS must be absent when no SQL service role is enabled")
 variables = json.dumps(arm.get("variables", {}))
 for required in (
+    "vnetId must be in the deployment subscription",
+    "vnetId must be in the deployment resource group",
     "dnsSubscriptionId must match the VNet subscription",
     "dnsResourceGroupName must match the VNet resource group",
+    "validatedVnetSubscriptionId",
+    "validatedVnetResourceGroupName",
     "effectiveDnsSubscriptionId",
     "effectiveDnsResourceGroupName",
 ):

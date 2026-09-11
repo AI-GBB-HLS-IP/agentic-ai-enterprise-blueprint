@@ -188,7 +188,7 @@ if not location:
 if config["dnsIntegrationMode"] == "vnet-link":
     if config["dnsSubscriptionId"]:
         fail("--dns-subscription-id is not supported in vnet-link mode; use zone-group for cross-subscription DNS.")
-    if config["dnsResourceGroup"] and config["dnsResourceGroup"] != vnet_rg:
+    if config["dnsResourceGroup"] and config["dnsResourceGroup"].lower() != vnet_rg.lower():
         fail("--dns-resource-group must match the VNet resource group in vnet-link mode; use zone-group for a separate DNS scope.")
 
 address_prefixes = vnet.get("addressPrefixes") or []

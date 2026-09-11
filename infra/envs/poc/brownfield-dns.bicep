@@ -30,19 +30,30 @@ param vnetId string
 param vnetName string
 
 var vnetIdSegments = split(vnetId, '/')
-var vnetSubscriptionId = length(vnetIdSegments) > 4
-  ? vnetIdSegments[2]
-  : fail('vnetId must be a full VNet resource ID.')
-var vnetResourceGroupName = length(vnetIdSegments) > 4
-  ? vnetIdSegments[4]
-  : fail('vnetId must be a full VNet resource ID.')
+var vnetIdSegmentCount = 9
+var vnetProviderPath = '/providers/microsoft.network/virtualnetworks/'
+var _validateVnetId = (startsWith(toLower(vnetId), '/subscriptions/') && contains(toLower(vnetId), '/resourcegroups/') && contains(toLower(vnetId), vnetProviderPath) && length(vnetIdSegments) == vnetIdSegmentCount)
+  ? true
+  : fail('vnetId must be a full ARM resource ID for Microsoft.Network/virtualNetworks with no trailing slash.')
+var vnetSubscriptionId = _validateVnetId ? vnetIdSegments[2] : ''
+var vnetResourceGroupName = _validateVnetId ? vnetIdSegments[4] : ''
+var validatedVnetSubscriptionId = dnsIntegrationMode == 'vnet-link'
+  ? (toLower(vnetSubscriptionId) == toLower(subscription().subscriptionId)
+      ? vnetSubscriptionId
+      : fail('vnetId must be in the deployment subscription when dnsIntegrationMode is vnet-link. Deploy brownfield-dns.bicep at the VNet resource-group scope.'))
+  : vnetSubscriptionId
+var validatedVnetResourceGroupName = dnsIntegrationMode == 'vnet-link'
+  ? (toLower(vnetResourceGroupName) == toLower(resourceGroup().name)
+      ? vnetResourceGroupName
+      : fail('vnetId must be in the deployment resource group when dnsIntegrationMode is vnet-link. Deploy brownfield-dns.bicep at the VNet resource-group scope.'))
+  : vnetResourceGroupName
 var effectiveDnsSubscriptionId = dnsIntegrationMode == 'vnet-link'
-  ? (toLower(dnsSubscriptionId) == toLower(vnetSubscriptionId)
+  ? (toLower(dnsSubscriptionId) == toLower(validatedVnetSubscriptionId)
       ? dnsSubscriptionId
       : fail('dnsSubscriptionId must match the VNet subscription when dnsIntegrationMode is vnet-link.'))
   : dnsSubscriptionId
 var effectiveDnsResourceGroupName = dnsIntegrationMode == 'vnet-link'
-  ? (toLower(dnsResourceGroupName) == toLower(vnetResourceGroupName)
+  ? (toLower(dnsResourceGroupName) == toLower(validatedVnetResourceGroupName)
       ? dnsResourceGroupName
       : fail('dnsResourceGroupName must match the VNet resource group when dnsIntegrationMode is vnet-link.'))
   : dnsResourceGroupName
