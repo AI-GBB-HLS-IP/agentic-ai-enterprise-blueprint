@@ -119,6 +119,12 @@ fi
 assert_contains "$workdir/run.out" "must match the VNet resource group in vnet-link mode" \
   "missing vnet-link DNS resource-group mismatch diagnostic"
 
+run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  --dns-resource-group "RG-PLACEHOLDER" \
+  || fail "vnet-link mode should accept case-insensitive VNet resource-group matches"
+assert_contains "$foundry_param" "param dnsResourceGroupName = 'RG-PLACEHOLDER'" \
+  "case-preserving vnet-link DNS resource group not written to Foundry params"
+
 if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   --dns-subscription-id "separate-subscription-placeholder"; then
   fail "vnet-link mode should reject a separate DNS subscription"

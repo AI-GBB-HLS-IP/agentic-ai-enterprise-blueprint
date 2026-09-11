@@ -76,6 +76,10 @@ if "dnsSubscriptionId must be empty or match the workload subscription" not in s
 if "dnsResourceGroupName must be empty or match networkResourceGroupName" not in serialized:
     sys.exit("missing vnet-link DNS resource-group scope validation")
 PY
+if ! grep -q "toLower(dnsResourceGroupName) == toLower(networkResourceGroupName)" "$FOUNDRY_ENTRY"; then
+  echo "FAIL: Foundry vnet-link DNS resource-group comparison must be case-insensitive" >&2
+  exit 1
+fi
 
 echo "==> brownfield-dns.bicep: zone-group mode gates every VNet link"
 python3 - "$workdir/dns.json" <<'PY' || exit 1

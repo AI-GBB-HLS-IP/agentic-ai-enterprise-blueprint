@@ -22,7 +22,7 @@ var effectiveDnsSubscriptionId = dnsIntegrationMode == 'zone-group'
   ? (empty(dnsSubscriptionId)
       ? fail('dnsSubscriptionId is required when dnsIntegrationMode is zone-group; it must not be inferred from the workload subscription.')
       : dnsSubscriptionId)
-  : (empty(dnsSubscriptionId) || dnsSubscriptionId == subscription().subscriptionId
+  : (empty(dnsSubscriptionId) || toLower(dnsSubscriptionId) == toLower(subscription().subscriptionId)
       ? subscription().subscriptionId
       : fail('dnsSubscriptionId must be empty or match the workload subscription when dnsIntegrationMode is vnet-link.'))
 
@@ -30,7 +30,7 @@ var effectiveDnsResourceGroupName = dnsIntegrationMode == 'zone-group'
   ? (empty(dnsResourceGroupName)
       ? fail('dnsResourceGroupName is required when dnsIntegrationMode is zone-group; it must not be inferred from the workload resource group.')
       : dnsResourceGroupName)
-  : (empty(dnsResourceGroupName) || dnsResourceGroupName == networkResourceGroupName
+  : (empty(dnsResourceGroupName) || toLower(dnsResourceGroupName) == toLower(networkResourceGroupName)
       ? networkResourceGroupName
       : fail('dnsResourceGroupName must be empty or match networkResourceGroupName when dnsIntegrationMode is vnet-link.'))
 
