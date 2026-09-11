@@ -30,12 +30,13 @@ param vnetId string
 param vnetName string
 
 var vnetIdSegments = split(vnetId, '/')
-var vnetSubscriptionId = length(vnetIdSegments) > 4
-  ? vnetIdSegments[2]
-  : fail('vnetId must be a full VNet resource ID.')
-var vnetResourceGroupName = length(vnetIdSegments) > 4
-  ? vnetIdSegments[4]
-  : fail('vnetId must be a full VNet resource ID.')
+var vnetIdSegmentCount = 9
+var vnetProviderPath = '/providers/microsoft.network/virtualnetworks/'
+var _validateVnetId = (startsWith(toLower(vnetId), '/subscriptions/') && contains(toLower(vnetId), '/resourcegroups/') && contains(toLower(vnetId), vnetProviderPath) && length(vnetIdSegments) == vnetIdSegmentCount)
+  ? true
+  : fail('vnetId must be a full ARM resource ID for Microsoft.Network/virtualNetworks with no trailing slash.')
+var vnetSubscriptionId = _validateVnetId ? vnetIdSegments[2] : ''
+var vnetResourceGroupName = _validateVnetId ? vnetIdSegments[4] : ''
 var validatedVnetSubscriptionId = dnsIntegrationMode == 'vnet-link'
   ? (toLower(vnetSubscriptionId) == toLower(subscription().subscriptionId)
       ? vnetSubscriptionId
