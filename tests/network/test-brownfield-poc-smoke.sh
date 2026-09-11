@@ -92,6 +92,15 @@ if "privatelink.azure-api.net" in serialized or "brownfield-link-apim" in serial
     sys.exit("APIM private-link DNS must be absent for the VNet-injected APIM profile")
 if "privatelink.database.windows.net" in serialized or "brownfield-link-sql" in serialized:
     sys.exit("optional SQL private-link DNS must be absent when no SQL service role is enabled")
+variables = json.dumps(arm.get("variables", {}))
+for required in (
+    "dnsSubscriptionId must match the VNet subscription",
+    "dnsResourceGroupName must match the VNet resource group",
+    "effectiveDnsSubscriptionId",
+    "effectiveDnsResourceGroupName",
+):
+    if required not in variables:
+        sys.exit(f"brownfield DNS template is missing vnet-link scope validation: {required}")
 
 for resource in resources:
     condition = resource.get("condition", "")

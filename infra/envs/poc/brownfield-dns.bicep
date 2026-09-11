@@ -29,6 +29,24 @@ param vnetId string
 @description('Existing VNet name, used to build a deterministic link name.')
 param vnetName string
 
+var vnetIdSegments = split(vnetId, '/')
+var vnetSubscriptionId = length(vnetIdSegments) > 4
+  ? vnetIdSegments[2]
+  : fail('vnetId must be a full VNet resource ID.')
+var vnetResourceGroupName = length(vnetIdSegments) > 4
+  ? vnetIdSegments[4]
+  : fail('vnetId must be a full VNet resource ID.')
+var effectiveDnsSubscriptionId = dnsIntegrationMode == 'vnet-link'
+  ? (toLower(dnsSubscriptionId) == toLower(vnetSubscriptionId)
+      ? dnsSubscriptionId
+      : fail('dnsSubscriptionId must match the VNet subscription when dnsIntegrationMode is vnet-link.'))
+  : dnsSubscriptionId
+var effectiveDnsResourceGroupName = dnsIntegrationMode == 'vnet-link'
+  ? (toLower(dnsResourceGroupName) == toLower(vnetResourceGroupName)
+      ? dnsResourceGroupName
+      : fail('dnsResourceGroupName must match the VNet resource group when dnsIntegrationMode is vnet-link.'))
+  : dnsResourceGroupName
+
 @description('Existing private DNS zone names required by Foundry and its supporting resources. Every zone must already exist in dnsResourceGroupName.')
 param privateDnsZoneNames object = {
   cognitiveServices: 'privatelink.cognitiveservices.azure.com'
@@ -40,7 +58,7 @@ param privateDnsZoneNames object = {
 }
 
 module cognitiveServicesLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
-  scope: resourceGroup(dnsSubscriptionId, dnsResourceGroupName)
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-cognitiveservices'
   params: {
     zoneName: privateDnsZoneNames.cognitiveServices
@@ -50,7 +68,7 @@ module cognitiveServicesLink '../../modules/network/private-dns-link.bicep' = if
 }
 
 module azureOpenAILink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
-  scope: resourceGroup(dnsSubscriptionId, dnsResourceGroupName)
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-openai'
   params: {
     zoneName: privateDnsZoneNames.azureOpenAI
@@ -60,7 +78,7 @@ module azureOpenAILink '../../modules/network/private-dns-link.bicep' = if (dnsI
 }
 
 module keyVaultLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
-  scope: resourceGroup(dnsSubscriptionId, dnsResourceGroupName)
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-keyvault'
   params: {
     zoneName: privateDnsZoneNames.keyVault
@@ -70,7 +88,7 @@ module keyVaultLink '../../modules/network/private-dns-link.bicep' = if (dnsInte
 }
 
 module storageBlobLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
-  scope: resourceGroup(dnsSubscriptionId, dnsResourceGroupName)
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-blob'
   params: {
     zoneName: privateDnsZoneNames.storageBlob
@@ -80,7 +98,7 @@ module storageBlobLink '../../modules/network/private-dns-link.bicep' = if (dnsI
 }
 
 module cosmosDBLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
-  scope: resourceGroup(dnsSubscriptionId, dnsResourceGroupName)
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-cosmosdb'
   params: {
     zoneName: privateDnsZoneNames.cosmosDB
@@ -90,7 +108,7 @@ module cosmosDBLink '../../modules/network/private-dns-link.bicep' = if (dnsInte
 }
 
 module aiSearchLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
-  scope: resourceGroup(dnsSubscriptionId, dnsResourceGroupName)
+  scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-aisearch'
   params: {
     zoneName: privateDnsZoneNames.aiSearch
