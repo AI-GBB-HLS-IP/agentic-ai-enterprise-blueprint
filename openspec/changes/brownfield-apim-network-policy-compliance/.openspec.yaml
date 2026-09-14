@@ -1,0 +1,13 @@
+schema: spec-driven
+created: 2026-09-14
+goal: Add APIM subnet route-table/service-endpoint support and document the hub-subscription DNS worked example for brownfield network deployment
+affected_areas:
+  - infra/envs/poc
+  - infra/modules/network
+  - scripts/network
+  - docs
+# Requirement deltas for this change land directly in specs/00-network-foundation/spec.md
+# (FR-018 clarification + new service-endpoints requirement), following the same pattern as the
+# archived 2026-09-11-cross-subscription-dns-apim-sizing change. This change folder is
+# implementation-tracking only (Bicep + script + doc work), not a new spec delta file.
+skip_specs: true

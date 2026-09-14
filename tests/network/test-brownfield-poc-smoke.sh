@@ -233,10 +233,27 @@ sed \
   -e "s/<existing-vnet-resource-group>/rg-example-network/" \
   -e "s/<region>/eastus2/" \
   -e "s/<admin-approved-cidr>/10.0.0.0\/28/" \
+  -e "s#<admin-approved-apim-route-table-resource-id-or-empty-string>#/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example-network/providers/Microsoft.Network/routeTables/apim-routetable-example#" \
   "$NETWORK_PARAM_EXAMPLE" >"$network_tmp_param"
 if ! az bicep build-params --file "$network_tmp_param" --stdout >/dev/null 2>"$workdir/network-params.err"; then
   echo "FAIL: filled-in brownfield-network.bicepparam.example does not compile" >&2
   cat "$workdir/network-params.err" >&2
+  exit 1
+fi
+
+echo "==> brownfield-network.bicepparam.example also compiles with the documented empty apimRouteTableId default"
+network_tmp_param_empty="$(dirname "$NETWORK_ENTRY")/.tmp-brownfield-network-smoketest-empty.$$.bicepparam"
+trap 'cleanup_tmp_params; rm -f "$network_tmp_param_empty"; rm -rf "$workdir"' EXIT
+sed \
+  -e "s/<existing-vnet-name>/vnet-example/" \
+  -e "s/<existing-vnet-resource-group>/rg-example-network/" \
+  -e "s/<region>/eastus2/" \
+  -e "s/<admin-approved-cidr>/10.0.0.0\/28/" \
+  -e "s/<admin-approved-apim-route-table-resource-id-or-empty-string>//" \
+  "$NETWORK_PARAM_EXAMPLE" >"$network_tmp_param_empty"
+if ! az bicep build-params --file "$network_tmp_param_empty" --stdout >/dev/null 2>"$workdir/network-params-empty.err"; then
+  echo "FAIL: filled-in brownfield-network.bicepparam.example with empty apimRouteTableId does not compile" >&2
+  cat "$workdir/network-params-empty.err" >&2
   exit 1
 fi
 

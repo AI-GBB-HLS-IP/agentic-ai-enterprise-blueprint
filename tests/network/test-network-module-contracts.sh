@@ -130,6 +130,12 @@ if copy.get("mode") != "serial" or copy.get("batchSize") != 1:
     sys.exit(f"greenfield subnet writes are not serialized: {copy}")
 PY
 
+echo "==> subnets.bicep supports routeTableId and serviceEndpoints"
+grep -q "routeTableId" "$SUBNETS_MODULE" \
+  || fail "subnets.bicep must support an optional per-subnet routeTableId property"
+grep -q "serviceEndpoints" "$SUBNETS_MODULE" \
+  || fail "subnets.bicep must support an optional per-subnet serviceEndpoints property"
+
 echo "==> az bicep build: brownfield-network.bicep"
 az bicep build --file "$BROWNFIELD_ENTRY" --stdout >"$workdir/brownfield.json" 2>"$workdir/brownfield.err" \
   || { cat "$workdir/brownfield.err" >&2; fail "az bicep build failed for brownfield-network.bicep"; }
@@ -139,6 +145,14 @@ for param in sharedHybridNsgId existingApimNsgId existingComputeNsgId; do
   grep -q "_validate.*${param^}\|${param}" "$BROWNFIELD_ENTRY" \
     || fail "brownfield-network.bicep does not reference ${param} in a validation"
 done
+
+echo "==> brownfield validates and wires apimRouteTableId/apimServiceEndpoints onto the APIM subnet only"
+grep -q "apimRouteTableId" "$BROWNFIELD_ENTRY" \
+  || fail "brownfield-network.bicep does not declare apimRouteTableId"
+grep -q "apimServiceEndpoints" "$BROWNFIELD_ENTRY" \
+  || fail "brownfield-network.bicep does not declare apimServiceEndpoints"
+grep -q "_validateApimRouteTableId" "$BROWNFIELD_ENTRY" \
+  || fail "brownfield-network.bicep does not validate apimRouteTableId's shape"
 
 python3 - "$workdir/brownfield.json" <<'PY' || exit 1
 import json
@@ -154,6 +168,7 @@ for needle in (
     "existingApimNsgId must be a full ARM resource ID",
     "existingComputeNsgId must be a full ARM resource ID",
     "both existingApimNsgId and existingComputeNsgId must be supplied",
+    "apimRouteTableId must be empty or a full ARM resource ID",
 ):
     if needle not in serialized:
         sys.exit(f"missing NSG validation guard: {needle}")
@@ -170,9 +185,81 @@ for guard in (
     "_validateReuseExistingNsgs",
     "_validateExistingApimNsgId",
     "_validateExistingComputeNsgId",
+    "_validateApimRouteTableId",
 ):
     if guard not in validated:
         sys.exit(f"nsgInputsValidated does not include {guard}")
+PY
+
+echo "==> compiled brownfield template wires route table / service endpoints on APIM subnet only"
+python3 - "$workdir/brownfield.json" <<'PY' || exit 1
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+module = next(
+    r for r in arm["resources"]
+    if r.get("type") == "Microsoft.Resources/deployments" and "-subnets" in str(r.get("name"))
+)
+subnets = module["properties"]["parameters"]["subnets"]["value"]
+
+# Entries built with union() at authoring time compile to raw ARM expression strings rather than
+# JSON objects (see foundry/private-endpoints subnets in brownfield-network.bicep); route-table /
+# service-endpoint checks below only need name-keyed dict entries (currently just APIM/compute).
+dict_entries = [e for e in subnets if isinstance(e, dict)]
+by_name = {}
+for entry in dict_entries:
+    name = entry.get("name", "")
+    # Names are ARM parameter-reference expressions like "[parameters('apimSubnetName')]"; map the
+    # ones this test cares about back to their bicep parameter identity.
+    if "apimSubnetName" in name:
+        by_name["hybridsubnet-apim"] = entry
+    elif "computeSubnetName" in name:
+        by_name["hybridsubnet-compute"] = entry
+
+apim = by_name.get("hybridsubnet-apim")
+if apim is None:
+    sys.exit("hybridsubnet-apim not found in compiled brownfield subnets parameter")
+
+if "routeTableId" not in apim:
+    sys.exit("APIM subnet definition is missing routeTableId")
+if apim["routeTableId"] != "[parameters('apimRouteTableId')]":
+    sys.exit(f"APIM subnet routeTableId must reference the apimRouteTableId parameter, got: {apim['routeTableId']}")
+if "serviceEndpoints" not in apim:
+    sys.exit("APIM subnet definition is missing serviceEndpoints")
+if apim["serviceEndpoints"] != "[parameters('apimServiceEndpoints')]":
+    sys.exit(f"APIM subnet serviceEndpoints must reference the apimServiceEndpoints parameter, got: {apim['serviceEndpoints']}")
+
+# The compiled default for apimServiceEndpoints must be exactly the four endpoints required by
+# common brownfield-deployment network policy (FR-018a); a regression to an empty or wrong list
+# would still pass the presence-only checks above.
+expected_default_endpoints = [
+    "Microsoft.AzureActiveDirectory",
+    "Microsoft.KeyVault",
+    "Microsoft.Sql",
+    "Microsoft.Storage",
+]
+actual_default_endpoints = arm["parameters"]["apimServiceEndpoints"]["defaultValue"]
+if actual_default_endpoints != expected_default_endpoints:
+    sys.exit(
+        "apimServiceEndpoints default value does not match the required four endpoints: "
+        f"expected {expected_default_endpoints}, got {actual_default_endpoints}"
+    )
+if arm["parameters"]["apimRouteTableId"]["defaultValue"] != "":
+    sys.exit("apimRouteTableId default value must be an empty string (no association)")
+
+compute = by_name.get("hybridsubnet-compute")
+if compute is not None:
+    if "routeTableId" in compute:
+        sys.exit("hybridsubnet-compute must not receive routeTableId in brownfield mode; APIM-only")
+    if "serviceEndpoints" in compute:
+        sys.exit("hybridsubnet-compute must not receive serviceEndpoints in brownfield mode; APIM-only")
+
+# Foundry/private-endpoints entries compile to union() expression strings; confirm those raw
+# expressions never reference routeTableId/serviceEndpoints either.
+for entry in subnets:
+    if isinstance(entry, str) and ("routeTableId" in entry or "serviceEndpoints" in entry):
+        sys.exit(f"a non-APIM subnet expression unexpectedly references routeTableId/serviceEndpoints: {entry}")
 PY
 
 echo "Network module contract tests passed."

@@ -3,7 +3,8 @@
 This module provisions the Network Foundation MVP for the POC:
 
 - VNet `vnet-agent-factory-poc` (`10.0.0.0/16` by default)
-- 5 fixed workload subnets (named after the customer's VPCx `hybridsubnet-*` convention — these
+- 5 fixed workload subnets (named after a brownfield-deployment `hybridsubnet-*` naming
+  convention — these
   are internal-only subnets; there is no `dmzsubnet-*` yet since nothing in this POC is
   internet-facing):
   - `hybridsubnet-apim` (`10.0.1.0/24`)
@@ -11,7 +12,7 @@ This module provisions the Network Foundation MVP for the POC:
   - `hybridsubnet-compute` (`10.0.3.0/24`)
   - `hybridsubnet-privateendpoints` (`10.0.4.0/24`, private endpoint network policies disabled)
   - `hybridsubnet-cicdagents` (`10.0.5.0/24`)
-- NSGs for APIM and compute subnets, named after the customer's VPCx
+- NSGs for APIM and compute subnets, named after a brownfield-deployment
   `hybrid-nsg-{subscription_name}-{region}` convention (one NSG per subnet purpose, since APIM and
   compute have distinct rule sets)
 - Private DNS zones + VNet links for:
@@ -100,17 +101,24 @@ It never declares the VNet's top-level properties, so the address space, peering
 settings are safe. The subnets themselves are not.
 
 The module builds each request body with `union()` from a fixed set of properties: `addressPrefix`,
-`privateEndpointNetworkPolicies`, and optionally one delegation and one `networkSecurityGroup`.
-A subnet PUT replaces the whole subnet object, so if a requested name **already exists** in the
-target VNet:
+`privateEndpointNetworkPolicies`, and optionally one delegation, one `networkSecurityGroup`, one
+`routeTable`, and a `serviceEndpoints` array. A subnet PUT replaces the whole subnet object, so if
+a requested name **already exists** in the target VNet:
 
 - its address prefix, delegation, and NSG association are replaced with the module's values; and
-- every property the module does not send — **route table (UDR), service endpoints, NAT gateway,
-  service association links** — is absent from the request and is therefore **removed**.
+- every property the module does not send — **NAT gateway, service association links** — is
+  absent from the request and is therefore **removed**.
 
-There is no `routeTableId` parameter, so a UDR can neither be attached to a new subnet nor
-preserved on a colliding one. In a forced-tunneling environment, silently dropping a UDR can
-blackhole egress or bypass an inspection appliance.
+`subnets.bicep` accepts optional per-subnet `routeTableId` and `serviceEndpoints` properties (see
+above), so a route table or service endpoints CAN be attached or preserved when the caller passes
+them explicitly. However, **omitting them still removes any pre-existing route table or service
+endpoints on a colliding subnet**, because the PUT still replaces the whole object — passing
+nothing is not the same as "leave unchanged." `infra/envs/poc/brownfield-network.bicep` currently
+only wires these two properties for the APIM subnet (`apimRouteTableId`/`apimServiceEndpoints`);
+Foundry, private-endpoints, and compute subnets have no env-level parameter for them yet, so a
+route table or service endpoints on those subnets are still silently dropped on collision. In a
+forced-tunneling environment, silently dropping a UDR can blackhole egress or bypass an inspection
+appliance.
 
 The module also does not validate that CIDRs fall inside the VNet address space or avoid
 overlapping existing subnets; that is stated in the `subnets` parameter description and is
