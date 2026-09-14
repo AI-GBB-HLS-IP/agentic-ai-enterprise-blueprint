@@ -1,19 +1,18 @@
 ## Why
 
-Live brownfield deployment against the real VPCx 2.0 target surfaced two concrete gaps between
-`infra/envs/poc`/`infra/modules/network` and the customer's actual VPCx Azure Policy/enforcement
-requirements (confirmed by reading the customer's own "cloudx-patterns" internal documentation for
+Live brownfield deployment against a real brownfield target surfaced two concrete gaps between
+`infra/envs/poc`/`infra/modules/network` and that target's actual Azure Policy/enforcement
+requirements (confirmed by reading the target environment's own internal documentation for
 Azure Key Vault, Private Endpoint, and API Management):
 
-1. VPCx enforces that every `apimsubnet-*` subnet be associated with a specific, pre-existing,
+1. The target environment enforces that every `apimsubnet-*` subnet be associated with a specific, pre-existing,
    customer-managed route table (`apim-routetable-<location>`) and have four specific service
    endpoints enabled (`Microsoft.AzureActiveDirectory`, `Microsoft.KeyVault`, `Microsoft.Sql`,
    `Microsoft.Storage`). `infra/modules/network/subnets.bicep` has no route-table or
    service-endpoint parameter at all today, so brownfield deployments cannot satisfy this policy
    without a manual portal step after every bicep run.
-2. The private DNS zones the customer manages centrally live in a separate hub subscription
-   (their internal name for it is `VPCxAzureProductionHub`, resource group
-   `VPCxAzureProductionHub-VPCx`) and are wired via per-private-endpoint DNS zone groups, never
+2. The private DNS zones are managed centrally and live in a separate hub subscription
+   (a dedicated hub-network subscription and resource group) and are wired via per-private-endpoint DNS zone groups, never
    VNet-level links. `brownfield-dns.bicep`/`foundry.bicep` already implement this as
    `dnsIntegrationMode=zone-group` (from the prior `2026-09-11-cross-subscription-dns-apim-sizing`
    change), but nothing in the repo's example params or docs spells out, with a concrete worked
@@ -23,8 +22,8 @@ Azure Key Vault, Private Endpoint, and API Management):
 
 This change closes gap (1) with real Bicep/parameter support and closes gap (2) with a concrete,
 named worked example in the generator script defaults/docs so the next brownfield run does not
-require guessing. Foundry-account-specific findings (the customer mandates deploying the Foundry
-"standard agent" landing zone via their own ARM template, and Azure OpenAI cannot be self-service
+require guessing. Foundry-account-specific findings (the target environment mandates deploying the Foundry
+"standard agent" landing zone via its own ARM template, and Azure OpenAI cannot be self-service
 created at all) are explicitly deferred to a follow-up change once network deployment is
 confirmed working end-to-end.
 
@@ -36,7 +35,7 @@ confirmed working end-to-end.
   an approved existing route table" allowance) and an optional per-subnet `serviceEndpoints` array
   (list of service endpoint names to enable, e.g. `Microsoft.AzureActiveDirectory`).
 - `infra/envs/poc/brownfield-network.bicep`: add `apimRouteTableId` (optional, full ARM resource
-  ID) and `apimServiceEndpoints` (defaults to the four VPCx-required endpoints) parameters, wired
+  ID) and `apimServiceEndpoints` (defaults to the four commonly required endpoints) parameters, wired
   only onto the APIM-purpose subnet.
 - `scripts/network/generate-brownfield-params.sh`: add `--apim-route-table-id` CLI flag that
   writes `apimRouteTableId` into the generated brownfield network `.bicepparam`.
@@ -58,7 +57,7 @@ confirmed working end-to-end.
 - `00-network-foundation`: FR-018 already allows associating an approved existing route table in
   brownfield mode but no implementation existed; this change implements that allowance and adds a
   new requirement that brownfield subnets support enabling specific, caller-supplied service
-  endpoints (needed to satisfy the APIM subnet's VPCx policy requirements).
+  endpoints (needed to satisfy the APIM subnet's brownfield network policy requirements).
 
 ## Impact
 

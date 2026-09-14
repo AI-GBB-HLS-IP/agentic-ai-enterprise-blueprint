@@ -43,9 +43,10 @@ param existingComputeNsgId = ''
 // (satisfying a policy that mandates association) but does not filter private endpoint traffic.
 param privateEndpointsNetworkPolicies = 'Disabled'
 
-// APIM subnet route table + service endpoints (VPCx customer policy). Leave apimRouteTableId
+// APIM subnet route table + service endpoints (common brownfield-deployment network policy).
+// Leave apimRouteTableId
 // empty ('') for environments with no such policy; apimServiceEndpoints already defaults to the
-// four VPCx-required endpoints on brownfield-network.bicep, so it only needs to be set here if you
+// four commonly required endpoints on brownfield-network.bicep, so it only needs to be set here if you
 // want to override or opt out (pass an empty array). See docs/deploy-00-network.md.
 param apimRouteTableId = '<admin-approved-apim-route-table-resource-id-or-empty-string>'
 // param apimServiceEndpoints = [

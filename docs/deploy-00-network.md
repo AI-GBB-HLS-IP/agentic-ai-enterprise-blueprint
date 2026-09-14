@@ -314,13 +314,14 @@ modified. Mode 1 overrides mode 2.
 > private endpoints subnet but does not let it filter private endpoint traffic. Use
 > `NetworkSecurityGroupEnabled` if the rules must actually be enforced there.
 
-**APIM subnet route table and service endpoints (VPCx customer policy).** `brownfield-network.bicep`
+**APIM subnet route table and service endpoints (common brownfield-deployment network policy).**
+`brownfield-network.bicep`
 exposes two parameters on the APIM subnet only:
 
 | Parameter | Default | Notes |
 | --- | --- | --- |
-| `apimRouteTableId` | `''` (no association) | Full ARM resource ID of an existing, customer-managed route table (e.g. VPCx's `apim-routetable-<location>`). This module never creates or modifies the referenced route table — only its resource-ID shape is validated, the same as the NSG-ID parameters above. |
-| `apimServiceEndpoints` | `['Microsoft.AzureActiveDirectory', 'Microsoft.KeyVault', 'Microsoft.Sql', 'Microsoft.Storage']` | The four service endpoints required by VPCx customer policy on the APIM subnet. Pass an empty array to opt out in environments without that requirement. |
+| `apimRouteTableId` | `''` (no association) | Full ARM resource ID of an existing, customer-managed route table (e.g. a centrally managed route table such as `apim-routetable-<location>`). This module never creates or modifies the referenced route table — only its resource-ID shape is validated, the same as the NSG-ID parameters above. |
+| `apimServiceEndpoints` | `['Microsoft.AzureActiveDirectory', 'Microsoft.KeyVault', 'Microsoft.Sql', 'Microsoft.Storage']` | The four service endpoints required by a common brownfield-deployment network policy on the APIM subnet. Pass an empty array to opt out in environments without that requirement. |
 
 Set `apimRouteTableId` via `--apim-route-table-id <id>` when generating parameters, or by editing
 `apimRouteTableId` directly in a hand-written `.bicepparam` file. `apimServiceEndpoints` has no

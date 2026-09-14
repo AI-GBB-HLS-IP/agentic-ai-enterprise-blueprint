@@ -2,7 +2,7 @@
 
 - [x] 1.1 Update `specs/00-network-foundation/spec.md` FR-018 to note route-table association is
       now implemented (not just allowed), and add a new FR for caller-supplied subnet service
-      endpoints (default empty except the APIM subnet's VPCx-required default).
+      endpoints (default empty except the APIM subnet's commonly required default).
 
 ## 2. Network module changes
 
@@ -30,7 +30,7 @@
 ## 4. Docs
 
 - [x] 4.1 Update `docs/deploy-00-network.md` to document `apimRouteTableId`/
-      `apimServiceEndpoints`/`--apim-route-table-id`, including the VPCx-required default service
+      `apimServiceEndpoints`/`--apim-route-table-id`, including the commonly required default service
       endpoint list and why it defaults non-empty (see design.md - Decisions #3).
 - [x] 4.2 Add a concrete worked example to `docs/deploy-00-network.md` showing a hub DNS
       subscription/resource group used only as `dnsSubscriptionId`/`dnsResourceGroupName` in

@@ -299,7 +299,7 @@ run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force 
   --existing-compute-nsg-id "$placeholder_nsg" || fail "mode 2 should be accepted with both IDs"
 assert_contains "$network_param" "param reuseExistingNsgs = true" "mode 2 not written"
 
-# --- APIM route table (VPCx customer policy) -----------------------------------------------------
+# --- APIM route table (common brownfield-deployment network policy) -----------------------------------------------------
 placeholder_route_table="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-placeholder/providers/Microsoft.Network/routeTables/apim-routetable-placeholder"
 
 run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \

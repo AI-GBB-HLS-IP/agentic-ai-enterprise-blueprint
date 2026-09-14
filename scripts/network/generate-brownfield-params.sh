@@ -30,7 +30,7 @@ NSG mode (choose one; default is blueprint-owned):
   --existing-apim-nsg-id <id>
   --existing-compute-nsg-id <id>
 
-APIM subnet route table (VPCx customer policy):
+APIM subnet route table (common brownfield-deployment network policy):
   --apim-route-table-id <id>     Full resource ID of an existing route table to associate with
                                  the APIM subnet. Never created or modified by this script.
 
@@ -490,7 +490,7 @@ lines.append(f"param reuseExistingNsgs = {'true' if reuse else 'false'}")
 lines.append(f"param existingApimNsgId = {bicep_string(apim_nsg_id)}")
 lines.append(f"param existingComputeNsgId = {bicep_string(compute_nsg_id)}")
 lines.append("")
-lines.append("// APIM subnet route table (VPCx customer policy). Leave empty for no route table.")
+lines.append("// APIM subnet route table (common brownfield-deployment network policy). Leave empty for no route table.")
 lines.append(f"param apimRouteTableId = {bicep_string(apim_route_table_id)}")
 lines.append("")
 lines.append(f"param privateEndpointsNetworkPolicies = {bicep_string(pe_policies)}")

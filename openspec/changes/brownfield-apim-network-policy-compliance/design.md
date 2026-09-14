@@ -9,8 +9,8 @@ See `proposal.md` - Why. Relevant current state:
   modifies a customer-owned NSG — only associates it by ID. Route-table association should follow
   the same "never create/modify, only associate an approved existing one" posture, per FR-018.
 - `brownfield-dns.bicep` and `foundry.bicep` already implement `dnsIntegrationMode=zone-group`
-  with `dnsSubscriptionId`/`dnsResourceGroupName` pointing at a customer-managed hub subscription,
-  fully separate from the workload subscription. This already matches the customer's actual
+  with `dnsSubscriptionId`/`dnsResourceGroupName` pointing at a centrally managed hub subscription,
+  fully separate from the workload subscription. This already matches the target brownfield
   environment (hub subscription/resource group for centrally-owned Private DNS zones); the gap is
   documentation/examples, not code.
 
@@ -20,8 +20,8 @@ See `proposal.md` - Why. Relevant current state:
 - Let a brownfield deployer associate one pre-existing, customer-managed route table with the
   APIM-purpose subnet by full ARM resource ID, without creating or modifying any route table.
 - Let a brownfield deployer enable specific service endpoints (e.g.
-  `Microsoft.AzureActiveDirectory`) on any blueprint-created subnet, defaulting to the four VPCx
-  requires on the APIM subnet only.
+  `Microsoft.AzureActiveDirectory`) on any blueprint-created subnet, defaulting to the four
+  commonly required endpoints on the APIM subnet only.
 - Provide one concrete, copy-pasteable worked example (hub subscription/resource group used only
   for `dnsSubscriptionId`/`dnsResourceGroupName`, never as the workload deployment scope) in
   `docs/deploy-00-network.md` so this specific confusion cannot recur.
@@ -37,7 +37,7 @@ See `proposal.md` - Why. Relevant current state:
 
 1. **Route table: per-subnet optional property, not a new NSG-style multi-mode system.**
    Unlike NSGs (which have three modes because blueprint-owned NSGs are still a valid POC
-   configuration), VPCx route tables are *always* customer-managed per FR-018 ("route tables MUST
+   configuration), brownfield-deployment route tables are *always* admin-managed per FR-018 ("route tables MUST
    remain customer-managed"). So `subnets.bicep` gets one new optional `routeTableId` subnet
    property (mirroring `nsgId`), and `brownfield-network.bicep` exposes a single
    `apimRouteTableId` parameter (default `''`, meaning "no route table association", matching how
@@ -51,14 +51,14 @@ See `proposal.md` - Why. Relevant current state:
    need updating every time Azure adds one; Azure's own ARM validation already rejects invalid
    names at deployment time, so client-side enum validation would be redundant defense with a
    maintenance cost and no safety benefit.
-3. **`apimServiceEndpoints` defaults to the four VPCx-required values, not empty.** This makes the
-   common case (VPCx compliance) the default while still letting a caller pass `[]` to opt out
-   for a non-VPCx brownfield target. Alternative considered: make it default to `[]` (matching
+3. **`apimServiceEndpoints` defaults to four commonly required values, not empty.** This makes the
+   common case (a typical brownfield network policy) the default while still letting a caller pass `[]` to opt out
+   for a brownfield target without this policy. Alternative considered: make it default to `[]` (matching
    `routeTableId`'s opt-in default) — rejected because, unlike the route table (which needs a
    caller-supplied resource ID that cannot be guessed), the four endpoint names are fixed,
-   publicly documented VPCx values with no equivalent "no value supplied" ambiguity, so defaulting
-   to them removes a required manual step for every VPCx brownfield deployment without any
-   downside for non-VPCx callers (they simply override to `[]`).
+   publicly documented Azure service-endpoint values with no equivalent "no value supplied" ambiguity, so defaulting
+   to them removes a required manual step for every brownfield deployment with this policy without any
+   downside for callers without it (they simply override to `[]`).
 4. **Docs-only fix for the DNS hub-subscription confusion**, not a code change. The existing
    `zone-group` mode's validation (`dnsSubscriptionId`/`dnsResourceGroupName` required, and
    explicitly independent from the VNet's own subscription/resource group) already implements the
@@ -76,8 +76,8 @@ See `proposal.md` - Why. Relevant current state:
   validator, consistent with the existing NSG-ID handling. Document the requirement in
   `docs/deploy-00-network.md` and rely on `az deployment group what-if` (already required by
   FR-008/FR-022) to catch it before merge.
-- [Risk] Defaulting `apimServiceEndpoints` to VPCx-specific values makes the module slightly
-  VPCx-flavored rather than fully generic. → Mitigation: it is a parameter default, fully
+- [Risk] Defaulting `apimServiceEndpoints` to environment-specific values makes the module slightly
+  less generic. → Mitigation: it is a parameter default, fully
   overridable to `[]`; every other blueprint default (subnet CIDRs, NSG naming) is already
   environment-specific in `infra/envs/poc`, so this is consistent with existing precedent, not a
   new pattern.

@@ -3,7 +3,8 @@
 This module provisions the Network Foundation MVP for the POC:
 
 - VNet `vnet-agent-factory-poc` (`10.0.0.0/16` by default)
-- 5 fixed workload subnets (named after the customer's VPCx `hybridsubnet-*` convention — these
+- 5 fixed workload subnets (named after a brownfield-deployment `hybridsubnet-*` naming
+  convention — these
   are internal-only subnets; there is no `dmzsubnet-*` yet since nothing in this POC is
   internet-facing):
   - `hybridsubnet-apim` (`10.0.1.0/24`)
@@ -11,7 +12,7 @@ This module provisions the Network Foundation MVP for the POC:
   - `hybridsubnet-compute` (`10.0.3.0/24`)
   - `hybridsubnet-privateendpoints` (`10.0.4.0/24`, private endpoint network policies disabled)
   - `hybridsubnet-cicdagents` (`10.0.5.0/24`)
-- NSGs for APIM and compute subnets, named after the customer's VPCx
+- NSGs for APIM and compute subnets, named after a brownfield-deployment
   `hybrid-nsg-{subscription_name}-{region}` convention (one NSG per subnet purpose, since APIM and
   compute have distinct rule sets)
 - Private DNS zones + VNet links for:

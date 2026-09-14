@@ -47,13 +47,14 @@ param computeSubnetName string = 'hybridsubnet-compute'
 param computeSubnetPrefix string = '10.0.0.80/28'
 
 @description('''Full ARM resource ID of an existing, customer-managed route table to associate with
-the APIM subnet (e.g. VPCx's `apim-routetable-<location>`). This template never creates or
+the APIM subnet (e.g. a centrally managed route table such as `apim-routetable-<location>`). This
+template never creates or
 modifies the referenced route table — only its resource-ID shape is validated. Leave empty to
 associate no route table (blueprint/greenfield default).''')
 param apimRouteTableId string = ''
 
 @description('''Service endpoints to enable on the APIM subnet. Defaults to the four endpoints
-required by VPCx customer policy (`Microsoft.AzureActiveDirectory`, `Microsoft.KeyVault`,
+required by common brownfield-deployment network policy (`Microsoft.AzureActiveDirectory`, `Microsoft.KeyVault`,
 `Microsoft.Sql`, `Microsoft.Storage`); pass an empty array to opt out for environments without
 that requirement.''')
 param apimServiceEndpoints array = [
@@ -80,7 +81,7 @@ param apimServiceEndpoints array = [
 // association is by full ARM resource ID and is inherently cross-resource-group.
 // ---------------------------------------------------------------------------------------------
 
-@description('Full ARM resource ID of a single pre-existing, customer-owned NSG to associate with EVERY subnet created by this template (e.g. the VPCx /VPCXRG NSG named hybrid-nsg-{subscription_name}-{region}). May live in a different resource group. When set, this template creates and modifies no NSG, and reuseExistingNsgs / existingApimNsgId / existingComputeNsgId are ignored.')
+@description('Full ARM resource ID of a single pre-existing, customer-owned NSG to associate with EVERY subnet created by this template (e.g. a centrally managed hybrid NSG named hybrid-nsg-{subscription_name}-{region}). May live in a different resource group. When set, this template creates and modifies no NSG, and reuseExistingNsgs / existingApimNsgId / existingComputeNsgId are ignored.')
 param sharedHybridNsgId string = ''
 
 @description('APIM NSG name, used only in blueprint-owned mode (sharedHybridNsgId empty and reuseExistingNsgs false).')
