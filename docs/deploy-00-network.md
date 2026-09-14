@@ -334,6 +334,15 @@ list does not match your environment.
 > that subnet on the next apply. Review the `what-if` output (step 5.4) before applying if you need
 > to confirm this is expected, or pass `apimServiceEndpoints = []` to keep the subnet as-is.
 
+> **Some landing-zone policies deny route tables on private-NSG subnets entirely.** Observed in
+> practice: `az deployment group validate` can fail with `RequestDisallowedByPolicy` and a reason
+> like *"Private Subnet is allowed with Private NSG and cannot have route table"* whenever the
+> subnet's NSG matches the tenant's "private subnet" policy definition — regardless of which route
+> table you reference. There is no route-table name that satisfies this rule; the policy is a
+> blanket prohibition on that subnet/NSG combination, not a naming allow-list. If you hit this,
+> leave `apimRouteTableId = ''` (the default). `apimServiceEndpoints` is unaffected by this
+> specific policy and can still be set normally.
+
 <details>
 <summary>Writing the parameter file by hand instead</summary>
 
