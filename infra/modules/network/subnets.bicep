@@ -24,7 +24,7 @@ var routeTableProviderPath = '/providers/microsoft.network/routetables/'
 // Validated per-subnet so a typo in one subnet's routeTableId fails deterministically before any
 // subnet PUT, rather than after earlier subnets in the serialized batch have already been
 // written. Mirrors the NSG-ID shape validation used elsewhere in the network modules.
-var _validateRouteTableIds = [for subnet in subnets: !contains(subnet, 'routeTableId') || empty(subnet.routeTableId) || (startsWith(toLower(subnet.routeTableId), '/subscriptions/') && contains(toLower(subnet.routeTableId), '/resourcegroups/') && contains(toLower(subnet.routeTableId), routeTableProviderPath) && length(split(subnet.routeTableId, '/')) == routeTableIdSegmentCount)
+var _validateRouteTableIds = [for subnet in subnets: empty(subnet.?routeTableId ?? '') || (startsWith(toLower(subnet.?routeTableId ?? ''), '/subscriptions/') && contains(toLower(subnet.?routeTableId ?? ''), '/resourcegroups/') && contains(toLower(subnet.?routeTableId ?? ''), routeTableProviderPath) && length(split(subnet.?routeTableId ?? '', '/')) == routeTableIdSegmentCount)
   ? true
   : fail('Each subnet\'s routeTableId must be empty or a full ARM resource ID for Microsoft.Network/routeTables with no trailing slash, for example /subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/routeTables/<name>.')]
 
