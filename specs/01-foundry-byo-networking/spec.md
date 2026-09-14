@@ -146,7 +146,16 @@ the result is attributable to the intended model deployment.
   workspace ID pattern only.
 - **FR-006**: The feature MUST create private endpoints for Foundry and each required supporting
   resource (Storage, Key Vault, Cosmos DB, AI Search), and each private endpoint MUST have an
-  approved connection state before validation can pass.
+  approved connection state before validation can pass. Private-endpoint creation MUST be
+  deployable as a phase distinct from, and executed only after, the deployment that creates the
+  base Foundry account/project and any newly created supporting resources — some brownfield
+  tenant policies require the base resource to exist, with no private endpoint configured, before
+  a private endpoint may be attached to it, so the two phases MUST NOT be combined into a single
+  deployment operation.
+- **FR-006a**: The private-endpoint phase MUST accept, as input, the resource ID of each
+  dependent resource requiring a private endpoint — whether that resource was created by this
+  feature's base-resource phase or supplied as BYO — and MUST NOT assume those resources are
+  being created in the same deployment operation that creates the private endpoints.
 - **FR-007**: The feature MUST integrate private endpoints with the existing private DNS zones
   for Cognitive Services/Foundry, Azure OpenAI when used, Storage Blob, Key Vault, Cosmos DB
   (`privatelink.documents.azure.com`), AI Search (`privatelink.search.windows.net`), and SQL

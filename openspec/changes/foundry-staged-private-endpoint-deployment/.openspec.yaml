@@ -1,0 +1,15 @@
+schema: spec-driven
+created: 2026-09-14
+goal: Split Foundry base-resource and private-endpoint deployment into two independently
+  runnable phases to match the tenant's documented staged private-endpoint creation process
+affected_areas:
+  - infra/modules/foundry
+  - infra/envs/poc
+  - scripts/foundry
+  - docs
+# Requirement delta for this change lands directly in specs/01-foundry-byo-networking/spec.md
+# (FR-006 revision), following the same pattern as the archived
+# 2026-09-11-cross-subscription-dns-apim-sizing change and the
+# brownfield-apim-network-policy-compliance change. This change folder is implementation-tracking
+# only (Bicep + script + doc work), not a new spec delta file.
+skip_specs: true
