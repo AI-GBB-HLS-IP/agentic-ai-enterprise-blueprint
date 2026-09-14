@@ -72,7 +72,7 @@ resource newSubnets 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = [fo
         id: subnet.routeTableId
       }
     } : {},
-    (contains(subnet, 'serviceEndpoints') && !empty(subnet.serviceEndpoints)) ? {
+    (!empty(subnet.?serviceEndpoints ?? [])) ? {
       serviceEndpoints: _subnetServiceEndpoints[i]
     } : {}
   )
