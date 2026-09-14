@@ -168,6 +168,7 @@ for needle in (
     "existingApimNsgId must be a full ARM resource ID",
     "existingComputeNsgId must be a full ARM resource ID",
     "both existingApimNsgId and existingComputeNsgId must be supplied",
+    "apimRouteTableId must be empty or a full ARM resource ID",
 ):
     if needle not in serialized:
         sys.exit(f"missing NSG validation guard: {needle}")
@@ -184,6 +185,7 @@ for guard in (
     "_validateReuseExistingNsgs",
     "_validateExistingApimNsgId",
     "_validateExistingComputeNsgId",
+    "_validateApimRouteTableId",
 ):
     if guard not in validated:
         sys.exit(f"nsgInputsValidated does not include {guard}")
@@ -221,8 +223,30 @@ if apim is None:
 
 if "routeTableId" not in apim:
     sys.exit("APIM subnet definition is missing routeTableId")
+if apim["routeTableId"] != "[parameters('apimRouteTableId')]":
+    sys.exit(f"APIM subnet routeTableId must reference the apimRouteTableId parameter, got: {apim['routeTableId']}")
 if "serviceEndpoints" not in apim:
     sys.exit("APIM subnet definition is missing serviceEndpoints")
+if apim["serviceEndpoints"] != "[parameters('apimServiceEndpoints')]":
+    sys.exit(f"APIM subnet serviceEndpoints must reference the apimServiceEndpoints parameter, got: {apim['serviceEndpoints']}")
+
+# The compiled default for apimServiceEndpoints must be exactly the four endpoints required by
+# common brownfield-deployment network policy (FR-018a); a regression to an empty or wrong list
+# would still pass the presence-only checks above.
+expected_default_endpoints = [
+    "Microsoft.AzureActiveDirectory",
+    "Microsoft.KeyVault",
+    "Microsoft.Sql",
+    "Microsoft.Storage",
+]
+actual_default_endpoints = arm["parameters"]["apimServiceEndpoints"]["defaultValue"]
+if actual_default_endpoints != expected_default_endpoints:
+    sys.exit(
+        "apimServiceEndpoints default value does not match the required four endpoints: "
+        f"expected {expected_default_endpoints}, got {actual_default_endpoints}"
+    )
+if arm["parameters"]["apimRouteTableId"]["defaultValue"] != "":
+    sys.exit("apimRouteTableId default value must be an empty string (no association)")
 
 compute = by_name.get("hybridsubnet-compute")
 if compute is not None:

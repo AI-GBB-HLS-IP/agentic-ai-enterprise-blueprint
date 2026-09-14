@@ -166,17 +166,24 @@ Brownfield writes subnets **into someone else's VNet**. Read this warning before
 > ### ⚠ A subnet name collision is destructive
 >
 > `subnets.bicep` writes each subnet as a plain child PUT, building the request body from a fixed
-> property set (`addressPrefix`, `privateEndpointNetworkPolicies`, optionally one delegation and
-> one NSG). A subnet PUT replaces the entire object. So if a name you request **already exists**
-> in the target VNet:
+> property set (`addressPrefix`, `privateEndpointNetworkPolicies`, optionally one delegation, one
+> NSG, one route table, and a service-endpoints array). A subnet PUT replaces the entire object.
+> So if a name you request **already exists** in the target VNet:
 >
 > - its address prefix, delegation and NSG association are replaced; and
 > - every property the template does not send — **route table (UDR), service endpoints, NAT
 >   gateway** — is absent from the request and is therefore **removed**.
 >
-> There is no `routeTableId` parameter, so a UDR can neither be attached nor preserved. In a
-> forced-tunneling environment, silently dropping a UDR can blackhole egress or bypass an
-> inspection appliance. **No preflight detects this yet** — [step 5.3](#53-preflight-manual--t039)
+> `subnets.bicep` supports optional per-subnet `routeTableId`/`serviceEndpoints`, so a route table
+> or service endpoints CAN be attached or preserved when the caller passes them — but omitting
+> them still removes any that already exist on a colliding subnet, because the PUT still replaces
+> the whole object. `brownfield-network.bicep` currently only wires `routeTableId`/
+> `serviceEndpoints` for the APIM subnet (see "APIM subnet route table and service endpoints"
+> further down in this section); Foundry, private-endpoints, and compute subnets have no
+> route-table parameter yet, so a UDR on any of those three can neither be attached nor preserved.
+> In a forced-tunneling environment, silently dropping a UDR can blackhole egress or bypass an
+> inspection appliance.
+> **No preflight detects this yet** — [step 5.3](#53-preflight-manual--t039)
 > is how you catch it.
 
 ### 5.1 Discover the existing VNet
@@ -332,7 +339,12 @@ list does not match your environment.
 > already deployed `hybridsubnet-apim` (or your renamed equivalent) before this change with no
 > service endpoints, re-running the network deployment will add these four service endpoints to
 > that subnet on the next apply. Review the `what-if` output (step 5.4) before applying if you need
-> to confirm this is expected, or pass `apimServiceEndpoints = []` to keep the subnet as-is.
+> to confirm this is expected. Passing `apimServiceEndpoints = []` does **not** preserve whatever
+> endpoints the subnet currently has — `subnets.bicep` omits the `serviceEndpoints` property
+> entirely when the array is empty, and (per the destructive-collision warning above) an omitted
+> property is removed by the whole-subnet PUT. So `[]` means "this subnet should end up with no
+> service endpoints," which removes any that already exist; if you need to keep existing endpoints
+> unchanged, discover them first (step 5.1) and pass that exact list explicitly.
 
 > **Some landing-zone policies deny route tables on private-NSG subnets entirely.** Observed in
 > practice: `az deployment group validate` can fail with `RequestDisallowedByPolicy` and a reason

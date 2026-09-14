@@ -50,7 +50,7 @@ resource newSubnets 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = [fo
   properties: union(
     {
       addressPrefix: subnet.addressPrefix
-      privateEndpointNetworkPolicies: contains(subnet, 'privateEndpointNetworkPolicies') ? subnet.privateEndpointNetworkPolicies : 'Enabled'
+      privateEndpointNetworkPolicies: subnet.?privateEndpointNetworkPolicies ?? 'Enabled'
     },
     contains(subnet, 'delegationServiceName') ? {
       delegations: [
@@ -67,9 +67,9 @@ resource newSubnets 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = [fo
         id: subnet.nsgId
       }
     } : {},
-    (_validateRouteTableIds[i] && contains(subnet, 'routeTableId') && !empty(subnet.routeTableId)) ? {
+    (_validateRouteTableIds[i] && !empty(subnet.?routeTableId ?? '')) ? {
       routeTable: {
-        id: subnet.routeTableId
+        id: subnet.?routeTableId ?? ''
       }
     } : {},
     (!empty(subnet.?serviceEndpoints ?? [])) ? {
