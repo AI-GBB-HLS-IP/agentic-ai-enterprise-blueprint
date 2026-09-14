@@ -299,6 +299,19 @@ run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force 
   --existing-compute-nsg-id "$placeholder_nsg" || fail "mode 2 should be accepted with both IDs"
 assert_contains "$network_param" "param reuseExistingNsgs = true" "mode 2 not written"
 
+# --- APIM route table (VPCx customer policy) -----------------------------------------------------
+placeholder_route_table="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-placeholder/providers/Microsoft.Network/routeTables/apim-routetable-placeholder"
+
+run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  --apim-route-table-id "$placeholder_route_table" || fail "--apim-route-table-id should be accepted"
+assert_contains "$network_param" "param apimRouteTableId = '${placeholder_route_table}'" \
+  "apimRouteTableId not written"
+
+run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
+  || fail "generator should still succeed without --apim-route-table-id"
+assert_contains "$network_param" "param apimRouteTableId = ''" \
+  "apimRouteTableId should default to empty string when the flag is omitted"
+
 # --- invalid private endpoint policy --------------------------------------------------------------
 if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   --private-endpoints-network-policies "Sometimes"; then

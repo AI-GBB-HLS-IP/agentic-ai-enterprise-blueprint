@@ -46,6 +46,23 @@ param computeSubnetName string = 'hybridsubnet-compute'
 @description('Merged compute and CI/CD agents subnet CIDR.')
 param computeSubnetPrefix string = '10.0.0.80/28'
 
+@description('''Full ARM resource ID of an existing, customer-managed route table to associate with
+the APIM subnet (e.g. VPCx's `apim-routetable-<location>`). This template never creates or
+modifies the referenced route table — only its resource-ID shape is validated. Leave empty to
+associate no route table (blueprint/greenfield default).''')
+param apimRouteTableId string = ''
+
+@description('''Service endpoints to enable on the APIM subnet. Defaults to the four endpoints
+required by VPCx customer policy (`Microsoft.AzureActiveDirectory`, `Microsoft.KeyVault`,
+`Microsoft.Sql`, `Microsoft.Storage`); pass an empty array to opt out for environments without
+that requirement.''')
+param apimServiceEndpoints array = [
+  'Microsoft.AzureActiveDirectory'
+  'Microsoft.KeyVault'
+  'Microsoft.Sql'
+  'Microsoft.Storage'
+]
+
 // ---------------------------------------------------------------------------------------------
 // NSG association. Three mutually exclusive modes, in precedence order:
 //
@@ -123,9 +140,16 @@ var _validateReuseExistingNsgs = !reuseExistingNsgs || !empty(sharedHybridNsgId)
   ? true
   : fail('reuseExistingNsgs is true, so both existingApimNsgId and existingComputeNsgId must be supplied.')
 
+var routeTableIdSegmentCount = 9
+var routeTableProviderPath = '/providers/microsoft.network/routetables/'
+
+var _validateApimRouteTableId = empty(apimRouteTableId) || (startsWith(toLower(apimRouteTableId), '/subscriptions/') && contains(toLower(apimRouteTableId), '/resourcegroups/') && contains(toLower(apimRouteTableId), routeTableProviderPath) && length(split(apimRouteTableId, '/')) == routeTableIdSegmentCount)
+  ? true
+  : fail('apimRouteTableId must be empty or a full ARM resource ID for Microsoft.Network/routeTables with no trailing slash, for example /subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/routeTables/<name>.')
+
 // Threaded into useSharedHybridNsg so the guards are always evaluated; an unreferenced variable
 // would be eliminated and its fail() never raised.
-var nsgInputsValidated = _validateSharedHybridNsgId && _validateExistingApimNsgId && _validateExistingComputeNsgId && _validateReuseExistingNsgs
+var nsgInputsValidated = _validateSharedHybridNsgId && _validateExistingApimNsgId && _validateExistingComputeNsgId && _validateReuseExistingNsgs && _validateApimRouteTableId
 
 var useSharedHybridNsg = nsgInputsValidated && !empty(sharedHybridNsgId)
 
@@ -168,6 +192,8 @@ module subnets '../../modules/network/subnets.bicep' = {
         name: apimSubnetName
         addressPrefix: apimSubnetPrefix
         nsgId: apimNsgIdResolved
+        routeTableId: apimRouteTableId
+        serviceEndpoints: apimServiceEndpoints
       }
       union({
         name: privateEndpointsSubnetName

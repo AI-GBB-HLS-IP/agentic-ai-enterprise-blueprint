@@ -273,6 +273,7 @@ sign-off on the CIDRs before deploying.
 | `--shared-hybrid-nsg-id <id>` | NSG mode 1 (see below) |
 | `--reuse-existing-nsgs` + `--existing-apim-nsg-id` + `--existing-compute-nsg-id` | NSG mode 2 |
 | `--private-endpoints-network-policies NetworkSecurityGroupEnabled` | NSG rules must actually be *enforced* on private endpoint traffic |
+| `--apim-route-table-id <id>` | Customer policy requires the APIM subnet be associated with a specific, pre-existing route table |
 
 **Partially allocated VNets are the normal case.** The generator subtracts every existing subnet
 from the VNet address space and picks the first *aligned* free block of the requested size, so
@@ -312,6 +313,25 @@ modified. Mode 1 overrides mode 2.
 > `privateEndpointsNetworkPolicies` defaults to `Disabled`, which **associates** the NSG with the
 > private endpoints subnet but does not let it filter private endpoint traffic. Use
 > `NetworkSecurityGroupEnabled` if the rules must actually be enforced there.
+
+**APIM subnet route table and service endpoints (VPCx customer policy).** `brownfield-network.bicep`
+exposes two parameters on the APIM subnet only:
+
+| Parameter | Default | Notes |
+| --- | --- | --- |
+| `apimRouteTableId` | `''` (no association) | Full ARM resource ID of an existing, customer-managed route table (e.g. VPCx's `apim-routetable-<location>`). This module never creates or modifies the referenced route table — only its resource-ID shape is validated, the same as the NSG-ID parameters above. |
+| `apimServiceEndpoints` | `['Microsoft.AzureActiveDirectory', 'Microsoft.KeyVault', 'Microsoft.Sql', 'Microsoft.Storage']` | The four service endpoints required by VPCx customer policy on the APIM subnet. Pass an empty array to opt out in environments without that requirement. |
+
+Set `apimRouteTableId` via `--apim-route-table-id <id>` when generating parameters, or by editing
+`apimRouteTableId` directly in a hand-written `.bicepparam` file. `apimServiceEndpoints` has no
+generator flag today — override it directly in the `.bicepparam` file if the default four-endpoint
+list does not match your environment.
+
+> **Migration note:** `apimServiceEndpoints` defaults to a non-empty list as of this change. If you
+> already deployed `hybridsubnet-apim` (or your renamed equivalent) before this change with no
+> service endpoints, re-running the network deployment will add these four service endpoints to
+> that subnet on the next apply. Review the `what-if` output (step 5.4) before applying if you need
+> to confirm this is expected, or pass `apimServiceEndpoints = []` to keep the subnet as-is.
 
 <details>
 <summary>Writing the parameter file by hand instead</summary>
@@ -420,6 +440,38 @@ DNS-owner-scoped resources. Deploy Foundry with
 cross-subscription zones directly. The deploying identity or DNS-owning team must already provide
 the required zone-group RBAC. The central DNS scope must contain all zones referenced by Foundry,
 including `privatelink.services.ai.azure.com` in addition to the service zones listed below.
+
+**Worked example — hub-subscription DNS zones.** Some customer environments centralize all
+private DNS zones in a dedicated hub/networking subscription that is distinct from every
+workload subscription (for example, an environment with zones in a subscription named
+`<hub-network-subscription>`, resource group `<hub-network-subscription>-<workload-alias>`). In
+`zone-group` mode, that hub subscription and resource group are supplied **only** as
+`dnsSubscriptionId` and `dnsResourceGroupName` — values consumed exclusively to build the
+zone-group's cross-subscription zone resource IDs. They are never the `--subscription` /
+`az deployment group create --resource-group` target of any deployment in this chapter; the
+workload resources themselves always deploy into the workload subscription and resource group:
+
+```bash
+./scripts/network/generate-brownfield-params.sh \
+  --discovery ./network-discovery-<vnet>.json \
+  --dns-integration-mode zone-group \
+  --dns-subscription-id "<hub-network-subscription-id>" \
+  --dns-resource-group "<hub-network-subscription>-<workload-alias>"
+
+# Foundry (and any other private-endpoint-bearing resource) still deploys into the WORKLOAD
+# subscription/resource group, never the hub subscription above:
+az deployment group create \
+  --subscription "<workload-subscription-id>" \
+  --resource-group "<foundry-resource-group>" \
+  --template-file infra/envs/poc/foundry.bicep \
+  --parameters infra/envs/poc/brownfield-foundry.bicepparam
+```
+
+Confirm with the DNS-owning team that the deploying identity has been granted the private DNS
+zone-group join permission (`Microsoft.Network/privateDnsZones/join/action`, typically via the
+**Private DNS Zone Contributor** role or a custom role) scoped to the hub resource group before
+starting Foundry — this RBAC lives in the hub subscription and is not something this repo's
+templates can grant.
 
 In `vnet-link` mode, this stage only **links** existing private DNS zones to the VNet. It never
 creates or modifies a zone, so the zones must already exist. Required zones:
