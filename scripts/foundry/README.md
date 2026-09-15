@@ -77,9 +77,7 @@ PARAMETER_FILE=infra/envs/poc/foundry-dns.bicepparam \
 
 Copy `infra/envs/poc/foundry-dns.bicepparam.example` to a local, untracked
 `foundry-dns.bicepparam` and populate it with full private endpoint ARM resource IDs before
-running Phase 3. `foundryPrivateEndpointId` and `keyVaultPrivateEndpointId` are required;
-`storagePrivateEndpointId`, `cosmosDBPrivateEndpointId`, and `aiSearchPrivateEndpointId` may be
-empty to skip those associations. The IDs may identify endpoints in other resource groups or
+All five endpoint IDs may be empty to skip their associations; populate each ID that should receive a DNS zone group. The IDs may identify endpoints in other resource groups or subscriptions.
 subscriptions.
 
 The `RG_NAME` value is the top-level deployment scope, not a constraint on endpoint location.
