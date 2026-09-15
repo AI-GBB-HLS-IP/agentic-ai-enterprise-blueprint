@@ -591,9 +591,9 @@ Capture the full ARM resource ID outputs from this deployment:
 `foundryPrivateEndpointId`, `storagePrivateEndpointId`, `keyVaultPrivateEndpointId`,
 `cosmosDBPrivateEndpointId`, and `aiSearchPrivateEndpointId`. Phase 3 accepts these IDs or IDs for
 independently managed private endpoints, including endpoints in other resource groups or
-subscriptions. `foundryPrivateEndpointId` and `keyVaultPrivateEndpointId` are required.
-`storagePrivateEndpointId`, `cosmosDBPrivateEndpointId`, and `aiSearchPrivateEndpointId` may be
-empty to skip those associations.
+subscriptions. Any of `foundryPrivateEndpointId`, `storagePrivateEndpointId`,
+`keyVaultPrivateEndpointId`, `cosmosDBPrivateEndpointId`, and `aiSearchPrivateEndpointId` may be
+empty to skip that association.
 
 **Phase 3 — DNS zone group association.** Run `foundry-dns.bicep` only after Phase 2 succeeds.
 The top-level deployment may remain in the workload resource group shown below; each nested DNS

@@ -23,14 +23,14 @@ param dnsResourceGroupName string = ''
 @description('Existing VNet name (used to create the vnet-link for the services-ai zone in vnet-link mode).')
 param vnetName string = 'vnet-agent-factory-poc'
 
-@description('Full ARM resource ID of the Foundry account private endpoint.')
-param foundryPrivateEndpointId string
+@description('Full ARM resource ID of the Foundry account private endpoint. Leave empty to skip association.')
+param foundryPrivateEndpointId string = ''
 
 @description('Full ARM resource ID of the Storage private endpoint. Leave empty to skip association.')
 param storagePrivateEndpointId string = ''
 
-@description('Full ARM resource ID of the Key Vault private endpoint.')
-param keyVaultPrivateEndpointId string
+@description('Full ARM resource ID of the Key Vault private endpoint. Leave empty to skip association.')
+param keyVaultPrivateEndpointId string = ''
 
 @description('Full ARM resource ID of the Cosmos DB private endpoint. Leave empty to skip association.')
 param cosmosDBPrivateEndpointId string = ''
@@ -145,21 +145,23 @@ var privateDnsZoneIds = dnsIntegrationMode == 'zone-group'
   ? zoneGroupDnsResourceIds
   : vnetLinkDnsResourceIds
 
+var createFoundryDnsGroup = !empty(foundryPrivateEndpointId)
 var foundryPrivateEndpointParts = split(foundryPrivateEndpointId, '/')
-var _validateFoundryPrivateEndpointId = ((length(foundryPrivateEndpointParts) == 9) || (length(foundryPrivateEndpointParts) == 10 && empty(foundryPrivateEndpointParts[?9] ?? ''))) && empty(foundryPrivateEndpointParts[?0] ?? '') && toLower(foundryPrivateEndpointParts[?1] ?? '') == 'subscriptions' && !empty(foundryPrivateEndpointParts[?2] ?? '') && toLower(foundryPrivateEndpointParts[?3] ?? '') == 'resourcegroups' && !empty(foundryPrivateEndpointParts[?4] ?? '') && toLower(foundryPrivateEndpointParts[?5] ?? '') == 'providers' && toLower(foundryPrivateEndpointParts[?6] ?? '') == 'microsoft.network' && toLower(foundryPrivateEndpointParts[?7] ?? '') == 'privateendpoints' && !empty(foundryPrivateEndpointParts[?8] ?? '')
+var _validateFoundryPrivateEndpointId = !createFoundryDnsGroup || (((length(foundryPrivateEndpointParts) == 9) || (length(foundryPrivateEndpointParts) == 10 && empty(foundryPrivateEndpointParts[?9] ?? ''))) && empty(foundryPrivateEndpointParts[?0] ?? '') && toLower(foundryPrivateEndpointParts[?1] ?? '') == 'subscriptions' && !empty(foundryPrivateEndpointParts[?2] ?? '') && toLower(foundryPrivateEndpointParts[?3] ?? '') == 'resourcegroups' && !empty(foundryPrivateEndpointParts[?4] ?? '') && toLower(foundryPrivateEndpointParts[?5] ?? '') == 'providers' && toLower(foundryPrivateEndpointParts[?6] ?? '') == 'microsoft.network' && toLower(foundryPrivateEndpointParts[?7] ?? '') == 'privateendpoints' && !empty(foundryPrivateEndpointParts[?8] ?? ''))
   ? true
-  : fail('foundryPrivateEndpointId must be a full ARM resource ID for Microsoft.Network/privateEndpoints.')
-var foundryPrivateEndpointSubscriptionId = _validateFoundryPrivateEndpointId ? foundryPrivateEndpointParts[2] : ''
-var foundryPrivateEndpointResourceGroupName = _validateFoundryPrivateEndpointId ? foundryPrivateEndpointParts[4] : ''
-var foundryPrivateEndpointName = _validateFoundryPrivateEndpointId ? foundryPrivateEndpointParts[8] : ''
+  : fail('foundryPrivateEndpointId must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.')
+var foundryPrivateEndpointSubscriptionId = createFoundryDnsGroup && _validateFoundryPrivateEndpointId ? foundryPrivateEndpointParts[2] : subscription().subscriptionId
+var foundryPrivateEndpointResourceGroupName = createFoundryDnsGroup && _validateFoundryPrivateEndpointId ? foundryPrivateEndpointParts[4] : resourceGroup().name
+var foundryPrivateEndpointName = createFoundryDnsGroup && _validateFoundryPrivateEndpointId ? foundryPrivateEndpointParts[8] : ''
 
+var createKeyVaultDnsGroup = !empty(keyVaultPrivateEndpointId)
 var keyVaultPrivateEndpointParts = split(keyVaultPrivateEndpointId, '/')
-var _validateKeyVaultPrivateEndpointId = ((length(keyVaultPrivateEndpointParts) == 9) || (length(keyVaultPrivateEndpointParts) == 10 && empty(keyVaultPrivateEndpointParts[?9] ?? ''))) && empty(keyVaultPrivateEndpointParts[?0] ?? '') && toLower(keyVaultPrivateEndpointParts[?1] ?? '') == 'subscriptions' && !empty(keyVaultPrivateEndpointParts[?2] ?? '') && toLower(keyVaultPrivateEndpointParts[?3] ?? '') == 'resourcegroups' && !empty(keyVaultPrivateEndpointParts[?4] ?? '') && toLower(keyVaultPrivateEndpointParts[?5] ?? '') == 'providers' && toLower(keyVaultPrivateEndpointParts[?6] ?? '') == 'microsoft.network' && toLower(keyVaultPrivateEndpointParts[?7] ?? '') == 'privateendpoints' && !empty(keyVaultPrivateEndpointParts[?8] ?? '')
+var _validateKeyVaultPrivateEndpointId = !createKeyVaultDnsGroup || (((length(keyVaultPrivateEndpointParts) == 9) || (length(keyVaultPrivateEndpointParts) == 10 && empty(keyVaultPrivateEndpointParts[?9] ?? ''))) && empty(keyVaultPrivateEndpointParts[?0] ?? '') && toLower(keyVaultPrivateEndpointParts[?1] ?? '') == 'subscriptions' && !empty(keyVaultPrivateEndpointParts[?2] ?? '') && toLower(keyVaultPrivateEndpointParts[?3] ?? '') == 'resourcegroups' && !empty(keyVaultPrivateEndpointParts[?4] ?? '') && toLower(keyVaultPrivateEndpointParts[?5] ?? '') == 'providers' && toLower(keyVaultPrivateEndpointParts[?6] ?? '') == 'microsoft.network' && toLower(keyVaultPrivateEndpointParts[?7] ?? '') == 'privateendpoints' && !empty(keyVaultPrivateEndpointParts[?8] ?? ''))
   ? true
-  : fail('keyVaultPrivateEndpointId must be a full ARM resource ID for Microsoft.Network/privateEndpoints.')
-var keyVaultPrivateEndpointSubscriptionId = _validateKeyVaultPrivateEndpointId ? keyVaultPrivateEndpointParts[2] : ''
-var keyVaultPrivateEndpointResourceGroupName = _validateKeyVaultPrivateEndpointId ? keyVaultPrivateEndpointParts[4] : ''
-var keyVaultPrivateEndpointName = _validateKeyVaultPrivateEndpointId ? keyVaultPrivateEndpointParts[8] : ''
+  : fail('keyVaultPrivateEndpointId must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.')
+var keyVaultPrivateEndpointSubscriptionId = createKeyVaultDnsGroup && _validateKeyVaultPrivateEndpointId ? keyVaultPrivateEndpointParts[2] : subscription().subscriptionId
+var keyVaultPrivateEndpointResourceGroupName = createKeyVaultDnsGroup && _validateKeyVaultPrivateEndpointId ? keyVaultPrivateEndpointParts[4] : resourceGroup().name
+var keyVaultPrivateEndpointName = createKeyVaultDnsGroup && _validateKeyVaultPrivateEndpointId ? keyVaultPrivateEndpointParts[8] : ''
 
 var createStorageDnsGroup = !empty(storagePrivateEndpointId)
 var storagePrivateEndpointParts = split(storagePrivateEndpointId, '/')
@@ -188,7 +190,7 @@ var aiSearchPrivateEndpointSubscriptionId = createAISearchDnsGroup && _validateA
 var aiSearchPrivateEndpointResourceGroupName = createAISearchDnsGroup && _validateAISearchPrivateEndpointId ? aiSearchPrivateEndpointParts[4] : resourceGroup().name
 var aiSearchPrivateEndpointName = createAISearchDnsGroup && _validateAISearchPrivateEndpointId ? aiSearchPrivateEndpointParts[8] : ''
 
-module foundryDns '../../modules/foundry/private-endpoint-dns.bicep' = {
+module foundryDns '../../modules/foundry/private-endpoint-dns.bicep' = if (createFoundryDnsGroup && _validateFoundryPrivateEndpointId) {
   name: 'foundry-private-endpoint-dns'
   scope: resourceGroup(foundryPrivateEndpointSubscriptionId, foundryPrivateEndpointResourceGroupName)
   params: {
@@ -234,7 +236,7 @@ module storageDns '../../modules/foundry/private-endpoint-dns.bicep' = if (creat
   }
 }
 
-module keyVaultDnsAssociation '../../modules/foundry/private-endpoint-dns.bicep' = {
+module keyVaultDnsAssociation '../../modules/foundry/private-endpoint-dns.bicep' = if (createKeyVaultDnsGroup && _validateKeyVaultPrivateEndpointId) {
   name: 'keyvault-private-endpoint-dns'
   scope: resourceGroup(keyVaultPrivateEndpointSubscriptionId, keyVaultPrivateEndpointResourceGroupName)
   params: {
@@ -285,8 +287,10 @@ module aiSearchDns '../../modules/foundry/private-endpoint-dns.bicep' = if (crea
   }
 }
 
-output foundryDnsGroupId string = foundryDns.outputs.dnsGroupId
-output keyVaultDnsGroupId string = keyVaultDnsAssociation.outputs.dnsGroupId
+#disable-next-line BCP318
+output foundryDnsGroupId string = createFoundryDnsGroup ? foundryDns.outputs.dnsGroupId : ''
+#disable-next-line BCP318
+output keyVaultDnsGroupId string = createKeyVaultDnsGroup ? keyVaultDnsAssociation.outputs.dnsGroupId : ''
 #disable-next-line BCP318
 output storageDnsGroupId string = createStorageDnsGroup ? storageDns.outputs.dnsGroupId : ''
 #disable-next-line BCP318

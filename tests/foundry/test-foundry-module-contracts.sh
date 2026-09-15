@@ -137,19 +137,21 @@ arm = json.load(open(sys.argv[1]))
 parameters = arm.get("parameters", {})
 resources = arm.get("resources", [])
 
-required = ("foundryPrivateEndpointId", "keyVaultPrivateEndpointId")
-optional = ("storagePrivateEndpointId", "cosmosDBPrivateEndpointId", "aiSearchPrivateEndpointId")
-for parameter in required:
-    if parameter not in parameters or "defaultValue" in parameters[parameter]:
-        sys.exit(f"foundry-dns.bicep must require parameter: {parameter}")
+optional = (
+    "foundryPrivateEndpointId",
+    "storagePrivateEndpointId",
+    "keyVaultPrivateEndpointId",
+    "cosmosDBPrivateEndpointId",
+    "aiSearchPrivateEndpointId",
+)
 for parameter in optional:
     if parameters.get(parameter, {}).get("defaultValue") != "":
         sys.exit(f"foundry-dns.bicep must make {parameter} optional with an empty default")
 
 compiled = json.dumps(arm)
 expected_messages = {
-    "foundryPrivateEndpointId": "must be a full ARM resource ID for Microsoft.Network/privateEndpoints.",
-    "keyVaultPrivateEndpointId": "must be a full ARM resource ID for Microsoft.Network/privateEndpoints.",
+    "foundryPrivateEndpointId": "must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.",
+    "keyVaultPrivateEndpointId": "must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.",
     "storagePrivateEndpointId": "must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.",
     "cosmosDBPrivateEndpointId": "must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.",
     "aiSearchPrivateEndpointId": "must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.",
@@ -165,9 +167,9 @@ deployments = {
     if resource.get("type") == "Microsoft.Resources/deployments"
 }
 expected = {
-    "foundry-private-endpoint-dns": ("foundry", None),
+    "foundry-private-endpoint-dns": ("foundry", "createFoundryDnsGroup"),
     "storage-private-endpoint-dns": ("storage", "createStorageDnsGroup"),
-    "keyvault-private-endpoint-dns": ("keyVault", None),
+    "keyvault-private-endpoint-dns": ("keyVault", "createKeyVaultDnsGroup"),
     "cosmosdb-private-endpoint-dns": ("cosmosDB", "createCosmosDBDnsGroup"),
     "aisearch-private-endpoint-dns": ("aiSearch", "createAISearchDnsGroup"),
 }

@@ -5,9 +5,8 @@ using './foundry-dns.bicep'
 // `foundry-dns.bicepparam` and replace every placeholder before deploying.
 //
 // Deploy this scoped to the SAME resource group as foundry.bicep, only after foundry.bicep's
-// deployment has succeeded and its private endpoints exist. Replace the required Foundry and
-// Key Vault endpoint IDs below with full ARM resource IDs. Replace each optional Storage,
-// Cosmos DB, and AI Search endpoint ID when that endpoint exists, or set it to '' to skip it.
+// deployment has succeeded and its private endpoints exist. Replace each endpoint ID below with
+// a full ARM resource ID when that endpoint exists, or set it to '' to skip its association.
 //
 // In vnet-link mode, dnsSubscriptionId must match the workload subscription and
 // dnsResourceGroupName must match networkResourceGroupName. In zone-group mode, set both values
