@@ -45,9 +45,7 @@ az deployment group what-if \
 
 Expected Phase 2 preview: only declared Chapter 01 resources are created/updated, including bare
 private endpoints; it does not create `privateDnsZoneGroups`. Expected Phase 3 preview: DNS zone
-groups are created against the supplied endpoint IDs. Foundry and Key Vault endpoint IDs are
-required; Storage, Cosmos DB, and AI Search endpoint IDs may be empty. Endpoint IDs may reference
-other resource groups or subscriptions, so the deploying identity needs permissions at every
+All five endpoint IDs may be empty to skip their associations; populate each ID that should receive a DNS zone group. Endpoint IDs may reference other resource groups or subscriptions, so the deploying identity needs permissions at every endpoint resource group in addition to any cross-subscription DNS-zone read/join permission.
 endpoint resource group in addition to any cross-subscription DNS-zone read/join permission.
 These are expected checks, not evidence that either Azure command has been rerun for this change.
 
