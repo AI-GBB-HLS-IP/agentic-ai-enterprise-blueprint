@@ -27,10 +27,10 @@ param cicdAgentsSubnetPrefix string = '10.0.5.0/24'
 @description('Bastion subnet CIDR (AzureBastionSubnet requires at least /26).')
 param bastionSubnetPrefix string = '10.0.6.0/26'
 
-@description('APIM NSG name. Mirrors the customer VPCx hybrid-NSG convention (hybrid-nsg-{subscription_name}-{region}), scoped per-subnet since APIM and compute have distinct rule sets.')
+@description('APIM NSG name. Mirrors a brownfield-deployment hybrid-NSG naming convention (hybrid-nsg-{subscription_name}-{region}), scoped per-subnet since APIM and compute have distinct rule sets.')
 param apimNsgName string = 'hybrid-nsg-agent-blueprint-eastus2-apim'
 
-@description('Compute NSG name. Mirrors the customer VPCx hybrid-NSG convention (hybrid-nsg-{subscription_name}-{region}), scoped per-subnet since APIM and compute have distinct rule sets.')
+@description('Compute NSG name. Mirrors a brownfield-deployment hybrid-NSG naming convention (hybrid-nsg-{subscription_name}-{region}), scoped per-subnet since APIM and compute have distinct rule sets.')
 param computeNsgName string = 'hybrid-nsg-agent-blueprint-eastus2-compute'
 
 @description('Private DNS zone names required for private endpoints.')

@@ -35,6 +35,10 @@ NSG mode (choose one; default is blueprint-owned):
   --existing-apim-nsg-id <id>
   --existing-compute-nsg-id <id>
 
+APIM subnet route table (common brownfield-deployment network policy):
+  --apim-route-table-id <id>     Full resource ID of an existing route table to associate with
+                                 the APIM subnet. Never created or modified by this script.
+
 Other:
   --dns-integration-mode <mode>  Required: vnet-link | zone-group
   --dns-subscription-id <id>     Subscription holding the private DNS zones; required for
@@ -64,6 +68,7 @@ shared_nsg_id=""
 reuse_existing_nsgs="false"
 existing_apim_nsg_id=""
 existing_compute_nsg_id=""
+apim_route_table_id=""
 pe_policies="Disabled"
 dns_resource_group=""
 dns_integration_mode=""
@@ -88,6 +93,7 @@ while [[ $# -gt 0 ]]; do
     --reuse-existing-nsgs) reuse_existing_nsgs="true"; shift ;;
     --existing-apim-nsg-id) require_value "$1" $#; existing_apim_nsg_id="$2"; shift 2 ;;
     --existing-compute-nsg-id) require_value "$1" $#; existing_compute_nsg_id="$2"; shift 2 ;;
+    --apim-route-table-id) require_value "$1" $#; apim_route_table_id="$2"; shift 2 ;;
     --private-endpoints-network-policies) require_value "$1" $#; pe_policies="$2"; shift 2 ;;
     --dns-integration-mode) require_value "$1" $#; dns_integration_mode="$2"; shift 2 ;;
     --dns-subscription-id) require_value "$1" $#; dns_subscription_id="$2"; shift 2 ;;
@@ -132,7 +138,8 @@ fi
 command -v python3 >/dev/null 2>&1 || { echo "Required tool not found: python3" >&2; exit 1; }
 
 CONFIG="$(python3 - "$block" "$block_size" "$name_prefix" "$location" "$shared_nsg_id" \
-  "$reuse_existing_nsgs" "$existing_apim_nsg_id" "$existing_compute_nsg_id" "$pe_policies" \
+  "$reuse_existing_nsgs" "$existing_apim_nsg_id" "$existing_compute_nsg_id" "$apim_route_table_id" \
+  "$pe_policies" \
   "$dns_integration_mode" "$dns_subscription_id" "$dns_resource_group" "$out_dir" \
   "$allow_name_collision" "$force" "$dry_run" <<'PY'
 import json
@@ -140,7 +147,7 @@ import sys
 
 keys = [
     "block", "blockSize", "namePrefix", "location", "sharedHybridNsgId",
-    "reuseExistingNsgs", "existingApimNsgId", "existingComputeNsgId",
+    "reuseExistingNsgs", "existingApimNsgId", "existingComputeNsgId", "apimRouteTableId",
     "privateEndpointsNetworkPolicies", "dnsIntegrationMode", "dnsSubscriptionId",
     "dnsResourceGroup", "outDir",
     "allowNameCollision", "force", "dryRun",
@@ -383,6 +390,7 @@ shared_nsg_id = config["sharedHybridNsgId"]
 reuse = config["reuseExistingNsgs"] == "true"
 apim_nsg_id = config["existingApimNsgId"]
 compute_nsg_id = config["existingComputeNsgId"]
+apim_route_table_id = config["apimRouteTableId"]
 
 if shared_nsg_id:
     nsg_mode = "1 - shared hybrid NSG (associated with all four subnets; none created)"
@@ -487,6 +495,9 @@ lines.append(f"param sharedHybridNsgId = {bicep_string(shared_nsg_id)}")
 lines.append(f"param reuseExistingNsgs = {'true' if reuse else 'false'}")
 lines.append(f"param existingApimNsgId = {bicep_string(apim_nsg_id)}")
 lines.append(f"param existingComputeNsgId = {bicep_string(compute_nsg_id)}")
+lines.append("")
+lines.append("// APIM subnet route table (common brownfield-deployment network policy). Leave empty for no route table.")
+lines.append(f"param apimRouteTableId = {bicep_string(apim_route_table_id)}")
 lines.append("")
 lines.append(f"param privateEndpointsNetworkPolicies = {bicep_string(pe_policies)}")
 network_param_text = "\n".join(lines) + "\n"

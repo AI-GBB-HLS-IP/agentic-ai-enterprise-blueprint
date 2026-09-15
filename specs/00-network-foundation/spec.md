@@ -456,7 +456,16 @@ must be confirmed with the tenant administrator when self-service group creation
   subnets. The blueprint MUST create a dedicated NSG unless an approved existing NSG resource ID
   is supplied. In brownfield mode, route tables MUST remain customer-managed: the blueprint MAY
   associate an approved existing route table but MUST NOT create or modify route tables or routes.
-  It MUST NOT alter unrelated NSGs, route tables, or routes.
+  It MUST NOT alter unrelated NSGs, route tables, or routes. Route-table association MUST be
+  implemented as an optional per-subnet property accepting the full ARM resource ID of the
+  existing route table; the blueprint MUST validate only the resource ID's shape (not the route
+  table's contents) before associating it.
+- **FR-018a**: Brownfield subnets MUST support enabling caller-supplied Azure service endpoints
+  (e.g. `Microsoft.AzureActiveDirectory`, `Microsoft.KeyVault`, `Microsoft.Sql`,
+  `Microsoft.Storage`) per subnet, defaulting to none except on the APIM-purpose subnet, which
+  MUST default to the four endpoints listed above to satisfy the customer's APIM subnet policy
+  out of the box. The blueprint MUST NOT validate service-endpoint names against a fixed list;
+  Azure Resource Manager's own validation rejects unsupported values at deployment time.
 - **FR-019**: Blueprint-owned resources MUST declaratively align with applicable policies that
   disable public network access or local authentication where those settings are supported. No
   resource created directly by this spec (VNet, subnet, NSG, Private DNS zone, VNet link,
