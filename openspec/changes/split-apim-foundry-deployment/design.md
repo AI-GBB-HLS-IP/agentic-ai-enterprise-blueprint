@@ -11,6 +11,15 @@ API, and Foundry role assignment are separate modules. The principal coupling is
 `infra/modules/apim/main.bicep` references Foundry and deploys the role assignment, while the
 environment entry point and validator treat every module as one readiness unit.
 
+The customer VPCx Azure 2.0 guidance independently defines APIM and Foundry. APIM requires
+internal VNet mode, an approved subnet with customer network controls, a public IP for classic
+internal-mode platform operation, TLS restrictions, diagnostics, and capacity monitoring.
+Foundry has its own GenAI approval and account-enablement workflow, approved regions and models,
+private endpoints, and policy enforcement; its guidance contains no APIM prerequisite.
+The customer baseline reviewed for this change is the `cloudx-patterns` snapshot at commit
+`a23fe3be99e`, under `docs/azure_2_0/services/azure-api-management-v2/` and
+`docs/azure_2_0/services/azure-aifoundry-2.0/`.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -26,8 +35,8 @@ environment entry point and validator treat every module as one readiness unit.
 
 **Non-Goals:**
 
-- Changing the selected APIM tier, internal VNet posture, DNS zone design, observability services,
-  model policy behavior, or managed-identity authentication.
+- Changing the selected APIM Premium tier, internal VNet posture, model policy behavior, or
+  managed-identity authentication.
 - Making Foundry depend on APIM or changing Chapter 01 Foundry infrastructure.
 - Adding MCP, A2A, Content Safety, semantic caching, secondary backends, or public access.
 - Automatically deploying Stage 2 when Stage 1 completes.
@@ -104,6 +113,61 @@ Stage 2 begins with Foundry approval, account, model, and permissions as its own
 This avoids implying either Azure service requires the other while retaining the blueprint's
 governed AI API as the final integrated outcome.
 
+### 7. Model customer APIM controls as foundation prerequisites
+
+Foundation preflight will validate the customer policy profile before provisioning:
+
+- `apimsubnet-*` naming from the customer guidance, or a documented tenant-approved naming
+  exception;
+- the approved hybrid NSG;
+- the APIM route table or a documented tenant-specific exception;
+- no subnet delegation;
+- the four required service endpoints;
+- a customer-approved public IP resource for classic internal APIM;
+- a corporate administrator email;
+- Premium tier, internal VNet mode, HTTPS backends, TLS 1.2-or-stronger settings, and disabled
+  weak protocols/ciphers.
+
+The existing brownfield network templates already support an NSG resource ID, route-table
+resource ID, and service endpoints. The generic customer document requires
+`apim-routetable-<location>`, while the repository records an observed landing-zone policy that
+denies a route table when the shared hybrid NSG is attached. The implementation will not silently
+choose between these conflicting controls: validation must require either the documented customer
+profile or explicit evidence of the active tenant-approved exception.
+
+The required public IP is treated as an APIM platform/control-plane dependency, not evidence of a
+public gateway. Exposure validation will use internal VNet mode and endpoint reachability rather
+than asserting that no public IP resource exists.
+
+### 8. Expand foundation monitoring to the customer baseline
+
+The observability module will retain Application Insights and Log Analytics for blueprint
+telemetry and add or verify the policy-required APIM diagnostic destination for AllLogs and
+AllMetrics. It will also add or verify the customer capacity alert at an average capacity
+threshold greater than 60 percent.
+
+Where customer Azure Policy deploys or locks diagnostic settings, the template will reference and
+validate the enforced configuration rather than fighting policy ownership.
+
+### 9. Keep enterprise custom DNS conditional
+
+The existing `azure-api.net` private DNS zone remains the VNet-local foundation mechanism.
+Customer guidance states that default APIM domains are not globally resolvable across the
+enterprise network in internal mode. Chapter 02 will therefore document approved custom domains,
+approved CA certificates, and internal DNS A records to the private VIP as an optional extension
+when consumers require broader internal reachability. This does not gate foundation validation
+for VNet-local consumers.
+
+### 10. Make customer Foundry governance a Stage 2 gate
+
+Integration validation will require evidence that the GenAI Review Board case and Foundry account
+enablement are complete, that the existing Foundry deployment is in an approved region with
+private access, and that every mapped model is on the customer-approved model list. These checks
+belong only to Stage 2 and must never run during foundation preview or deployment.
+The referenced customer guidance currently identifies East US, East US 2, and West Europe as the
+allowed Foundry regions; validation should consume the maintained customer policy source rather
+than permanently duplicating a list that can change.
+
 ## Risks / Trade-offs
 
 - **[Existing automation invokes the combined parameter contract]** -> Update all repository
@@ -119,21 +183,31 @@ governed AI API as the final integrated outcome.
 - **[Two entry points increase operator steps]** -> Provide an `all` validation mode and a concise
   handoff showing exactly which foundation outputs become Stage 2 inputs, without recombining the
   deployments.
+- **[Generic APIM guidance and active tenant policy disagree on route-table attachment]** ->
+  Validate the active policy assignment and require documented exception evidence rather than
+  hardcoding a configuration that Azure Policy will deny.
+- **[A required public IP is mistaken for public gateway exposure]** -> Document its
+  platform-management purpose and test internal endpoint reachability separately.
+- **[Azure Policy owns diagnostic settings]** -> Detect policy-created settings and validate
+  required categories/destinations instead of attempting an unauthorized replacement.
 
 ## Migration Plan
 
 1. Refactor `infra/modules/apim/main.bicep` to remove Foundry parameters, references, role
    assignment, and Foundry readiness outputs.
-2. Reduce `infra/envs/poc/apim.bicep` and `apim.bicepparam` to foundation-owned modules and inputs.
+2. Reduce `infra/envs/poc/apim.bicep` and `apim.bicepparam` to foundation-owned modules and inputs,
+   including the customer-approved APIM public IP and network-policy profile.
 3. Add the integration entry point and parameter file using the existing APIM service plus the
    existing role-assignment, backend, and API modules.
-4. Split validation modes and evidence, then update Chapter 02 and all legacy Chapter 02 planning
-   artifacts to describe stage-specific prerequisites and checkpoints.
-5. Compile and preview Stage 1 without Foundry inputs; verify its live foundation posture where
+4. Extend foundation observability with policy-compatible diagnostics and capacity-alert
+   validation.
+5. Split validation modes and evidence, then update Chapter 02 and all legacy Chapter 02 planning
+   artifacts to describe stage-specific prerequisites, customer controls, and checkpoints.
+6. Compile and preview Stage 1 without Foundry inputs; verify its live foundation posture where
    Azure access is available.
-6. Preview Stage 2 against an existing APIM foundation and approved Foundry environment; verify
+7. Preview Stage 2 against an existing APIM foundation and approved Foundry environment; verify
    the preview contains only integration-owned changes.
-7. Reapply each stage unchanged to verify idempotency and run the full end-to-end request test
+8. Reapply each stage unchanged to verify idempotency and run the full end-to-end request test
    after integration.
 
 Rollback is stage-specific. Removing or rolling back Stage 2 deletes only integration-owned API,

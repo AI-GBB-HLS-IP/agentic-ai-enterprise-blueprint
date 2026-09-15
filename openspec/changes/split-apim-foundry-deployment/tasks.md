@@ -10,19 +10,37 @@
 - [ ] 1.3 Reorganize `specs/02-apim-ai-gateway/tasks.md` and `quickstart.md` into stage-specific
   prerequisites, deployment commands, checkpoints, and evidence paths; verify an operator can
   complete the documented Stage 1 flow while Foundry is unavailable.
+- [ ] 1.4 Add a customer-alignment matrix to the Chapter 02 planning or validation documentation
+  covering the VPCx Azure 2.0 APIM and Foundry controls, including any evidenced tenant-specific
+  exception; verify every applicable customer control maps to a template input, validation check,
+  policy-owned control, or explicitly conditional step.
 
 ## 2. Decouple the APIM Foundation Infrastructure
 
 - [ ] 2.1 Refactor `infra/modules/apim/main.bicep` to deploy only APIM and its system-assigned
-  identity, removing all Foundry parameters, references, role assignment composition, and
-  Foundry readiness fields; verify `az bicep build --file infra/modules/apim/main.bicep` succeeds.
+  identity, accept the customer-approved public IP required by classic internal mode, and remove
+  all Foundry parameters, references, role assignment composition, and Foundry readiness fields;
+  verify `az bicep build --file infra/modules/apim/main.bicep` succeeds.
 - [ ] 2.2 Refactor `infra/envs/poc/apim.bicep` to compose only the APIM service, private DNS, and
   observability modules with foundation-only readiness outputs; verify the compiled template has
   no `Microsoft.CognitiveServices`, Foundry backend, approved-model, or governed API resources.
 - [ ] 2.3 Reduce `infra/envs/poc/apim.bicepparam` to network, APIM, DNS, policy-handoff, and
-  monitoring inputs; verify no parameter name or value references Foundry, models, backend,
-  product, token limits, or the governed AI API.
-- [ ] 2.4 Run the foundation `what-if` without Foundry parameters and record evidence showing only
+  monitoring inputs, including the approved public IP; verify no parameter name or value
+  references Foundry, models, backend, product, token limits, or the governed AI API.
+- [ ] 2.4 Validate the APIM subnet name, approved NSG, route table or documented active-policy
+  exception, no-delegation state, and four required service endpoints against the customer policy
+  profile; verify a noncompliant subnet fails before APIM provisioning.
+- [ ] 2.5 Configure or verify the customer APIM security baseline for Premium tier, corporate
+  administrator email, internal VNet mode, HTTPS backends, TLS 1.2 or stronger, and disabled weak
+  protocols/ciphers; verify the compiled settings pass the static compliance checks.
+- [ ] 2.6 Extend foundation observability to collect AllLogs and AllMetrics through the
+  policy-required diagnostic destination and add or verify the average-capacity-above-60-percent
+  alert; verify policy-owned diagnostic settings are detected without an attempted conflicting
+  replacement.
+- [ ] 2.7 Document the optional enterprise custom-domain path with approved CA certificates and
+  internal DNS A records to the APIM private VIP; verify the default VNet-local path does not
+  require a custom domain.
+- [ ] 2.8 Run the foundation `what-if` without Foundry parameters and record evidence showing only
   foundation-owned changes and no Foundry lookup or permission requirement.
 
 ## 3. Add the Deferred Foundry Integration Infrastructure
@@ -34,13 +52,16 @@
 - [ ] 3.2 Add `infra/envs/poc/apim-foundry-integration.bicepparam` with existing APIM, Foundry,
   approved-model, backend, API, product, token policy, and API-version inputs; verify it contains
   no foundation deployment settings beyond the APIM reference needed for integration.
-- [ ] 3.3 Ensure the integration entry point derives the APIM principal from the existing APIM
+- [ ] 3.3 Add integration preflight for customer GenAI approval/account enablement evidence,
+  approved Foundry region, private endpoint posture, and customer-approved model allowlisting;
+  verify none of these checks execute in foundation mode.
+- [ ] 3.4 Ensure the integration entry point derives the APIM principal from the existing APIM
   resource and scopes `Cognitive Services OpenAI User` only to the selected Foundry account;
   verify the generated ARM template contains the expected account-scoped role assignment.
-- [ ] 3.4 Expose integration-only outputs for role assignment, backend, governed API, product,
+- [ ] 3.5 Expose integration-only outputs for role assignment, backend, governed API, product,
   model mapping, and readiness; verify a missing Foundry account or approved model causes an
   integration prerequisite failure without proposing changes to foundation-owned resources.
-- [ ] 3.5 Run the integration `what-if` against a validated APIM foundation and approved Foundry
+- [ ] 3.6 Run the integration `what-if` against a validated APIM foundation and approved Foundry
   environment, recording evidence that only integration-owned resources are added or updated.
 
 ## 4. Split Validation and Evidence
@@ -49,8 +70,9 @@
   `foundation`, `integration`, and `all` modes; verify `foundation` mode performs no
   `az cognitiveservices` or Foundry role/backend/API check.
 - [ ] 4.2 Add foundation validation for subnet readiness, APIM internal VNet injection, managed
-  identity, private DNS, and observability, with a standalone readiness result; verify it can pass
-  while integration is reported as not deployed or pending.
+  identity, required classic-tier public IP, private endpoint reachability, DNS, protocol
+  settings, diagnostics, and capacity monitoring, with a standalone readiness result; verify it
+  can pass while integration is reported as not deployed or pending.
 - [ ] 4.3 Add integration validation for APIM identity discovery, Foundry/model prerequisites,
   least-privilege role scope, managed-identity backend policy, approved-model mapping,
   subscription enforcement, and governed API inventory; verify failures are attributed only to
@@ -62,6 +84,9 @@
 - [ ] 4.5 Add static regression checks that fail if foundation files regain Foundry references or
   if integration templates declare foundation-owned resources; verify the checks detect seeded
   cross-stage references and pass on the intended templates.
+- [ ] 4.6 Replace any assertion that internal APIM must have no public IP resource with checks that
+  its service endpoints are internal and not publicly reachable; verify the customer-required
+  platform public IP does not produce a false exposure failure.
 
 ## 5. Verify Staged Deployment Behavior
 
