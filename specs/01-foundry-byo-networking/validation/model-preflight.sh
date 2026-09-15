@@ -12,15 +12,34 @@ if ! [[ "$REQUESTED_CAPACITY" =~ ^[0-9]+$ ]] || [ "$REQUESTED_CAPACITY" -le 0 ];
   exit 1
 fi
 
-quota_name="${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${MODEL_NAME}"
-quota_query="[?name.value=='${quota_name}']"
-quota_json="$(az cognitiveservices usage list \
-  --location "$LOCATION" \
-  --query "$quota_query" \
-  -o json)"
+# Azure's cognitiveservices usage list drops the hyphen between "gpt" and "4.1" specifically
+# (observed: gpt-4.1, gpt-4.1-mini, gpt-4.1-nano register as gpt4.1, gpt4.1-mini, gpt4.1-nano),
+# while other versioned families (gpt-4o, gpt-4-turbo-*, gpt-5.1, gpt-5.4, ...) keep the hyphen
+# as-is. Try the exact name first, then fall back to the de-hyphenated variant so preflight
+# doesn't false-negative on this naming quirk rather than a real capacity problem.
+alt_model_name="$(printf '%s' "$MODEL_NAME" | sed -E 's/^gpt-4\.1/gpt4.1/')"
+
+candidate_model_names=("$MODEL_NAME")
+if [ "$alt_model_name" != "$MODEL_NAME" ]; then
+  candidate_model_names+=("$alt_model_name")
+fi
+
+quota_json="[]"
+for candidate_model_name in "${candidate_model_names[@]}"; do
+  quota_name="${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${candidate_model_name}"
+  quota_query="[?name.value=='${quota_name}']"
+  quota_json="$(az cognitiveservices usage list \
+    --location "$LOCATION" \
+    --query "$quota_query" \
+    -o json)"
+
+  if [ "$quota_json" != "[]" ]; then
+    break
+  fi
+done
 
 if [ "$quota_json" = "[]" ]; then
-  echo "No quota record found for $quota_name in $LOCATION." >&2
+  echo "No quota record found for ${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${MODEL_NAME} (also tried ${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${alt_model_name}) in $LOCATION." >&2
   exit 1
 fi
 
