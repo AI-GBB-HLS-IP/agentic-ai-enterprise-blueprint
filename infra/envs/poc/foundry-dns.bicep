@@ -77,23 +77,13 @@ resource openAiDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
 
 // Not part of the existing network foundation; the unified Foundry account endpoint
 // (services.ai.azure.com) requires this zone per the official BYO VNet private-link table.
-resource servicesAiDns 'Microsoft.Network/privateDnsZones@2020-06-01' = if (dnsIntegrationMode == 'vnet-link') {
+module servicesAiDns '../../modules/foundry/services-ai-private-dns.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+  name: 'services-ai-private-dns'
   scope: resourceGroup(networkResourceGroupName)
-  name: 'privatelink.services.ai.azure.com'
-  location: 'global'
-  tags: tags
-}
-
-resource servicesAiDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (dnsIntegrationMode == 'vnet-link') {
-  parent: servicesAiDns
-  name: '${vnetName}-link'
-  location: 'global'
-  tags: tags
-  properties: {
-    virtualNetwork: {
-      id: vnet.id
-    }
-    registrationEnabled: false
+  params: {
+    vnetId: vnet.id
+    vnetName: vnetName
+    tags: tags
   }
 }
 
@@ -134,7 +124,7 @@ var vnetLinkDnsResourceIds = {
   cognitiveServices: cognitiveServicesDns.id
   openAi: openAiDns.id
   #disable-next-line BCP318
-  servicesAi: servicesAiDns.id
+  servicesAi: servicesAiDns.outputs.zoneId
   blob: blobDns.id
   keyVault: keyVaultDns.id
   cosmosDB: documentsDns.id
