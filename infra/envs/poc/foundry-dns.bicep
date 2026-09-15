@@ -123,8 +123,7 @@ resource searchDns 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
 var zoneGroupDnsResourceIds = {
   cognitiveServices: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', cognitiveServicesDns.name)
   openAi: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', openAiDns.name)
-  #disable-next-line BCP318
-  servicesAi: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', servicesAiDns.name)
+  servicesAi: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', 'privatelink.services.ai.azure.com')
   blob: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', blobDns.name)
   keyVault: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', keyVaultDns.name)
   cosmosDB: resourceId(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName, 'Microsoft.Network/privateDnsZones', documentsDns.name)
