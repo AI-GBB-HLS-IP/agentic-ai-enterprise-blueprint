@@ -76,9 +76,8 @@ PARAMETER_FILE=infra/envs/poc/foundry-dns.bicepparam \
 ```
 
 Copy `infra/envs/poc/foundry-dns.bicepparam.example` to a local, untracked
-`foundry-dns.bicepparam` and populate it with full private endpoint ARM resource IDs before
+`foundry-dns.bicepparam`, populate it with full private endpoint ARM resource IDs, and run Phase 3.
 All five endpoint IDs may be empty to skip their associations; populate each ID that should receive a DNS zone group. The IDs may identify endpoints in other resource groups or subscriptions.
-subscriptions.
 
 The `RG_NAME` value is the top-level deployment scope, not a constraint on endpoint location.
 Phase 3 creates nested deployments at each endpoint resource group parsed from the supplied ID.
