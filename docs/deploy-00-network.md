@@ -250,10 +250,9 @@ The script writes `infra/envs/poc/brownfield-network.bicepparam`,
 the brownfield network settings; review it and add customer-approved resource names and model
 settings before deployment. Before the later DNS phase, populate the Foundry-DNS file with the
 full `*PrivateEndpointId` outputs from the main Foundry deployment or with independently managed
-private endpoint ARM resource IDs. Foundry and Key Vault IDs are required; Storage, Cosmos DB,
-and AI Search IDs may remain empty when that association must be skipped. Deploy the Foundry file
-first, then the Foundry-DNS file (see section 5.6). Alternatively, copy the tracked
-`infra/envs/poc/foundry.bicepparam` to a local, git-ignored
+private endpoint ARM resource IDs. Any of these IDs may remain empty when that association must be
+skipped. Deploy the Foundry file first, then the Foundry-DNS file (see section 5.6). Alternatively,
+copy the tracked `infra/envs/poc/foundry.bicepparam` to a local, git-ignored
 `infra/envs/poc/foundry.customer.bicepparam` and apply the same brownfield settings there. Add
 `--dry-run` to see the proposal without writing anything, and `--force` to overwrite a previous
 run.
