@@ -146,7 +146,15 @@ the result is attributable to the intended model deployment.
   workspace ID pattern only.
 - **FR-006**: The feature MUST create private endpoints for Foundry and each required supporting
   resource (Storage, Key Vault, Cosmos DB, AI Search), and each private endpoint MUST have an
-  approved connection state before validation can pass.
+  approved connection state before validation can pass. The main deployment MUST create the
+  Foundry account/project, any newly created supporting resources, and their bare private
+  endpoints together, without creating `privateDnsZoneGroups`. DNS zone group association MUST
+  be a distinct, later deployment that runs only after the target private endpoints exist.
+- **FR-006a**: The DNS-association deployment MUST accept the full ARM resource ID of each
+  existing private endpoint to associate (whether created by the main deployment or supplied
+  independently), MUST allow an empty value to skip an endpoint, and MUST NOT assume the endpoint
+  is in the same deployment operation, resource group, or subscription as the DNS-association
+  deployment.
 - **FR-007**: The feature MUST integrate private endpoints with the existing private DNS zones
   for Cognitive Services/Foundry, Azure OpenAI when used, Storage Blob, Key Vault, Cosmos DB
   (`privatelink.documents.azure.com`), AI Search (`privatelink.search.windows.net`), and SQL

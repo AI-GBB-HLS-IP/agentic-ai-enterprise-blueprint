@@ -46,7 +46,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [X] T013 [P] [US1] Implement Foundry account creation with `AIServices`, confirmed API version, disabled public access, deny-by-default ACLs, and create-time BYO VNet properties in `infra/modules/foundry/main.bicep`
 - [X] T014 [P] [US1] Implement same-region private Storage and Key Vault resources with public access disabled in `infra/modules/foundry/supporting-resources.bicep`; SQL remains deferred pending workload confirmation
 - [X] T015 [US1] Implement Foundry project creation as a child of the account in `infra/modules/foundry/main.bicep`, preserving account-before-project ordering
-- [X] T016 [US1] Compose `location`, existing resource IDs, DNS inputs, workload flags, and account/project/supporting-resource outputs in `infra/envs/poc/foundry.bicep`
+- [X] T016 [US1] Compose `location`, existing resource IDs, workload flags, and account/project/supporting-resource outputs in `infra/envs/poc/foundry.bicep`; DNS inputs belong only to the later DNS-association deployment
 - [X] T017 [US1] Add account/project/supporting-resource/private-endpoint outputs to `infra/modules/foundry/main.bicep` according to the Foundry Bicep interface
 - [X] T018 [US1] Build the Foundry modules and run `az deployment group what-if` using `infra/envs/poc/foundry.bicepparam`, saving preview evidence to `specs/01-foundry-byo-networking/validation/us1-what-if.md`
 - [X] T019 [US1] Validate the US1 independent test against the target resource group and record placement, public-network, resource-inventory, and conditional-SQL results in `specs/01-foundry-byo-networking/validation/us1-foundation.md`; report pending work rather than claiming deployment completion
@@ -62,7 +62,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 ### Implementation for User Story 2
 
 - [X] T020 [P] [US2] Implement reusable private endpoint creation for confirmed target resource IDs, group IDs, and `snet-privateendpoints` in `infra/modules/foundry/private-endpoint.bicep`
-- [X] T021 [P] [US2] Add DNS zone groups that reference existing Cognitive Services/Foundry, Storage Blob, Key Vault, and conditional Azure OpenAI/SQL zone IDs in `infra/modules/foundry/private-endpoint.bicep`
+- [X] T021 [P] [US2] Implement the distinct DNS-association module and environment deployment so existing private endpoints are addressed by full ARM resource ID and associated with the existing Cognitive Services/Foundry, Storage Blob, Key Vault, Cosmos DB, AI Search, and conditional Azure OpenAI/SQL private DNS zones only after the main deployment creates the bare endpoints
 - [X] T022 [US2] Wire account, project-as-required, Storage, Key Vault, and conditional SQL private endpoints into `infra/envs/poc/foundry.bicep` without creating VNets, subnets, DNS zones, or public IPs
 - [ ] T023 [US2] Add private endpoint approval-state, DNS-zone-group, VNet-link, subnet placement, and private-resolution checks to `infra/modules/foundry/validation.bicep`
 - [ ] T024 [US2] Extend `specs/01-foundry-byo-networking/validation/validate.sh` to inspect PE connections, DNS links, subnet utilization, and private FQDN resolution from a VNet host
