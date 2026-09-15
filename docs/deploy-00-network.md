@@ -605,8 +605,7 @@ group merely because the zones are there.
 cp infra/envs/poc/foundry-dns.bicepparam.example \
    infra/envs/poc/foundry-dns.customer.bicepparam
 # Edit the local copy with dnsIntegrationMode, dnsSubscriptionId, dnsResourceGroupName, vnetName,
-# and the full *PrivateEndpointId values. Foundry and Key Vault are required; Storage, Cosmos DB,
-# and AI Search may be empty.
+# and the full *PrivateEndpointId values; any ID may be empty to skip its association.
 
 az deployment group validate \
   --subscription "<workload-subscription-id>" \
