@@ -254,10 +254,6 @@ for required in ("effectiveDnsSubscriptionId", "effectiveDnsResourceGroupName", 
     if required not in zone_ids:
         sys.exit(f"compiled cross-subscription zone IDs do not reference {required}")
 
-selection = json.dumps(variables.get("privateDnsZoneIds", ""))
-if "dnsIntegrationMode" not in selection or "zoneGroupDnsResourceIds" not in selection:
-    sys.exit("compiled Foundry DNS template does not select zone-group DNS IDs by mode")
-
 for resource in template.get("resources", []):
     if resource.get("type") in (
         "Microsoft.Network/privateDnsZones",
@@ -273,9 +269,12 @@ foundry_dns_module = next(
     and resource.get("name") == "foundry-private-endpoint-dns"
 )
 module_parameters = json.dumps(foundry_dns_module["properties"]["parameters"])
+for required in ("dnsIntegrationMode", "zone-group", "zoneGroupDnsResourceIds"):
+    if required not in module_parameters:
+        sys.exit(f"compiled Foundry DNS template does not select zone-group DNS IDs by mode: missing {required}")
+
 for required in (
     "privateDnsZoneConfigs",
-    "privateDnsZoneIds",
     "cognitiveServices",
     "servicesAi",
 ):
