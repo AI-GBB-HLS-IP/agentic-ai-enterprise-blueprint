@@ -4,9 +4,13 @@ param location string
 @description('AI Search service name (new resource only; this module is not invoked when an existing service is reused).')
 param aiSearchServiceName string
 
+@description('Tags to apply to this resource.')
+param tags object = {}
+
 resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: aiSearchServiceName
   location: location
+  tags: tags
   identity: {
     type: 'SystemAssigned'
   }

@@ -4,9 +4,13 @@ param location string
 @description('Storage account name (new resource only; this module is not invoked when an existing account is reused).')
 param storageAccountName string
 
+@description('Tags to apply to this resource.')
+param tags object = {}
+
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
   location: location
+  tags: tags
   sku: {
     name: 'Standard_LRS'
   }

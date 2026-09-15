@@ -21,9 +21,6 @@ param foundrySubnetId string
 @description('Existing private endpoint subnet resource ID.')
 param privateEndpointSubnetId string
 
-@description('Existing private DNS zone resource IDs.')
-param privateDnsZoneIds object
-
 @description('Storage account name used when creating a new storage account (ignored when existingAzureStorageAccountResourceId is set).')
 param storageAccountName string
 
@@ -75,9 +72,15 @@ param modelSkuName string = 'Standard'
 @description('Approved model capacity in the SKU quota units.')
 param modelCapacity int = 10
 
+@description('Tags to apply to every taggable resource created by this deployment.')
+param tags object = {
+  'foundry-poc': 'true'
+}
+
 resource account 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
   name: foundryAccountName
   location: location
+  tags: tags
   sku: {
     name: 'S0'
   }
@@ -110,6 +113,7 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-previ
   parent: account
   name: projectName
   location: location
+  tags: tags
   identity: {
     type: 'SystemAssigned'
   }
@@ -129,6 +133,7 @@ module keyVaultResources './supporting-resources.bicep' = {
   params: {
     location: location
     keyVaultName: keyVaultName
+    tags: tags
   }
 }
 
@@ -178,6 +183,7 @@ module newStorageAccount './storage.bicep' = if (!storagePassedIn) {
   params: {
     location: location
     storageAccountName: storageAccountNameResolved
+    tags: tags
   }
 }
 
@@ -192,6 +198,7 @@ module newAISearchService './ai-search.bicep' = if (!searchPassedIn) {
   params: {
     location: location
     aiSearchServiceName: aiSearchServiceNameResolved
+    tags: tags
   }
 }
 
@@ -206,6 +213,7 @@ module newCosmosDBAccount './cosmos-db.bicep' = if (!cosmosPassedIn) {
   params: {
     location: location
     cosmosDBAccountName: cosmosDBAccountNameResolved
+    tags: tags
   }
 }
 
@@ -239,18 +247,12 @@ module privateEndpoints './private-endpoint.bicep' = {
     foundryAccountId: account.id
     storageAccountId: storageAccountIdResolved
     keyVaultId: keyVaultResources.outputs.keyVaultId
-    cognitiveServicesDnsZoneId: privateDnsZoneIds.cognitiveServices
-    openAiDnsZoneId: privateDnsZoneIds.openAi
-    servicesAiDnsZoneId: privateDnsZoneIds.servicesAi
-    blobDnsZoneId: privateDnsZoneIds.blob
-    keyVaultDnsZoneId: privateDnsZoneIds.keyVault
     createStoragePrivateEndpoint: !(storagePassedIn && existingStoragePrivateEndpoint)
     createCosmosDBPrivateEndpoint: !(cosmosPassedIn && existingCosmosDBPrivateEndpoint)
     cosmosDBAccountId: cosmosDBAccountIdResolved
-    cosmosDBDnsZoneId: privateDnsZoneIds.cosmosDB
     createAISearchPrivateEndpoint: !(searchPassedIn && existingAISearchPrivateEndpoint)
     aiSearchServiceId: aiSearchServiceIdResolved
-    aiSearchDnsZoneId: privateDnsZoneIds.aiSearch
+    tags: tags
   }
   dependsOn: [
     project
@@ -366,6 +368,11 @@ output storageAccountId string = storageAccountIdResolved
 output keyVaultId string = keyVaultResources.outputs.keyVaultId
 output aiSearchServiceId string = aiSearchServiceIdResolved
 output cosmosDBAccountId string = cosmosDBAccountIdResolved
+output foundryPrivateEndpointName string = privateEndpoints.outputs.foundryPrivateEndpointName
+output storagePrivateEndpointName string = privateEndpoints.outputs.storagePrivateEndpointName
+output keyVaultPrivateEndpointName string = privateEndpoints.outputs.keyVaultPrivateEndpointName
+output cosmosDBPrivateEndpointName string = privateEndpoints.outputs.cosmosDBPrivateEndpointName
+output aiSearchPrivateEndpointName string = privateEndpoints.outputs.aiSearchPrivateEndpointName
 output capabilityHostId string = capabilityHost.outputs.capabilityHostId
 // The conditional module is guaranteed to exist when this output is read.
 #disable-next-line BCP318

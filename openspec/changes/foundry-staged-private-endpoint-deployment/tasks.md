@@ -1,82 +1,105 @@
-## 1. Split the Foundry module into base and connectivity phases
+## 1. Split private-endpoint creation from DNS zone group association
 
-- [ ] 1.1 Create `infra/modules/foundry/base.bicep`: move the `account`, `project`,
-      `keyVaultResources` module call, and the BYO-or-new resolution/creation of Storage
-      (`existingStorageAccount`/`newStorageAccount`), AI Search
-      (`existingAISearchService`/`newAISearchService`), and Cosmos DB
-      (`existingCosmosDBAccount`/`newCosmosDBAccount`) out of `main.bicep` into this new file.
-      No private endpoint resources or modules belong here. Output every resource ID, location,
-      and endpoint value currently consumed by `privateEndpoints`, `projectConnections`,
-      `cosmosDBRbac`, `aiSearchRbac`, or `storageRbac` in the existing `main.bicep` (account ID,
-      project ID, project principal ID, workspace GUID, resolved storage/search/cosmos IDs,
-      locations, and endpoints, resolved resource/subscription-group names).
-- [ ] 1.2 Create `infra/modules/foundry/connectivity.bicep`: move the `privateEndpoints`,
-      `projectConnections`, `cosmosDBRbac`, `aiSearchRbac`, `storageRbac`, `capabilityHost`, and
-      `modelDeployment` modules here. Replace every reference to `account`/`project`/base-phase
-      resource symbols with new input parameters of the same ARM-resource-ID shape already used
-      for BYO inputs (reuse the existing `_validate*ResourceId` shape-validation pattern from
-      `main.bicep` for each new required-ID parameter).
-- [ ] 1.3 Decide the fate of the original `infra/modules/foundry/main.bicep`: if nothing else in
-      this repo currently references it directly, replace it with `base.bicep`/`connectivity.bicep`
-      and remove it; otherwise keep it only as an explicitly-labeled non-brownfield/low-restriction
-      combined path that composes `base.bicep` + `connectivity.bicep` back together for
-      environments without the staged-creation requirement.
-- [ ] 1.4 Leave `private-endpoint.bicep`, `project-connections.bicep`, `cosmos-rbac.bicep`,
-      `ai-search-rbac.bicep`, `storage-rbac.bicep`, `capability-host.bicep`, and
-      `model-deployment.bicep` unchanged — only the orchestrating entry point changes.
+- [x] 1.1 Update `infra/modules/foundry/private-endpoint.bicep`: remove the `privateDnsZoneGroups`
+      child resources (`foundryDnsGroup`, `storageDnsGroup`, `keyVaultDnsGroup`,
+      `cosmosDBDnsGroup`, `aiSearchDnsGroup`) and their now-unused DNS-zone-ID parameters
+      (`cognitiveServicesDnsZoneId`, `openAiDnsZoneId`, `servicesAiDnsZoneId`, `blobDnsZoneId`,
+      `keyVaultDnsZoneId`, `cosmosDBDnsZoneId`, `aiSearchDnsZoneId`). Keep the bare private
+      endpoint resources unchanged. Add outputs for every private endpoint's name (not just its
+      ID): `foundryPrivateEndpointName`, `storagePrivateEndpointName`, `keyVaultPrivateEndpointName`,
+      `cosmosDBPrivateEndpointName`, `aiSearchPrivateEndpointName` (empty string when the
+      conditional PE was not created).
+- [x] 1.2 Create `infra/modules/foundry/private-endpoint-dns.bicep`: takes each dependency's
+      already-created private endpoint name (empty string to skip that resource) plus its DNS
+      zone resource ID, and creates the corresponding `Microsoft.Network/privateEndpoints/privateDnsZoneGroups`
+      child resource by referencing the PE as an `existing` resource (by name, same resource
+      group). Mirror the DNS zone config shape (`cognitive-services`, `openai`, `services-ai` for
+      the Foundry account; `blob` for Storage; `keyvault` for Key Vault; `cosmosdb` for Cosmos DB;
+      `aisearch` for AI Search) from the removed resources in 1.1.
+- [x] 1.3 Update `infra/modules/foundry/main.bicep`: stop passing DNS-zone-ID parameters into the
+      `privateEndpoints` module call and remove the `privateDnsZoneIds` parameter entirely. Add
+      outputs passing through the new PE-name outputs from `private-endpoint.bicep`.
 
-## 2. Add env-level two-phase entry points
+## 2. Add the DNS-association env-level entry point
 
-- [ ] 2.1 Create `infra/envs/poc/foundry-base.bicep` wrapping `base.bicep`, and
-      `foundry-base.bicepparam.example` with placeholder values, mirroring the existing
-      `foundry.bicepparam` example topology.
-- [ ] 2.2 Create `infra/envs/poc/foundry-connectivity.bicep` wrapping `connectivity.bicep`, and
-      `foundry-connectivity.bicepparam.example`. Its resource-ID parameters must accept either
-      `foundry-base.bicep`'s outputs (copy/paste, matching the network module's existing
-      output-to-param handoff pattern) or genuinely pre-existing BYO resource IDs.
-- [ ] 2.3 Confirm (via `git grep`) whether anything currently references the combined
-      `infra/envs/poc/foundry.bicep` / `foundry.bicepparam`; update or retire them per the
-      decision made in 1.3.
+- [x] 2.1 Update `infra/envs/poc/foundry.bicep`: remove `dnsIntegrationMode`, `dnsSubscriptionId`,
+      `dnsResourceGroupName`, the private DNS zone `existing`/creation resources, the
+      `servicesAiDns`/`servicesAiDnsLink` VNet-link creation, and the `privateDnsZoneIds` variable
+      and module parameter — none of that belongs to the main deployment anymore. Add outputs for
+      the new PE-name outputs surfaced by `main.bicep` in 1.3.
+- [x] 2.2 Create `infra/envs/poc/foundry-dns.bicep`: reintroduce the `dnsIntegrationMode`/
+      `dnsSubscriptionId`/`dnsResourceGroupName` parameters and DNS zone resolution logic removed
+      from `foundry.bicep` in 2.1 (same `vnet-link`/`zone-group` ternary and fail-closed
+      validation), plus parameters for each dependency's private endpoint name (defaulting to
+      empty to allow skipping). Wire these into `private-endpoint-dns.bicep` via a module call.
+      Create `foundry-dns.bicepparam.example` with placeholder values.
+- [x] 2.3 Confirmed (via `git grep`) references to the DNS-related params removed from
+      `infra/envs/poc/foundry.bicep`; updated `foundry.bicepparam`/`foundry.customer.bicepparam`
+      to drop them. Also found and fixed a deeper reference:
+      `scripts/network/generate-brownfield-params.sh` generated a single combined
+      `brownfield-foundry.bicepparam` targeting the old `foundry.bicep` with DNS params inline.
+      Split it into `brownfield-foundry.bicepparam` (no DNS params) and a new
+      `brownfield-foundry-dns.bicepparam` (DNS params + placeholder PE names) targeting
+      `foundry-dns.bicep`; updated `tests/network/test-generate-brownfield-params.sh` and
+      `docs/deploy-00-network.md` accordingly.
 
 ## 3. Update scripts
 
-- [ ] 3.1 Update `scripts/foundry/deploy.sh` to drive the base phase then the connectivity phase
-      as two sequential, separately invokable steps (a `--phase base|connectivity|both` flag, or
-      two subcommands — follow the style already used by `scripts/network/`).
-- [ ] 3.2 Update `scripts/foundry/preflight.sh` and `scripts/foundry/what-if.sh` to validate each
-      phase independently.
+- [x] 3.1 `scripts/foundry/deploy.sh`/`what-if.sh` are already generic over `TEMPLATE_FILE`/
+      `PARAMETER_FILE`, so no script code changes are required to drive the two phases
+      sequentially; documented the two-phase invocation (main, then DNS) in
+      `scripts/foundry/README.md`.
+- [x] 3.2 `preflight.sh`, `what-if.sh` already validate whatever `TEMPLATE_FILE`/`PARAMETER_FILE`
+      is passed in, so each phase is independently validated by invoking them once per phase (see
+      README).
 
 ## 4. Documentation
 
-- [ ] 4.1 Add or update a Foundry deployment guide under `docs/` documenting the two-phase
-      sequence, why it exists (tenant policy requires the base resource to exist, with no private
-      endpoint configured, before one is attached — per the customer's documented Key Vault
-      creation process), and that connection approval may need manual confirmation between
-      phases.
-- [ ] 4.2 Cross-link this guide from `docs/deploy-00-network.md` and/or the repo's top-level
-      deployment index if one exists, so operators discover the staged sequence before attempting
-      a single combined deploy.
+- [x] 4.1 Updated `docs/deploy-00-network.md` section 5.6 ("Foundry owner stage") — the existing
+      Foundry deployment guide — to document the two-phase sequence, why it exists (the tenant's
+      approved ARM template creates private endpoints without DNS association in one deployment;
+      DNS zone group attachment is a distinct, later step — manual in the tenant's own process,
+      templated here for repeatability), and that the main deployment succeeding does not mean
+      Foundry is functionally complete until the DNS phase also runs.
+- [x] 4.2 No separate cross-link needed: the two-phase sequence lives in the same
+      `docs/deploy-00-network.md` guide operators already follow end-to-end, immediately after the
+      network-owner and DNS-integration stages it depends on.
 
 ## 5. Tests
 
-- [ ] 5.1 Add `tests/foundry/test-foundry-module-contracts.sh` asserting: `base.bicep` compiles
-      and declares no private-endpoint resources; `connectivity.bicep` compiles and requires
-      resource-ID inputs (shape-validated) rather than referencing base-phase symbols directly;
-      every output declared by `base.bicep` has a corresponding input parameter on
-      `connectivity.bicep`.
-- [ ] 5.2 Add a script-level test for the updated `deploy.sh`/`preflight.sh`/`what-if.sh` phase
-      handling, following the pattern of `tests/network/test-generate-brownfield-params.sh`.
+- [x] 5.1 Added `tests/foundry/test-foundry-module-contracts.sh` asserting: `private-endpoint.bicep`
+      compiles and declares no `privateDnsZoneGroups` resources; `private-endpoint-dns.bicep`
+      compiles and declares every expected `privateDnsZoneGroups` resource referencing an
+      `existing` private endpoint; `main.bicep` no longer declares a `privateDnsZoneIds`
+      parameter.
+- [x] 5.2 Updated `tests/network/test-brownfield-poc-smoke.sh`'s "zone-group DNS scope fails
+      closed" assertions to build and check `infra/envs/poc/foundry-dns.bicep` instead of
+      `foundry.bicep` (the DNS resolution logic moved there in task 2.2).
+- [x] 5.3 No script-level test needed: `scripts/foundry/deploy.sh`/`preflight.sh`/`what-if.sh`
+      required no code changes (task 3.1/3.2) since they are already generic over
+      `TEMPLATE_FILE`/`PARAMETER_FILE`; there is no new phase-handling logic to test.
+- [x] 5.4 (Out-of-scope addition, requested mid-implementation) Added an overridable `tags`
+      object param (default `{ 'foundry-poc': 'true' }`) threaded from `foundry.bicep`/
+      `foundry-dns.bicep` through `main.bicep` into every taggable resource it creates directly or
+      via `storage.bicep`/`ai-search.bicep`/`cosmos-db.bicep`/`supporting-resources.bicep`/
+      `private-endpoint.bicep`, plus the `servicesAiDns`/`servicesAiDnsLink` resources in
+      `foundry-dns.bicep`. Role assignments, project connections, capability hosts, model
+      deployments, and DNS zone groups do not support tags and were left unchanged. Verified via
+      `az bicep build` on every touched file plus `tests/foundry/`/`tests/network/` smoke tests.
 
 ## 6. Validation
 
-- [ ] 6.1 Run `az bicep build` on `base.bicep`, `connectivity.bicep`,
-      `infra/envs/poc/foundry-base.bicep`, and `infra/envs/poc/foundry-connectivity.bicep` —
-      confirm clean compiles.
-- [ ] 6.2 Run the new and existing test suites (`tests/foundry/`, plus the full repo test runner
-      if one exists) and confirm they pass.
-- [ ] 6.3 Run `openspec validate` for this change and confirm it is valid.
+- [x] 6.1 Ran `az bicep build` on `private-endpoint.bicep`, `private-endpoint-dns.bicep`,
+      `main.bicep`, `storage.bicep`, `ai-search.bicep`, `cosmos-db.bicep`,
+      `supporting-resources.bicep`, `infra/envs/poc/foundry.bicep`, and
+      `infra/envs/poc/foundry-dns.bicep` — all compile clean (only pre-existing, unrelated
+      `capabilityHostKind`/`internalId` warnings).
+- [x] 6.2 Ran `tests/foundry/test-foundry-module-contracts.sh` and the full
+      `tests/network/run-tests.sh` suite (including `test-generate-brownfield-params.sh` and the
+      confidentiality/policy-input scans) — all pass.
+- [x] 6.3 Ran `openspec validate foundry-staged-private-endpoint-deployment` — valid.
 - [ ] 6.4 Flag to the user that live validation (an actual `az deployment group validate`/`create`
       run of both phases against a real or mimic brownfield tenant) is still required before
       merging, matching the precedent set by `brownfield-apim-network-policy-compliance` — and
       that this is also the point at which the design's open question about private-endpoint
-      approval behavior (manual vs. automatic) should get answered.
+      connection approval (independent of DNS zone group timing) should get answered.

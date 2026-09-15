@@ -1,3 +1,7 @@
+// Creates bare private endpoints only — no privateDnsZoneGroups child resources. This matches
+// the tenant's approved ARM template (jnjfoundrytemplate.json), whose private-endpoint nested
+// deployment creates only Microsoft.Network/privateEndpoints resources with no DNS association.
+// DNS zone group association is a separate, later step: see ./private-endpoint-dns.bicep.
 param location string
 param privateEndpointSubnetId string
 param foundryAccountId string
@@ -12,11 +16,6 @@ param storagePrivateEndpointGroupIds array = [
 param keyVaultPrivateEndpointGroupIds array = [
   'vault'
 ]
-param cognitiveServicesDnsZoneId string
-param openAiDnsZoneId string
-param servicesAiDnsZoneId string
-param blobDnsZoneId string
-param keyVaultDnsZoneId string
 
 @description('Create a private endpoint for Storage. Set to false when an existing (BYO) storage account already has one.')
 param createStoragePrivateEndpoint bool = true
@@ -27,24 +26,23 @@ param createCosmosDBPrivateEndpoint bool = true
 @description('Cosmos DB account resource ID. Required when createCosmosDBPrivateEndpoint is true.')
 param cosmosDBAccountId string = ''
 
-@description('Cosmos DB private DNS zone resource ID. Required when createCosmosDBPrivateEndpoint is true.')
-param cosmosDBDnsZoneId string = ''
-
 @description('Create a private endpoint for AI Search. Set to false when an existing (BYO) AI Search service already has one.')
 param createAISearchPrivateEndpoint bool = true
 
 @description('AI Search service resource ID. Required when createAISearchPrivateEndpoint is true.')
 param aiSearchServiceId string = ''
 
-@description('AI Search private DNS zone resource ID. Required when createAISearchPrivateEndpoint is true.')
-param aiSearchDnsZoneId string = ''
+@description('Tags to apply to every private endpoint created by this module.')
+param tags object = {}
 
 var _validateStoragePrivateEndpointInputs = createStoragePrivateEndpoint && empty(storageAccountId) ? fail('storageAccountId is required when createStoragePrivateEndpoint is true.') : true
-var _validateCosmosPrivateEndpointInputs = createCosmosDBPrivateEndpoint && (empty(cosmosDBAccountId) || empty(cosmosDBDnsZoneId)) ? fail('cosmosDBAccountId and cosmosDBDnsZoneId are required when createCosmosDBPrivateEndpoint is true.') : true
-var _validateAISearchPrivateEndpointInputs = createAISearchPrivateEndpoint && (empty(aiSearchServiceId) || empty(aiSearchDnsZoneId)) ? fail('aiSearchServiceId and aiSearchDnsZoneId are required when createAISearchPrivateEndpoint is true.') : true
+var _validateCosmosPrivateEndpointInputs = createCosmosDBPrivateEndpoint && empty(cosmosDBAccountId) ? fail('cosmosDBAccountId is required when createCosmosDBPrivateEndpoint is true.') : true
+var _validateAISearchPrivateEndpointInputs = createAISearchPrivateEndpoint && empty(aiSearchServiceId) ? fail('aiSearchServiceId is required when createAISearchPrivateEndpoint is true.') : true
+
 resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   name: 'pe-foundry'
   location: location
+  tags: tags
   properties: {
     subnet: {
       id: privateEndpointSubnetId
@@ -61,36 +59,10 @@ resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' 
   }
 }
 
-resource foundryDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = {
-  name: 'foundry-dns'
-  parent: foundryPrivateEndpoint
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'cognitive-services'
-        properties: {
-          privateDnsZoneId: cognitiveServicesDnsZoneId
-        }
-      }
-      {
-        name: 'openai'
-        properties: {
-          privateDnsZoneId: openAiDnsZoneId
-        }
-      }
-      {
-        name: 'services-ai'
-        properties: {
-          privateDnsZoneId: servicesAiDnsZoneId
-        }
-      }
-    ]
-  }
-}
-
 resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createStoragePrivateEndpoint && _validateStoragePrivateEndpointInputs) {
   name: 'pe-foundry-storage'
   location: location
+  tags: tags
   properties: {
     subnet: {
       id: privateEndpointSubnetId
@@ -107,24 +79,10 @@ resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' 
   }
 }
 
-resource storageDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = if (createStoragePrivateEndpoint) {
-  name: 'storage-dns'
-  parent: storagePrivateEndpoint
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'blob'
-        properties: {
-          privateDnsZoneId: blobDnsZoneId
-        }
-      }
-    ]
-  }
-}
-
 resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   name: 'pe-foundry-keyvault'
   location: location
+  tags: tags
   properties: {
     subnet: {
       id: privateEndpointSubnetId
@@ -141,31 +99,10 @@ resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01'
   }
 }
 
-resource keyVaultDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = {
-  name: 'keyvault-dns'
-  parent: keyVaultPrivateEndpoint
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'keyvault'
-        properties: {
-          privateDnsZoneId: keyVaultDnsZoneId
-        }
-      }
-    ]
-  }
-}
-
-output foundryPrivateEndpointId string = foundryPrivateEndpoint.id
-// The conditional resource above is guaranteed to exist when this output is read because
-// createStoragePrivateEndpoint gates both the resource and any caller's use of this output.
-#disable-next-line BCP318
-output storagePrivateEndpointId string = createStoragePrivateEndpoint ? storagePrivateEndpoint.id : ''
-output keyVaultPrivateEndpointId string = keyVaultPrivateEndpoint.id
-
 resource cosmosDBPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createCosmosDBPrivateEndpoint && _validateCosmosPrivateEndpointInputs) {
   name: 'pe-foundry-cosmosdb'
   location: location
+  tags: tags
   properties: {
     subnet: {
       id: privateEndpointSubnetId
@@ -184,24 +121,10 @@ resource cosmosDBPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01'
   }
 }
 
-resource cosmosDBDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = if (createCosmosDBPrivateEndpoint) {
-  name: 'cosmosdb-dns'
-  parent: cosmosDBPrivateEndpoint
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'cosmosdb'
-        properties: {
-          privateDnsZoneId: cosmosDBDnsZoneId
-        }
-      }
-    ]
-  }
-}
-
 resource aiSearchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createAISearchPrivateEndpoint && _validateAISearchPrivateEndpointInputs) {
   name: 'pe-foundry-aisearch'
   location: location
+  tags: tags
   properties: {
     subnet: {
       id: privateEndpointSubnetId
@@ -220,26 +143,22 @@ resource aiSearchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01'
   }
 }
 
-resource aiSearchDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = if (createAISearchPrivateEndpoint) {
-  name: 'aisearch-dns'
-  parent: aiSearchPrivateEndpoint
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'aisearch'
-        properties: {
-          privateDnsZoneId: aiSearchDnsZoneId
-        }
-      }
-    ]
-  }
-}
-
+output foundryPrivateEndpointId string = foundryPrivateEndpoint.id
+output foundryPrivateEndpointName string = foundryPrivateEndpoint.name
 // The conditional resources above are guaranteed to exist when these outputs are read because
-// createCosmosDBPrivateEndpoint/createAISearchPrivateEndpoint gate both the resource and any
-// caller's use of the corresponding output.
+// createStoragePrivateEndpoint/createCosmosDBPrivateEndpoint/createAISearchPrivateEndpoint gate
+// both the resource and any caller's use of the corresponding output.
+#disable-next-line BCP318
+output storagePrivateEndpointId string = createStoragePrivateEndpoint ? storagePrivateEndpoint.id : ''
+#disable-next-line BCP318
+output storagePrivateEndpointName string = createStoragePrivateEndpoint ? storagePrivateEndpoint.name : ''
+output keyVaultPrivateEndpointId string = keyVaultPrivateEndpoint.id
+output keyVaultPrivateEndpointName string = keyVaultPrivateEndpoint.name
 #disable-next-line BCP318
 output cosmosDBPrivateEndpointId string = createCosmosDBPrivateEndpoint ? cosmosDBPrivateEndpoint.id : ''
 #disable-next-line BCP318
+output cosmosDBPrivateEndpointName string = createCosmosDBPrivateEndpoint ? cosmosDBPrivateEndpoint.name : ''
+#disable-next-line BCP318
 output aiSearchPrivateEndpointId string = createAISearchPrivateEndpoint ? aiSearchPrivateEndpoint.id : ''
-
+#disable-next-line BCP318
+output aiSearchPrivateEndpointName string = createAISearchPrivateEndpoint ? aiSearchPrivateEndpoint.name : ''

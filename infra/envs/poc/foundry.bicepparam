@@ -4,9 +4,11 @@ using './foundry.bicep'
 // resource group. See ../README.md "Deploy" for other supported topologies (1 or 2 RGs); for
 // those, adjust or remove networkResourceGroupName below to match the RG you deploy this
 // template into.
+//
+// This deploys account/project/dependent-resources/private-endpoints only. Private DNS zone
+// group association is a separate, subsequent deployment: see foundry-dns.bicepparam.example.
 param location = 'eastus2'
 param networkResourceGroupName = 'rg-agent-blueprint-poc-network'
-param dnsIntegrationMode = 'vnet-link'
 param foundryAccountName = 'foundry-agent-factory-poc'
 param projectName = 'prj-agent-factory-poc'
 param projectDisplayName = 'Agent Factory POC'

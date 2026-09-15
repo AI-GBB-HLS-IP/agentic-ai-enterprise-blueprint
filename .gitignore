@@ -21,6 +21,9 @@
 **/brownfield-*.bicepparam
 !**/brownfield-*.bicepparam.example
 **/foundry.customer.bicepparam
+**/foundry-dns.bicepparam
+!**/foundry-dns.bicepparam.example
+**/foundry-dns.customer.bicepparam
 
 # OS/editor cruft
 .DS_Store

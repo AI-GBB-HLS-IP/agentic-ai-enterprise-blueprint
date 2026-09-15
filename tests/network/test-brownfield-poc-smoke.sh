@@ -6,7 +6,7 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 NETWORK_ENTRY="${REPO_ROOT}/infra/envs/poc/brownfield-network.bicep"
 DNS_ENTRY="${REPO_ROOT}/infra/envs/poc/brownfield-dns.bicep"
-FOUNDRY_ENTRY="${REPO_ROOT}/infra/envs/poc/foundry.bicep"
+FOUNDRY_DNS_ENTRY="${REPO_ROOT}/infra/envs/poc/foundry-dns.bicep"
 SUBNETS_MODULE="${REPO_ROOT}/infra/modules/network/subnets.bicep"
 DNS_LINK_MODULE="${REPO_ROOT}/infra/modules/network/private-dns-link.bicep"
 NETWORK_PARAM_EXAMPLE="${REPO_ROOT}/infra/envs/poc/brownfield-network.bicepparam.example"
@@ -49,15 +49,15 @@ if [[ ! -s "$workdir/dns.json" ]]; then
   exit 1
 fi
 
-echo "==> az bicep build: foundry.bicep"
-if ! az bicep build --file "$FOUNDRY_ENTRY" --stdout >"$workdir/foundry.json" 2>"$workdir/foundry.err"; then
-  echo "FAIL: az bicep build failed for foundry.bicep" >&2
-  cat "$workdir/foundry.err" >&2
+echo "==> az bicep build: foundry-dns.bicep"
+if ! az bicep build --file "$FOUNDRY_DNS_ENTRY" --stdout >"$workdir/foundry-dns.json" 2>"$workdir/foundry-dns.err"; then
+  echo "FAIL: az bicep build failed for foundry-dns.bicep" >&2
+  cat "$workdir/foundry-dns.err" >&2
   exit 1
 fi
 
-echo "==> foundry.bicep: zone-group DNS scope fails closed"
-python3 - "$workdir/foundry.json" <<'PY' || exit 1
+echo "==> foundry-dns.bicep: zone-group DNS scope fails closed"
+python3 - "$workdir/foundry-dns.json" <<'PY' || exit 1
 import json
 import sys
 
@@ -76,7 +76,7 @@ if "dnsSubscriptionId must be empty or match the workload subscription" not in s
 if "dnsResourceGroupName must be empty or match networkResourceGroupName" not in serialized:
     sys.exit("missing vnet-link DNS resource-group scope validation")
 PY
-if ! grep -q "toLower(dnsResourceGroupName) == toLower(networkResourceGroupName)" "$FOUNDRY_ENTRY"; then
+if ! grep -q "toLower(dnsResourceGroupName) == toLower(networkResourceGroupName)" "$FOUNDRY_DNS_ENTRY"; then
   echo "FAIL: Foundry vnet-link DNS resource-group comparison must be case-insensitive" >&2
   exit 1
 fi

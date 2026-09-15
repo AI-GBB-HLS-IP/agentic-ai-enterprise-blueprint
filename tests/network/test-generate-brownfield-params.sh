@@ -71,10 +71,12 @@ run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" \
 network_param="$outdir/brownfield-network.bicepparam"
 dns_param="$outdir/brownfield-dns.bicepparam"
 foundry_param="$outdir/brownfield-foundry.bicepparam"
+foundry_dns_param="$outdir/brownfield-foundry-dns.bicepparam"
 
 [[ -f "$network_param" ]] || fail "network parameter file was not written"
 [[ -f "$dns_param" ]] || fail "dns parameter file was not written"
 [[ -f "$foundry_param" ]] || fail "Foundry parameter file was not written"
+[[ -f "$foundry_dns_param" ]] || fail "Foundry DNS parameter file was not written"
 
 expected_using_prefix="$(python3 -c "import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" \
   "${REPO_ROOT}/infra/envs/poc" "$outdir")"
@@ -107,10 +109,10 @@ fi
 
 run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   || fail "--force should allow overwriting"
-assert_contains "$foundry_param" "param dnsResourceGroupName = ''" \
-  "vnet-link Foundry params must preserve the template's same-resource-group fallback"
-assert_contains "$foundry_param" "param dnsSubscriptionId = ''" \
-  "vnet-link Foundry params must preserve the template's same-subscription fallback"
+assert_contains "$foundry_dns_param" "param dnsResourceGroupName = ''" \
+  "vnet-link Foundry DNS params must preserve the template's same-resource-group fallback"
+assert_contains "$foundry_dns_param" "param dnsSubscriptionId = ''" \
+  "vnet-link Foundry DNS params must preserve the template's same-subscription fallback"
 
 if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   --dns-resource-group "rg-separate-dns-placeholder"; then
@@ -122,8 +124,8 @@ assert_contains "$workdir/run.out" "must match the VNet resource group in vnet-l
 run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   --dns-resource-group "RG-PLACEHOLDER" \
   || fail "vnet-link mode should accept case-insensitive VNet resource-group matches"
-assert_contains "$foundry_param" "param dnsResourceGroupName = 'RG-PLACEHOLDER'" \
-  "case-preserving vnet-link DNS resource group not written to Foundry params"
+assert_contains "$foundry_dns_param" "param dnsResourceGroupName = 'RG-PLACEHOLDER'" \
+  "case-preserving vnet-link DNS resource group not written to Foundry DNS params"
 
 if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   --dns-subscription-id "separate-subscription-placeholder"; then
@@ -199,15 +201,15 @@ assert_contains "$dns_param" "param dnsIntegrationMode = 'zone-group'" \
   "zone-group mode not written to DNS params"
 assert_contains "$dns_param" "param dnsSubscriptionId = '${dns_subscription_id}'" \
   "cross-subscription DNS ID not written to DNS params"
-assert_contains "$foundry_param" "param dnsIntegrationMode = 'zone-group'" \
-  "zone-group mode not written to Foundry params"
-assert_contains "$foundry_param" "param dnsSubscriptionId = '${dns_subscription_id}'" \
-  "cross-subscription DNS ID not written to Foundry params"
+assert_contains "$foundry_dns_param" "param dnsIntegrationMode = 'zone-group'" \
+  "zone-group mode not written to Foundry DNS params"
+assert_contains "$foundry_dns_param" "param dnsSubscriptionId = '${dns_subscription_id}'" \
+  "cross-subscription DNS ID not written to Foundry DNS params"
 
 if command -v az >/dev/null 2>&1; then
-  az bicep build-params --file "$foundry_param" --stdout >"$workdir/zone-group-foundry.json" \
-    || fail "generated zone-group Foundry parameters should compile"
-  python3 - "$workdir/zone-group-foundry.json" "$dns_subscription_id" <<'PY' || exit 1
+  az bicep build-params --file "$foundry_dns_param" --stdout >"$workdir/zone-group-foundry-dns.json" \
+    || fail "generated zone-group Foundry DNS parameters should compile"
+  python3 - "$workdir/zone-group-foundry-dns.json" "$dns_subscription_id" <<'PY' || exit 1
 import json
 import sys
 
@@ -216,9 +218,9 @@ template = json.loads(compiled["templateJson"])
 parameters = json.loads(compiled["parametersJson"])["parameters"]
 
 if parameters["dnsIntegrationMode"]["value"] != "zone-group":
-    sys.exit("compiled Foundry parameters lost zone-group mode")
+    sys.exit("compiled Foundry DNS parameters lost zone-group mode")
 if parameters["dnsSubscriptionId"]["value"] != sys.argv[2]:
-    sys.exit("compiled Foundry parameters lost the DNS subscription")
+    sys.exit("compiled Foundry DNS parameters lost the DNS subscription")
 
 variables = template.get("variables", {})
 zone_ids = json.dumps(variables.get("zoneGroupDnsResourceIds", {}))
@@ -228,7 +230,7 @@ for required in ("effectiveDnsSubscriptionId", "effectiveDnsResourceGroupName", 
 
 selection = json.dumps(variables.get("privateDnsZoneIds", ""))
 if "dnsIntegrationMode" not in selection or "zoneGroupDnsResourceIds" not in selection:
-    sys.exit("compiled Foundry template does not select zone-group DNS IDs by mode")
+    sys.exit("compiled Foundry DNS template does not select zone-group DNS IDs by mode")
 
 for resource in template.get("resources", []):
     if resource.get("type") in (
@@ -239,12 +241,12 @@ for resource in template.get("resources", []):
         if "dnsIntegrationMode" not in condition or "vnet-link" not in condition:
             sys.exit("Foundry-managed services.ai DNS resources are not gated to vnet-link mode")
 
-foundry_module = next(
+foundry_dns_module = next(
     resource for resource in template["resources"]
     if resource.get("type") == "Microsoft.Resources/deployments"
-    and resource.get("name") == "foundry-platform"
+    and resource.get("name") == "foundry-private-endpoint-dns"
 )
-inner_template = json.dumps(foundry_module["properties"]["template"])
+inner_template = json.dumps(foundry_dns_module["properties"]["template"])
 for required in ("privateDnsZoneConfigs", "cognitiveServicesDnsZoneId", "servicesAiDnsZoneId"):
     if required not in inner_template:
         sys.exit(f"compiled private endpoint zone-group wiring is missing {required}")

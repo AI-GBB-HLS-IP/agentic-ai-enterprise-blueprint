@@ -1,0 +1,22 @@
+using './foundry-dns.bicep'
+
+// PLACEHOLDER VALUES ONLY. This tracked .example file must never contain real subscription-
+// specific values (per repo confidentiality convention). Copy it to a local, untracked
+// `foundry-dns.bicepparam` and replace every placeholder before deploying.
+//
+// Deploy this scoped to the SAME resource group as foundry.bicep, only after foundry.bicep's
+// deployment has succeeded and its private endpoints exist. Copy the *PrivateEndpointName
+// values below from foundry.bicep's outputs (foundryPrivateEndpointName,
+// storagePrivateEndpointName, keyVaultPrivateEndpointName, cosmosDBPrivateEndpointName,
+// aiSearchPrivateEndpointName) — or, if you are not creating a private endpoint for a given
+// dependency (existing*PrivateEndpoint was true in foundry.bicepparam), leave the matching
+// name parameter here empty to skip it.
+
+param networkResourceGroupName = '<network-resource-group>'
+param dnsIntegrationMode = 'vnet-link'
+param vnetName = '<existing-vnet-name>'
+param foundryPrivateEndpointName = 'pe-foundry'
+param storagePrivateEndpointName = 'pe-foundry-storage'
+param keyVaultPrivateEndpointName = 'pe-foundry-keyvault'
+param cosmosDBPrivateEndpointName = 'pe-foundry-cosmosdb'
+param aiSearchPrivateEndpointName = 'pe-foundry-aisearch'
