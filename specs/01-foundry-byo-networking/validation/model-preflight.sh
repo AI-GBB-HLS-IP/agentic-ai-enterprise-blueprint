@@ -39,7 +39,11 @@ for candidate_model_name in "${candidate_model_names[@]}"; do
 done
 
 if [ "$quota_json" = "[]" ]; then
-  echo "No quota record found for ${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${MODEL_NAME} (also tried ${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${alt_model_name}) in $LOCATION." >&2
+  if [ "$alt_model_name" = "$MODEL_NAME" ]; then
+    echo "No quota record found for ${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${MODEL_NAME} in $LOCATION." >&2
+  else
+    echo "No quota record found for ${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${MODEL_NAME} (also tried ${MODEL_FORMAT}.${DEPLOYMENT_SKU}.${alt_model_name}) in $LOCATION." >&2
+  fi
   exit 1
 fi
 
