@@ -8,9 +8,7 @@ and validate the gateway foundation while Foundry approval or model availability
 ## What Changes
 
 - Split Chapter 02 into two explicit, independently deployable stages:
-  - **APIM foundation** deploys networking prerequisites, internal VNet-injected APIM, its
-    system-assigned identity, private DNS, and monitoring without reading or validating Foundry
-    resources.
+  - **APIM foundation** validates and consumes existing network/VNet/subnet inputs, then deploys the internal VNet-injected APIM, its system-assigned identity, private DNS, and monitoring without reading or validating Foundry resources.
   - **Foundry integration** runs only after Foundry is approved and available, adding the
     Foundry-scoped role assignment, managed-identity backend, model mapping, and governed AI API.
 - Replace the chapter-wide Foundry prerequisite with stage-specific prerequisites and validation
