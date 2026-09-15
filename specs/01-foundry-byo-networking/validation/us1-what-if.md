@@ -31,9 +31,10 @@ az deployment group what-if \
   --parameters infra/envs/poc/foundry-dns.bicepparam
 ```
 
-Expected when rerun: the preview lists private DNS zone group child resources only for the
-supplied endpoint IDs. `foundryPrivateEndpointId` and `keyVaultPrivateEndpointId` are required;
-`storagePrivateEndpointId`, `cosmosDBPrivateEndpointId`, and `aiSearchPrivateEndpointId` may be
-empty. The IDs may reference endpoints in other resource groups or subscriptions.
+Expected when rerun: in `vnet-link` mode, the preview also creates or updates the Foundry-managed
+`privatelink.services.ai.azure.com` zone and its VNet link; in `zone-group` mode it lists
+private DNS zone group child resources only for the supplied endpoint IDs. `foundryPrivateEndpointId` and
+`keyVaultPrivateEndpointId` are required; `storagePrivateEndpointId`, `cosmosDBPrivateEndpointId`, and
+`aiSearchPrivateEndpointId` may be empty. The IDs may reference endpoints in other resource groups or subscriptions.
 
 No live Phase 2 or Phase 3 what-if rerun is recorded here yet.
