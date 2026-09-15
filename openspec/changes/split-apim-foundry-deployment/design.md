@@ -71,13 +71,9 @@ coupling in the foundation module.
 
 ### 3. Reference foundation resources from Stage 2 instead of redeploying them
 
-The integration entry point will declare the APIM service as an existing resource and pass its
-name, ID, and principal ID to integration modules. It will not invoke the APIM service, private
-DNS, or observability modules.
+The integration entry point will declare the APIM service as an existing resource scoped to `resourceGroup(apimResourceGroupName)` and pass its name, ID, and principal ID to the integration modules. It will deploy the backend/API modules at that scope and invoke the role-assignment module at `resourceGroup(foundryResourceGroupName)`; it will not invoke the APIM service, private DNS, or observability modules.
 
-This ARM boundary ensures an integration deployment cannot unintentionally replace the APIM
-service or alter its VNet configuration. It also allows Foundry and APIM to reside in separate
-resource groups while retaining account-scoped role assignment.
+This ARM boundary ensures an integration deployment cannot unintentionally replace the APIM service or alter its VNet configuration. It also allows Foundry and APIM to reside in separate resource groups while retaining account-scoped role assignment.
 
 ### 4. Split parameters and outputs by ownership
 
