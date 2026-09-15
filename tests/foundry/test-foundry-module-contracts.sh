@@ -191,11 +191,8 @@ for deployment_name, (prefix, gate_variable) in expected.items():
         sys.exit(f"{deployment_name} must use the endpoint name parsed from its endpoint ID")
 
     condition = str(deployment.get("condition", ""))
-    if gate_variable:
-        if f"variables('{gate_variable}')" not in condition:
-            sys.exit(f"{deployment_name} must be gated when its optional endpoint ID is empty")
-    elif deployment.get("condition") is not None:
-        sys.exit(f"{deployment_name} must always deploy for its required endpoint ID")
+    if f"variables('{gate_variable}')" not in condition:
+        sys.exit(f"{deployment_name} must be gated when its optional endpoint ID is empty")
 PY
 
 echo "==> main.bicep and envs/poc/foundry.bicep expose endpoint IDs"
