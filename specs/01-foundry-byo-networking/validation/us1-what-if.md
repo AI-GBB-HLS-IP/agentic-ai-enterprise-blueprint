@@ -1,40 +1,39 @@
-Note: The result may contain false positive predictions (noise).
-You can help us improve the accuracy of the result by opening an issue here: https://aka.ms/WhatIfIssues
+# US1 what-if validation
 
-Resource and property changes are indicated with these symbols:
-  + Create
-  * Ignore
+The previously captured output predated the staged deployment contract and is not valid evidence
+for the current templates. It has been removed rather than edited into a result that was not
+actually produced by Azure.
 
-The deployment will update the following scope:
+## Tenant Phase 2: main Foundry deployment
 
-Scope: /subscriptions/<redacted-subscription-id>/resourceGroups/rg-agent-factory-poc
+Run:
 
-  + Microsoft.CognitiveServices/accounts/foundry-agent-factory-poc
-  + Microsoft.CognitiveServices/accounts/foundry-agent-factory-poc/projects/prj-agent-factory-poc
-  + Microsoft.KeyVault/vaults/kv-agent-factory-poc
-  + Microsoft.Network/privateEndpoints/pe-foundry
-  + Microsoft.Network/privateEndpoints/pe-foundry-keyvault
-  + Microsoft.Network/privateEndpoints/pe-foundry-keyvault/privateDnsZoneGroups/keyvault-dns
-  + Microsoft.Network/privateEndpoints/pe-foundry-storage
-  + Microsoft.Network/privateEndpoints/pe-foundry-storage/privateDnsZoneGroups/storage-dns
-  + Microsoft.Network/privateEndpoints/pe-foundry/privateDnsZoneGroups/foundry-dns
-  + Microsoft.Storage/storageAccounts/stagentfactorypoc
-  * Microsoft.Network/bastionHosts/bas-agent-factory-poc
-  * Microsoft.Network/networkSecurityGroups/nsg-apim
-  * Microsoft.Network/networkSecurityGroups/nsg-compute
-  * Microsoft.Network/privateDnsZones/privatelink.azure-api.net
-  * Microsoft.Network/privateDnsZones/privatelink.azure-api.net/virtualNetworkLinks/vnet-agent-factory-poc-link
-  * Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net
-  * Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net/virtualNetworkLinks/vnet-agent-factory-poc-link
-  * Microsoft.Network/privateDnsZones/privatelink.cognitiveservices.azure.com
-  * Microsoft.Network/privateDnsZones/privatelink.cognitiveservices.azure.com/virtualNetworkLinks/vnet-agent-factory-poc-link
-  * Microsoft.Network/privateDnsZones/privatelink.database.windows.net
-  * Microsoft.Network/privateDnsZones/privatelink.database.windows.net/virtualNetworkLinks/vnet-agent-factory-poc-link
-  * Microsoft.Network/privateDnsZones/privatelink.openai.azure.com
-  * Microsoft.Network/privateDnsZones/privatelink.openai.azure.com/virtualNetworkLinks/vnet-agent-factory-poc-link
-  * Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net
-  * Microsoft.Network/privateDnsZones/privatelink.vaultcore.azure.net/virtualNetworkLinks/vnet-agent-factory-poc-link
-  * Microsoft.Network/publicIPAddresses/pip-agent-factory-bastion
-  * Microsoft.Network/virtualNetworks/vnet-agent-factory-poc
+```bash
+az deployment group what-if \
+  --resource-group rg-agent-factory-poc \
+  --template-file infra/envs/poc/foundry.bicep \
+  --parameters infra/envs/poc/foundry.bicepparam
+```
 
-Resource changes: 10 to create, 17 to ignore.
+Expected when rerun: the preview creates or updates the Foundry resources and bare
+`Microsoft.Network/privateEndpoints`. It must not list any
+`Microsoft.Network/privateEndpoints/privateDnsZoneGroups` resources.
+
+## Tenant Phase 3: DNS zone group association
+
+After Phase 2 succeeds, populate an untracked `foundry-dns.bicepparam` with full private endpoint
+ARM resource IDs and run:
+
+```bash
+az deployment group what-if \
+  --resource-group rg-agent-factory-poc \
+  --template-file infra/envs/poc/foundry-dns.bicep \
+  --parameters infra/envs/poc/foundry-dns.bicepparam
+```
+
+Expected when rerun: the preview lists private DNS zone group child resources only for the
+supplied endpoint IDs. `foundryPrivateEndpointId` and `keyVaultPrivateEndpointId` are required;
+`storagePrivateEndpointId`, `cosmosDBPrivateEndpointId`, and `aiSearchPrivateEndpointId` may be
+empty. The IDs may reference endpoints in other resource groups or subscriptions.
+
+No live Phase 2 or Phase 3 what-if rerun is recorded here yet.

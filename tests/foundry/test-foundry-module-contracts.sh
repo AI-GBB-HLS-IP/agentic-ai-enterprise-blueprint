@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Contract tests for the Foundry private-endpoint / DNS-zone-group split:
+# Contract tests for the staged Foundry private-endpoint deployment:
 #
-#   1. infra/modules/foundry/private-endpoint.bicep creates only bare private endpoints — no
-#      privateDnsZoneGroups child resources — and exposes each endpoint's name as an output.
-#   2. infra/modules/foundry/private-endpoint-dns.bicep creates the privateDnsZoneGroups child
-#      resource for every dependency by referencing each private endpoint as `existing` (by
-#      name), and skips the optional ones (storage/cosmos/aiSearch) when their name is empty.
-#   3. infra/modules/foundry/main.bicep no longer accepts a privateDnsZoneIds parameter and
-#      passes through the private-endpoint-name outputs.
+#   1. private-endpoint.bicep creates bare private endpoints and exposes IDs and names.
+#   2. private-endpoint-dns.bicep is a generic one-endpoint/one-zone-group module.
+#   3. foundry-dns.bicep validates full endpoint ARM IDs, scopes each association to the
+#      endpoint's subscription/resource group, and gates optional endpoint associations.
+#   4. main.bicep and envs/poc/foundry.bicep expose endpoint IDs for the DNS stage.
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 PRIVATE_ENDPOINT_MODULE="${REPO_ROOT}/infra/modules/foundry/private-endpoint.bicep"
 PRIVATE_ENDPOINT_DNS_MODULE="${REPO_ROOT}/infra/modules/foundry/private-endpoint-dns.bicep"
+FOUNDRY_DNS_ENV="${REPO_ROOT}/infra/envs/poc/foundry-dns.bicep"
 MAIN_MODULE="${REPO_ROOT}/infra/modules/foundry/main.bicep"
+FOUNDRY_ENV="${REPO_ROOT}/infra/envs/poc/foundry.bicep"
 
 command -v az >/dev/null 2>&1 || {
   echo "SKIP: az CLI not available; cannot run bicep build checks." >&2
@@ -35,126 +35,185 @@ fail() {
   exit 1
 }
 
-echo "==> az bicep build: modules/foundry/private-endpoint.bicep"
-az bicep build --file "$PRIVATE_ENDPOINT_MODULE" --stdout >"$workdir/pe.json" 2>"$workdir/pe.err" \
-  || { cat "$workdir/pe.err" >&2; fail "az bicep build failed for private-endpoint.bicep"; }
+build_bicep() {
+  local source_file="$1"
+  local output_file="$2"
+  local display_path="${source_file#"${REPO_ROOT}/"}"
 
-echo "==> private-endpoint.bicep declares no privateDnsZoneGroups resources"
-python3 - "$workdir/pe.json" <<'PY' || exit 1
+  echo "==> az bicep build: ${display_path}"
+  az bicep build --file "$source_file" --stdout >"$output_file" 2>"${output_file}.err" \
+    || { cat "${output_file}.err" >&2; fail "az bicep build failed for ${display_path}"; }
+}
+
+build_bicep "$PRIVATE_ENDPOINT_MODULE" "$workdir/private-endpoint.json"
+build_bicep "$PRIVATE_ENDPOINT_DNS_MODULE" "$workdir/private-endpoint-dns.json"
+build_bicep "$FOUNDRY_DNS_ENV" "$workdir/foundry-dns.json"
+build_bicep "$MAIN_MODULE" "$workdir/main.json"
+build_bicep "$FOUNDRY_ENV" "$workdir/foundry-env.json"
+
+echo "==> private-endpoint.bicep creates bare endpoints and exposes IDs and names"
+python3 - "$workdir/private-endpoint.json" <<'PY'
 import json
 import sys
 
 arm = json.load(open(sys.argv[1]))
+resources = arm.get("resources", [])
+
 zone_groups = [
-    r for r in arm["resources"]
-    if r.get("type") == "Microsoft.Network/privateEndpoints/privateDnsZoneGroups"
+    resource
+    for resource in resources
+    if resource.get("type") == "Microsoft.Network/privateEndpoints/privateDnsZoneGroups"
 ]
 if zone_groups:
-    names = [r.get("name") for r in zone_groups]
-    sys.exit(f"private-endpoint.bicep must not declare privateDnsZoneGroups resources, found: {names}")
+    sys.exit("private-endpoint.bicep must not create privateDnsZoneGroups resources")
 
-for key in (
-    "foundryPrivateEndpointName",
-    "storagePrivateEndpointName",
-    "keyVaultPrivateEndpointName",
-    "cosmosDBPrivateEndpointName",
-    "aiSearchPrivateEndpointName",
-):
-    if key not in arm.get("outputs", {}):
-        sys.exit(f"private-endpoint.bicep is missing expected output: {key}")
+private_endpoints = [
+    resource
+    for resource in resources
+    if resource.get("type") == "Microsoft.Network/privateEndpoints"
+]
+if len(private_endpoints) != 5:
+    sys.exit(f"private-endpoint.bicep must declare five private endpoints, found {len(private_endpoints)}")
+
+outputs = arm.get("outputs", {})
+services = ("foundry", "storage", "keyVault", "cosmosDB", "aiSearch")
+for service in services:
+    for suffix in ("PrivateEndpointId", "PrivateEndpointName"):
+        key = f"{service}{suffix}"
+        if key not in outputs:
+            sys.exit(f"private-endpoint.bicep is missing expected output: {key}")
 PY
 
-echo "==> private-endpoint.bicep no longer accepts DNS-zone-ID parameters"
-for removed_param in cognitiveServicesDnsZoneId openAiDnsZoneId servicesAiDnsZoneId blobDnsZoneId keyVaultDnsZoneId cosmosDBDnsZoneId aiSearchDnsZoneId; do
-  if grep -q "param ${removed_param} " "$PRIVATE_ENDPOINT_MODULE"; then
-    fail "private-endpoint.bicep still declares removed DNS-zone-ID parameter: ${removed_param}"
-  fi
-done
-
-echo "==> az bicep build: modules/foundry/private-endpoint-dns.bicep"
-az bicep build --file "$PRIVATE_ENDPOINT_DNS_MODULE" --stdout >"$workdir/pedns.json" 2>"$workdir/pedns.err" \
-  || { cat "$workdir/pedns.err" >&2; fail "az bicep build failed for private-endpoint-dns.bicep"; }
-
-echo "==> private-endpoint-dns.bicep creates every expected DNS zone group against an existing PE"
-python3 - "$workdir/pedns.json" <<'PY' || exit 1
+echo "==> private-endpoint-dns.bicep creates one zone group for one existing endpoint"
+python3 - "$workdir/private-endpoint-dns.json" <<'PY'
 import json
 import sys
 
 arm = json.load(open(sys.argv[1]))
-resources = arm["resources"]
+resources = arm.get("resources", [])
+parameters = arm.get("parameters", {})
 
-# `existing` resources never appear in the compiled ARM "resources" array — only the resources
-# actually being created do. So the absence of any Microsoft.Network/privateEndpoints creation
-# resource here (only privateDnsZoneGroups) is itself proof every PE is referenced as `existing`.
-pe_creations = [r for r in resources if r.get("type") == "Microsoft.Network/privateEndpoints"]
-if pe_creations:
-    sys.exit(f"private-endpoint-dns.bicep must reference private endpoints as 'existing', not create them: {[r['name'] for r in pe_creations]}")
+if any(resource.get("type") == "Microsoft.Network/privateEndpoints" for resource in resources):
+    sys.exit("private-endpoint-dns.bicep must reference an existing private endpoint")
 
 zone_groups = [
-    r for r in resources
-    if r.get("type") == "Microsoft.Network/privateEndpoints/privateDnsZoneGroups"
+    resource
+    for resource in resources
+    if resource.get("type") == "Microsoft.Network/privateEndpoints/privateDnsZoneGroups"
 ]
-if len(zone_groups) != 5:
-    sys.exit(f"expected 5 privateDnsZoneGroups resources, found {len(zone_groups)}")
+if len(zone_groups) != 1:
+    sys.exit(f"private-endpoint-dns.bicep must create exactly one privateDnsZoneGroups resource, found {len(zone_groups)}")
 
-expected_pe_params = {
-    "foundryPrivateEndpointName",
-    "storagePrivateEndpointName",
-    "keyVaultPrivateEndpointName",
-    "cosmosDBPrivateEndpointName",
-    "aiSearchPrivateEndpointName",
-}
-expected_group_suffixes = {"foundry-dns", "storage-dns", "keyvault-dns", "cosmosdb-dns", "aisearch-dns"}
-found_pe_params = set()
-found_group_suffixes = set()
-for r in zone_groups:
-    # Each zone group's compiled name is a format() expression like:
-    #   format('{0}/{1}', parameters('fooPrivateEndpointName'), 'foo-dns')
-    # which proves the zone group is parented to the PE by name (i.e. the PE is `existing`).
-    name_expr = r["name"]
-    matched_param = next((p for p in expected_pe_params if f"parameters('{p}')" in name_expr), None)
-    matched_suffix = next((s for s in expected_group_suffixes if f"'{s}'" in name_expr), None)
-    if not matched_param or not matched_suffix:
-        sys.exit(f"unexpected privateDnsZoneGroups name expression: {name_expr}")
-    found_pe_params.add(matched_param)
-    found_group_suffixes.add(matched_suffix)
+for parameter in ("privateEndpointName", "dnsGroupName", "privateDnsZoneConfigs"):
+    if parameter not in parameters or "defaultValue" in parameters[parameter]:
+        sys.exit(f"private-endpoint-dns.bicep must require parameter: {parameter}")
 
-missing_params = expected_pe_params - found_pe_params
-missing_suffixes = expected_group_suffixes - found_group_suffixes
-if missing_params or missing_suffixes:
-    sys.exit(f"private-endpoint-dns.bicep is missing expected DNS zone groups: params={missing_params} suffixes={missing_suffixes}")
+zone_group = zone_groups[0]
+name_expression = zone_group.get("name", "")
+if "parameters('privateEndpointName')" not in name_expression or "parameters('dnsGroupName')" not in name_expression:
+    sys.exit("privateDnsZoneGroups name must be derived from privateEndpointName and dnsGroupName")
+
+configs_expression = zone_group.get("properties", {}).get("privateDnsZoneConfigs", "")
+if "parameters('privateDnsZoneConfigs')" not in str(configs_expression):
+    sys.exit("privateDnsZoneGroups properties must use privateDnsZoneConfigs")
+
+compiled = json.dumps(arm)
+messages = (
+    "privateEndpointName must not be empty.",
+    "dnsGroupName must not be empty.",
+    "privateDnsZoneConfigs must contain at least one private DNS zone configuration.",
+)
+for message in messages:
+    if message not in compiled:
+        sys.exit(f"private-endpoint-dns.bicep is missing validation message: {message}")
 PY
 
-echo "==> private-endpoint-dns.bicep skips optional DNS groups when the PE name is empty"
-grep -q "createStorageDnsGroup = !empty(storagePrivateEndpointName)" "$PRIVATE_ENDPOINT_DNS_MODULE" \
-  || fail "private-endpoint-dns.bicep must gate the storage DNS group on storagePrivateEndpointName"
-grep -q "createCosmosDBDnsGroup = !empty(cosmosDBPrivateEndpointName)" "$PRIVATE_ENDPOINT_DNS_MODULE" \
-  || fail "private-endpoint-dns.bicep must gate the Cosmos DB DNS group on cosmosDBPrivateEndpointName"
-grep -q "createAISearchDnsGroup = !empty(aiSearchPrivateEndpointName)" "$PRIVATE_ENDPOINT_DNS_MODULE" \
-  || fail "private-endpoint-dns.bicep must gate the AI Search DNS group on aiSearchPrivateEndpointName"
-
-echo "==> az bicep build: modules/foundry/main.bicep"
-az bicep build --file "$MAIN_MODULE" --stdout >"$workdir/main.json" 2>"$workdir/main.err" \
-  || { cat "$workdir/main.err" >&2; fail "az bicep build failed for main.bicep"; }
-
-echo "==> main.bicep no longer declares a privateDnsZoneIds parameter"
-python3 - "$workdir/main.json" <<'PY' || exit 1
+echo "==> foundry-dns.bicep validates endpoint IDs, scopes modules, and gates optional associations"
+python3 - "$workdir/foundry-dns.json" <<'PY'
 import json
 import sys
 
 arm = json.load(open(sys.argv[1]))
-if "privateDnsZoneIds" in arm.get("parameters", {}):
-    sys.exit("main.bicep must not declare a privateDnsZoneIds parameter")
+parameters = arm.get("parameters", {})
+resources = arm.get("resources", [])
 
-for key in (
-    "foundryPrivateEndpointName",
-    "storagePrivateEndpointName",
-    "keyVaultPrivateEndpointName",
-    "cosmosDBPrivateEndpointName",
-    "aiSearchPrivateEndpointName",
-):
-    if key not in arm.get("outputs", {}):
-        sys.exit(f"main.bicep is missing expected pass-through output: {key}")
+required = ("foundryPrivateEndpointId", "keyVaultPrivateEndpointId")
+optional = ("storagePrivateEndpointId", "cosmosDBPrivateEndpointId", "aiSearchPrivateEndpointId")
+for parameter in required:
+    if parameter not in parameters or "defaultValue" in parameters[parameter]:
+        sys.exit(f"foundry-dns.bicep must require parameter: {parameter}")
+for parameter in optional:
+    if parameters.get(parameter, {}).get("defaultValue") != "":
+        sys.exit(f"foundry-dns.bicep must make {parameter} optional with an empty default")
+
+compiled = json.dumps(arm)
+expected_messages = {
+    "foundryPrivateEndpointId": "must be a full ARM resource ID for Microsoft.Network/privateEndpoints.",
+    "keyVaultPrivateEndpointId": "must be a full ARM resource ID for Microsoft.Network/privateEndpoints.",
+    "storagePrivateEndpointId": "must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.",
+    "cosmosDBPrivateEndpointId": "must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.",
+    "aiSearchPrivateEndpointId": "must be empty or a full ARM resource ID for Microsoft.Network/privateEndpoints.",
+}
+for parameter, message_suffix in expected_messages.items():
+    message = f"{parameter} {message_suffix}"
+    if message not in compiled:
+        sys.exit(f"foundry-dns.bicep is missing clear validation failure: {message}")
+
+deployments = {
+    resource.get("name"): resource
+    for resource in resources
+    if resource.get("type") == "Microsoft.Resources/deployments"
+}
+expected = {
+    "foundry-private-endpoint-dns": ("foundry", None),
+    "storage-private-endpoint-dns": ("storage", "createStorageDnsGroup"),
+    "keyvault-private-endpoint-dns": ("keyVault", None),
+    "cosmosdb-private-endpoint-dns": ("cosmosDB", "createCosmosDBDnsGroup"),
+    "aisearch-private-endpoint-dns": ("aiSearch", "createAISearchDnsGroup"),
+}
+for deployment_name, (prefix, gate_variable) in expected.items():
+    deployment = deployments.get(deployment_name)
+    if deployment is None:
+        sys.exit(f"foundry-dns.bicep is missing module deployment: {deployment_name}")
+
+    expected_subscription = f"[variables('{prefix}PrivateEndpointSubscriptionId')]"
+    expected_resource_group = f"[variables('{prefix}PrivateEndpointResourceGroupName')]"
+    if deployment.get("subscriptionId") != expected_subscription:
+        sys.exit(f"{deployment_name} must use the subscription parsed from its endpoint ID")
+    if deployment.get("resourceGroup") != expected_resource_group:
+        sys.exit(f"{deployment_name} must use the resource group parsed from its endpoint ID")
+
+    module_parameters = deployment.get("properties", {}).get("parameters", {})
+    endpoint_name = str(module_parameters.get("privateEndpointName", {}))
+    if f"variables('{prefix}PrivateEndpointName')" not in endpoint_name:
+        sys.exit(f"{deployment_name} must use the endpoint name parsed from its endpoint ID")
+
+    condition = str(deployment.get("condition", ""))
+    if gate_variable:
+        if f"variables('{gate_variable}')" not in condition:
+            sys.exit(f"{deployment_name} must be gated when its optional endpoint ID is empty")
+    elif deployment.get("condition") is not None:
+        sys.exit(f"{deployment_name} must always deploy for its required endpoint ID")
+PY
+
+echo "==> main.bicep and envs/poc/foundry.bicep expose endpoint IDs"
+python3 - "$workdir/main.json" "$workdir/foundry-env.json" <<'PY'
+import json
+import sys
+
+expected_outputs = (
+    "foundryPrivateEndpointId",
+    "storagePrivateEndpointId",
+    "keyVaultPrivateEndpointId",
+    "cosmosDBPrivateEndpointId",
+    "aiSearchPrivateEndpointId",
+)
+for path, display_name in zip(sys.argv[1:], ("main.bicep", "envs/poc/foundry.bicep")):
+    arm = json.load(open(path))
+    outputs = arm.get("outputs", {})
+    for output in expected_outputs:
+        if output not in outputs:
+            sys.exit(f"{display_name} is missing expected endpoint ID output: {output}")
 PY
 
 echo "Foundry module contract tests passed."

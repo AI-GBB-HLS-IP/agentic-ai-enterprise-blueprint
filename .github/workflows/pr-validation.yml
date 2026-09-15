@@ -60,6 +60,9 @@ jobs:
             exit 1
           fi
 
+      - name: Run Foundry module contract tests
+        run: ./tests/foundry/test-foundry-module-contracts.sh
+
       - name: Run network test suite
         run: ./tests/network/run-tests.sh
 

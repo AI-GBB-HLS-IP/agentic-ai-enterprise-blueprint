@@ -5,18 +5,21 @@ using './foundry-dns.bicep'
 // `foundry-dns.bicepparam` and replace every placeholder before deploying.
 //
 // Deploy this scoped to the SAME resource group as foundry.bicep, only after foundry.bicep's
-// deployment has succeeded and its private endpoints exist. Copy the *PrivateEndpointName
-// values below from foundry.bicep's outputs (foundryPrivateEndpointName,
-// storagePrivateEndpointName, keyVaultPrivateEndpointName, cosmosDBPrivateEndpointName,
-// aiSearchPrivateEndpointName) — or, if you are not creating a private endpoint for a given
-// dependency (existing*PrivateEndpoint was true in foundry.bicepparam), leave the matching
-// name parameter here empty to skip it.
+// deployment has succeeded and its private endpoints exist. Replace the required Foundry and
+// Key Vault endpoint IDs below with full ARM resource IDs. Replace each optional Storage,
+// Cosmos DB, and AI Search endpoint ID when that endpoint exists, or set it to '' to skip it.
+//
+// In vnet-link mode, dnsSubscriptionId must match the workload subscription and
+// dnsResourceGroupName must match networkResourceGroupName. In zone-group mode, set both values
+// to the explicit subscription and resource group that contain the existing private DNS zones.
 
 param networkResourceGroupName = '<network-resource-group>'
 param dnsIntegrationMode = 'vnet-link'
+param dnsSubscriptionId = '<dns-zone-subscription-id>'
+param dnsResourceGroupName = '<dns-zone-resource-group>'
 param vnetName = '<existing-vnet-name>'
-param foundryPrivateEndpointName = 'pe-foundry'
-param storagePrivateEndpointName = 'pe-foundry-storage'
-param keyVaultPrivateEndpointName = 'pe-foundry-keyvault'
-param cosmosDBPrivateEndpointName = 'pe-foundry-cosmosdb'
-param aiSearchPrivateEndpointName = 'pe-foundry-aisearch'
+param foundryPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<foundry-private-endpoint-name>'
+param storagePrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<storage-private-endpoint-name>'
+param keyVaultPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<key-vault-private-endpoint-name>'
+param cosmosDBPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<cosmos-db-private-endpoint-name>'
+param aiSearchPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<ai-search-private-endpoint-name>'

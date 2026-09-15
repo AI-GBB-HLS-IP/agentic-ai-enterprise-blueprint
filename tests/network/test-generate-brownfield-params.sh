@@ -101,6 +101,30 @@ assert_not_contains "$dns_param" "privatelink.database.windows.net" \
   "Foundry-only generation must not request the optional SQL private DNS zone"
 assert_contains "$foundry_param" "param privateEndpointSubnetName = 'hybridsubnet-privateendpoints'" \
   "Foundry params do not use the allocated private endpoint subnet"
+private_endpoint_id_prefix="/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints"
+assert_contains "$foundry_dns_param" "param dnsSubscriptionId = '00000000-0000-0000-0000-000000000000'" \
+  "Foundry DNS params must include the discovered DNS subscription explicitly"
+assert_contains "$foundry_dns_param" "param dnsResourceGroupName = 'rg-placeholder'" \
+  "Foundry DNS params must include the DNS resource group explicitly"
+assert_contains "$foundry_dns_param" "param foundryPrivateEndpointId = '${private_endpoint_id_prefix}/<foundry-private-endpoint-name>'" \
+  "Foundry endpoint must use a full placeholder ARM resource ID"
+assert_contains "$foundry_dns_param" "param storagePrivateEndpointId = '${private_endpoint_id_prefix}/<storage-private-endpoint-name>'" \
+  "Storage endpoint must use a full placeholder ARM resource ID"
+assert_contains "$foundry_dns_param" "param keyVaultPrivateEndpointId = '${private_endpoint_id_prefix}/<key-vault-private-endpoint-name>'" \
+  "Key Vault endpoint must use a full placeholder ARM resource ID"
+assert_contains "$foundry_dns_param" "param cosmosDBPrivateEndpointId = '${private_endpoint_id_prefix}/<cosmos-db-private-endpoint-name>'" \
+  "Cosmos DB endpoint must use a full placeholder ARM resource ID"
+assert_contains "$foundry_dns_param" "param aiSearchPrivateEndpointId = '${private_endpoint_id_prefix}/<ai-search-private-endpoint-name>'" \
+  "AI Search endpoint must use a full placeholder ARM resource ID"
+for stale_name_param in \
+  foundryPrivateEndpointName \
+  storagePrivateEndpointName \
+  keyVaultPrivateEndpointName \
+  cosmosDBPrivateEndpointName \
+  aiSearchPrivateEndpointName; do
+  assert_not_contains "$foundry_dns_param" "param ${stale_name_param}" \
+    "Foundry DNS params must not emit stale ${stale_name_param} parameters"
+done
 
 # --- overwrite protection ---------------------------------------------------------------------
 if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir"; then
@@ -109,10 +133,10 @@ fi
 
 run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   || fail "--force should allow overwriting"
-assert_contains "$foundry_dns_param" "param dnsResourceGroupName = ''" \
-  "vnet-link Foundry DNS params must preserve the template's same-resource-group fallback"
-assert_contains "$foundry_dns_param" "param dnsSubscriptionId = ''" \
-  "vnet-link Foundry DNS params must preserve the template's same-subscription fallback"
+assert_contains "$foundry_dns_param" "param dnsResourceGroupName = 'rg-placeholder'" \
+  "vnet-link Foundry DNS params must include the discovered VNet resource group explicitly"
+assert_contains "$foundry_dns_param" "param dnsSubscriptionId = '00000000-0000-0000-0000-000000000000'" \
+  "vnet-link Foundry DNS params must include the discovered workload subscription explicitly"
 
 if run_generator --discovery "$workdir/discovery.json" --out-dir "$outdir" --force \
   --dns-resource-group "rg-separate-dns-placeholder"; then
@@ -205,6 +229,8 @@ assert_contains "$foundry_dns_param" "param dnsIntegrationMode = 'zone-group'" \
   "zone-group mode not written to Foundry DNS params"
 assert_contains "$foundry_dns_param" "param dnsSubscriptionId = '${dns_subscription_id}'" \
   "cross-subscription DNS ID not written to Foundry DNS params"
+assert_contains "$foundry_dns_param" "param dnsResourceGroupName = 'rg-dns-placeholder'" \
+  "cross-subscription DNS resource group not written to Foundry DNS params"
 
 if command -v az >/dev/null 2>&1; then
   az bicep build-params --file "$foundry_dns_param" --stdout >"$workdir/zone-group-foundry-dns.json" \
@@ -246,9 +272,14 @@ foundry_dns_module = next(
     if resource.get("type") == "Microsoft.Resources/deployments"
     and resource.get("name") == "foundry-private-endpoint-dns"
 )
-inner_template = json.dumps(foundry_dns_module["properties"]["template"])
-for required in ("privateDnsZoneConfigs", "cognitiveServicesDnsZoneId", "servicesAiDnsZoneId"):
-    if required not in inner_template:
+module_parameters = json.dumps(foundry_dns_module["properties"]["parameters"])
+for required in (
+    "privateDnsZoneConfigs",
+    "privateDnsZoneIds",
+    "cognitiveServices",
+    "servicesAi",
+):
+    if required not in module_parameters:
         sys.exit(f"compiled private endpoint zone-group wiring is missing {required}")
 PY
 fi

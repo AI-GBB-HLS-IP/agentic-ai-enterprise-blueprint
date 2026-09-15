@@ -6,6 +6,7 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 NETWORK_ENTRY="${REPO_ROOT}/infra/envs/poc/brownfield-network.bicep"
 DNS_ENTRY="${REPO_ROOT}/infra/envs/poc/brownfield-dns.bicep"
+FOUNDRY_ENTRY="${REPO_ROOT}/infra/envs/poc/foundry.bicep"
 FOUNDRY_DNS_ENTRY="${REPO_ROOT}/infra/envs/poc/foundry-dns.bicep"
 SUBNETS_MODULE="${REPO_ROOT}/infra/modules/network/subnets.bicep"
 DNS_LINK_MODULE="${REPO_ROOT}/infra/modules/network/private-dns-link.bicep"
@@ -49,9 +50,26 @@ if [[ ! -s "$workdir/dns.json" ]]; then
   exit 1
 fi
 
+echo "==> az bicep build: foundry.bicep"
+if ! az bicep build --file "$FOUNDRY_ENTRY" --stdout >"$workdir/foundry.json" 2>"$workdir/foundry.err"; then
+  echo "FAIL: az bicep build failed for foundry.bicep" >&2
+  cat "$workdir/foundry.err" >&2
+  exit 1
+fi
+if [[ ! -s "$workdir/foundry.json" ]]; then
+  echo "FAIL: foundry.bicep produced no compiled output" >&2
+  cat "$workdir/foundry.err" >&2
+  exit 1
+fi
+
 echo "==> az bicep build: foundry-dns.bicep"
 if ! az bicep build --file "$FOUNDRY_DNS_ENTRY" --stdout >"$workdir/foundry-dns.json" 2>"$workdir/foundry-dns.err"; then
   echo "FAIL: az bicep build failed for foundry-dns.bicep" >&2
+  cat "$workdir/foundry-dns.err" >&2
+  exit 1
+fi
+if [[ ! -s "$workdir/foundry-dns.json" ]]; then
+  echo "FAIL: foundry-dns.bicep produced no compiled output" >&2
   cat "$workdir/foundry-dns.err" >&2
   exit 1
 fi

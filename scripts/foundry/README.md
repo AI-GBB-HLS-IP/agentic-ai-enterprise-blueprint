@@ -44,17 +44,17 @@ Authentication, approval, and environment protection are owned by the caller. Th
 never contain credentials and do not infer a subscription; Azure CLI's active subscription must
 be selected by the caller.
 
-### Two-phase deployment (private endpoints, then DNS zone groups)
+### Staged deployment (tenant Phase 2, then Phase 3)
 
-`foundry.bicep` creates the account, project, dependent resources, and bare private endpoints in
-one deployment. Private DNS zone group association is a separate, subsequent deployment against
-`foundry-dns.bicep`, run after the first deployment succeeds (mirroring the approved reference
-template's own manual DNS-association step; see
+Tenant Phase 2 runs `foundry.bicep`, which creates the account, project, dependent resources, and
+bare private endpoints without private DNS zone groups. Tenant Phase 3 is the separate,
+subsequent `foundry-dns.bicep` deployment, run only after Phase 2 succeeds (mirroring the
+approved reference process's manual DNS-association step; see
 `openspec/changes/foundry-staged-private-endpoint-deployment/design.md`). Run what-if and deploy
 for each phase in order, reusing the same generic scripts:
 
 ```bash
-# Phase 1: account/project/dependent-resources/private-endpoints
+# Tenant Phase 2: account/project/dependent resources/bare private endpoints
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
 PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
@@ -64,7 +64,7 @@ TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
 PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
 ./scripts/foundry/deploy.sh --execute
 
-# Phase 2: private DNS zone group association (same resource group)
+# Tenant Phase 3: private DNS zone group association
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry-dns.bicep \
 PARAMETER_FILE=infra/envs/poc/foundry-dns.bicepparam \
@@ -76,8 +76,18 @@ PARAMETER_FILE=infra/envs/poc/foundry-dns.bicepparam \
 ```
 
 Copy `infra/envs/poc/foundry-dns.bicepparam.example` to a local, untracked
-`foundry-dns.bicepparam` and fill in the private endpoint names output by phase 1 before running
-phase 2.
+`foundry-dns.bicepparam` and populate it with full private endpoint ARM resource IDs before
+running Phase 3. `foundryPrivateEndpointId` and `keyVaultPrivateEndpointId` are required;
+`storagePrivateEndpointId`, `cosmosDBPrivateEndpointId`, and `aiSearchPrivateEndpointId` may be
+empty to skip those associations. The IDs may identify endpoints in other resource groups or
+subscriptions.
+
+The `RG_NAME` value is the top-level deployment scope, not a constraint on endpoint location.
+Phase 3 creates nested deployments at each endpoint resource group parsed from the supplied ID.
+The deploying identity therefore needs deployment and private-endpoint child-resource write
+permissions at every endpoint resource group. In cross-subscription `zone-group` mode it also
+needs the separately granted central DNS-zone read/join permission; DNS RBAC and endpoint-scope
+RBAC are distinct.
 
 ## Bitbucket adapter
 

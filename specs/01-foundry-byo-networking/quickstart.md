@@ -12,18 +12,44 @@ bodies. It assumes Azure CLI, Bicep CLI, subscription access, and a private test
    and `deploymentCapacity`.
 3. Confirm the selected region and model quota using the provider's live model/quota APIs.
 
-## Validate the deployment preview
+## Build and validate both deployment entry points
 
 ```bash
-az bicep build --file infra/modules/foundry/main.bicep
+az bicep build --file infra/envs/poc/foundry.bicep
+az bicep build --file infra/envs/poc/foundry-dns.bicep
+
+# Tenant Phase 2: main resources and bare private endpoints
+az deployment group validate \
+  --resource-group rg-agent-factory-poc \
+  --template-file infra/envs/poc/foundry.bicep \
+  --parameters infra/envs/poc/foundry.bicepparam
+
 az deployment group what-if \
   --resource-group rg-agent-factory-poc \
   --template-file infra/envs/poc/foundry.bicep \
   --parameters infra/envs/poc/foundry.bicepparam
+
+# Tenant Phase 3: later DNS association
+# First copy foundry-dns.bicepparam.example to an untracked parameter file and populate full
+# private endpoint ARM resource IDs from Phase 2 outputs or independently managed endpoints.
+az deployment group validate \
+  --resource-group rg-agent-factory-poc \
+  --template-file infra/envs/poc/foundry-dns.bicep \
+  --parameters infra/envs/poc/foundry-dns.bicepparam
+
+az deployment group what-if \
+  --resource-group rg-agent-factory-poc \
+  --template-file infra/envs/poc/foundry-dns.bicep \
+  --parameters infra/envs/poc/foundry-dns.bicepparam
 ```
 
-Expected: only declared Chapter 01 resources are created/updated; existing network and DNS
-zones are read as prerequisites, with no public IPs or duplicate zones.
+Expected Phase 2 preview: only declared Chapter 01 resources are created/updated, including bare
+private endpoints; it does not create `privateDnsZoneGroups`. Expected Phase 3 preview: DNS zone
+groups are created against the supplied endpoint IDs. Foundry and Key Vault endpoint IDs are
+required; Storage, Cosmos DB, and AI Search endpoint IDs may be empty. Endpoint IDs may reference
+other resource groups or subscriptions, so the deploying identity needs permissions at every
+endpoint resource group in addition to any cross-subscription DNS-zone read/join permission.
+These are expected checks, not evidence that either Azure command has been rerun for this change.
 
 ## Validate placement and network posture
 
@@ -37,8 +63,9 @@ az network private-endpoint-connection list -g rg-agent-factory-poc \
   --id <target-resource-id>
 ```
 
-Expected: same region/resource group, account and dependencies deny public access, every
-required connection is `Approved`, and every endpoint is in `snet-privateendpoints`.
+Expected: account and dependencies deny public access, every required connection is `Approved`,
+and blueprint-created endpoints are in `snet-privateendpoints`. Independently supplied endpoints
+may be in other resource groups or subscriptions.
 
 ## Validate subnet and DNS
 
@@ -65,4 +92,3 @@ the service is available; readiness requires at least 9 successful responses and
 The validation must fail with an affected resource and remediation hint for pending/rejected
 PEs, missing DNS zone groups/links, public access enabled, placement mismatch, subnet
 delegation/range mismatch, unavailable model/quota, or post-agent BYO VNet configuration.
-

@@ -1,11 +1,9 @@
 targetScope = 'resourceGroup'
 
 // Main Foundry deployment: creates the account/project, dependent resources (Storage, AI
-// Search, Cosmos DB — new or BYO), bare private endpoints, RBAC assignments, project
-// connections, the capability host, and an optional model deployment — matching the tenant's
-// approved ARM template's Phase 2 (see jnjfoundrytemplate.json). Private DNS zone group
-// association is intentionally NOT part of this deployment; run ./foundry-dns.bicep afterward
-// (see ../../../openspec/changes/foundry-staged-private-endpoint-deployment for the rationale).
+// Search, Cosmos DB - new or BYO), bare private endpoints, RBAC assignments, project
+// connections, the capability host, and an optional model deployment. Private DNS zone group
+// association is intentionally not part of this deployment; run ./foundry-dns.bicep afterward.
 
 param location string = resourceGroup().location
 
@@ -106,6 +104,11 @@ output keyVaultId string = foundry.outputs.keyVaultId
 output aiSearchServiceId string = foundry.outputs.aiSearchServiceId
 output cosmosDBAccountId string = foundry.outputs.cosmosDBAccountId
 output capabilityHostId string = foundry.outputs.capabilityHostId
+output foundryPrivateEndpointId string = foundry.outputs.foundryPrivateEndpointId
+output storagePrivateEndpointId string = foundry.outputs.storagePrivateEndpointId
+output keyVaultPrivateEndpointId string = foundry.outputs.keyVaultPrivateEndpointId
+output cosmosDBPrivateEndpointId string = foundry.outputs.cosmosDBPrivateEndpointId
+output aiSearchPrivateEndpointId string = foundry.outputs.aiSearchPrivateEndpointId
 output foundryPrivateEndpointName string = foundry.outputs.foundryPrivateEndpointName
 output storagePrivateEndpointName string = foundry.outputs.storagePrivateEndpointName
 output keyVaultPrivateEndpointName string = foundry.outputs.keyVaultPrivateEndpointName

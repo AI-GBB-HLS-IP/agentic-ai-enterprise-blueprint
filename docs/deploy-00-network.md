@@ -248,14 +248,15 @@ The script writes `infra/envs/poc/brownfield-network.bicepparam`,
 `infra/envs/poc/brownfield-dns.bicepparam`, `infra/envs/poc/brownfield-foundry.bicepparam`, and
 `infra/envs/poc/brownfield-foundry-dns.bicepparam` (all git-ignored). The Foundry file contains
 the brownfield network settings; review it and add customer-approved resource names and model
-settings before deployment. The Foundry-DNS file contains placeholder `*PrivateEndpointName`
-values (`pe-foundry`, `pe-foundry-storage`, etc. — the module's fixed naming convention); replace
-them with the actual outputs from the Foundry deployment if you changed any private endpoint
-names. Deploy the Foundry file first, then the Foundry-DNS file (see section 5.6). Alternatively,
-copy the tracked `infra/envs/poc/foundry.bicepparam` to a local, git-ignored
-`infra/envs/poc/foundry.customer.bicepparam` and apply the same brownfield settings there.
-Add `--dry-run` to see the proposal without writing anything, and `--force` to overwrite a
-previous run.
+settings before deployment. Before the later DNS phase, populate the Foundry-DNS file with the
+full `*PrivateEndpointId` outputs from the main Foundry deployment or with independently managed
+private endpoint ARM resource IDs. Foundry and Key Vault IDs are required; Storage, Cosmos DB,
+and AI Search IDs may remain empty when that association must be skipped. Deploy the Foundry file
+first, then the Foundry-DNS file (see section 5.6). Alternatively, copy the tracked
+`infra/envs/poc/foundry.bicepparam` to a local, git-ignored
+`infra/envs/poc/foundry.customer.bicepparam` and apply the same brownfield settings there. Add
+`--dry-run` to see the proposal without writing anything, and `--force` to overwrite a previous
+run.
 
 The generated allocation is a **proposal for review, not an approval.** Read it, then get IPAM
 sign-off on the CIDRs before deploying.
@@ -542,14 +543,13 @@ resource group. If the approved zones are split across resource groups or subscr
 
 ### 5.6 Foundry owner stage
 
-Foundry deploys in two phases, mirroring the tenant's own approved process: the main deployment
-creates the account, project, dependent resources, and bare private endpoints; a second,
-subsequent deployment associates each private endpoint with its private DNS zone. The tenant's
-own approved ARM template performs this same association as a manual, per-resource step in the
-Azure Portal after the main deployment succeeds — `foundry-dns.bicep` templates that step for
-repeatability. **The main deployment succeeding does not mean Foundry is functionally complete
-until the DNS phase also runs**, since AI Search/Storage/Cosmos DB/Foundry endpoint hostnames will
-not resolve over the private link until then.
+Foundry follows the tenant's staged process. Tenant **Phase 2** is the main deployment: it creates
+the account, project, dependent resources, and bare private endpoints without private DNS zone
+groups. Tenant **Phase 3** is the distinct, later DNS-association deployment. The tenant's
+approved process performs that association manually, per resource, after the main deployment
+succeeds; `foundry-dns.bicep` templates Phase 3 for repeatability. **Phase 2 succeeding does not
+mean Foundry is functionally complete until Phase 3 also runs**, since the private endpoint
+hostnames will not resolve through the approved private DNS zones until then.
 
 Deploy Foundry into the resource group that owns the workload resources. For a brownfield VNet,
 use the generated `brownfield-foundry.bicepparam`/`brownfield-foundry-dns.bicepparam` pair (in
@@ -587,18 +587,26 @@ az deployment group create \
   --parameters infra/envs/poc/foundry.customer.bicepparam
 ```
 
-Note the `*PrivateEndpointName` outputs from this deployment (`foundryPrivateEndpointName`,
-`storagePrivateEndpointName`, `keyVaultPrivateEndpointName`, `cosmosDBPrivateEndpointName`,
-`aiSearchPrivateEndpointName`) — the DNS phase needs them.
+Capture the full ARM resource ID outputs from this deployment:
+`foundryPrivateEndpointId`, `storagePrivateEndpointId`, `keyVaultPrivateEndpointId`,
+`cosmosDBPrivateEndpointId`, and `aiSearchPrivateEndpointId`. Phase 3 accepts these IDs or IDs for
+independently managed private endpoints, including endpoints in other resource groups or
+subscriptions. `foundryPrivateEndpointId` and `keyVaultPrivateEndpointId` are required.
+`storagePrivateEndpointId`, `cosmosDBPrivateEndpointId`, and `aiSearchPrivateEndpointId` may be
+empty to skip those associations.
 
-**Phase 2 — DNS zone group association.** Deploy `foundry-dns.bicep` into the *same* resource
-group, after phase 1 succeeds:
+**Phase 3 — DNS zone group association.** Run `foundry-dns.bicep` only after Phase 2 succeeds.
+The top-level deployment may remain in the workload resource group shown below; each nested DNS
+association deployment targets the private endpoint's resource group and subscription parsed
+from its full ARM resource ID. Do not move the top-level deployment to the central DNS resource
+group merely because the zones are there.
 
 ```bash
 cp infra/envs/poc/foundry-dns.bicepparam.example \
    infra/envs/poc/foundry-dns.customer.bicepparam
 # Edit the local copy with dnsIntegrationMode, dnsSubscriptionId, dnsResourceGroupName, vnetName,
-# and the *PrivateEndpointName outputs from phase 1.
+# and the full *PrivateEndpointId values. Foundry and Key Vault are required; Storage, Cosmos DB,
+# and AI Search may be empty.
 
 az deployment group validate \
   --subscription "<workload-subscription-id>" \
@@ -614,9 +622,13 @@ az deployment group create \
   --parameters infra/envs/poc/foundry-dns.customer.bicepparam
 ```
 
-For cross-subscription `zone-group` mode, the DNS-owning team must additionally grant the
-identity permission to join each approved private DNS zone, commonly through the organization's
-approved custom role or an appropriate built-in DNS role.
+Permissions are evaluated at two different scope types. The deploying identity needs deployment
+and private-endpoint child-resource write permissions in every endpoint resource group encoded
+by the supplied IDs; those endpoint scopes may span resource groups or subscriptions. Separately,
+for cross-subscription `zone-group` mode, the DNS-owning team must grant the identity the
+organization-approved permission to read/join each central private DNS zone. DNS-zone RBAC does
+not replace permissions at the endpoint resource groups, and the endpoint deployment scopes do
+not grant access to the DNS zones.
 
 ---
 

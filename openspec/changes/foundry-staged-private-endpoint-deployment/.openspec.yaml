@@ -1,7 +1,7 @@
 schema: spec-driven
 created: 2026-09-14
-goal: Split Foundry base-resource and private-endpoint deployment into two independently
-  runnable phases to match the tenant's documented staged private-endpoint creation process
+goal: Keep Foundry account, supporting-resource, and bare private-endpoint creation in the main
+  deployment, then associate DNS zone groups in a distinct later deployment
 affected_areas:
   - infra/modules/foundry
   - infra/envs/poc

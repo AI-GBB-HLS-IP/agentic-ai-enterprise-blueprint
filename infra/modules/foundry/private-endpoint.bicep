@@ -1,6 +1,4 @@
-// Creates bare private endpoints only — no privateDnsZoneGroups child resources. This matches
-// the tenant's approved ARM template (jnjfoundrytemplate.json), whose private-endpoint nested
-// deployment creates only Microsoft.Network/privateEndpoints resources with no DNS association.
+// Creates bare private endpoints only, with no privateDnsZoneGroups child resources.
 // DNS zone group association is a separate, later step: see ./private-endpoint-dns.bicep.
 param location string
 param privateEndpointSubnetId string

@@ -10,8 +10,8 @@ set -euo pipefail
 #
 # brownfield-foundry.bicepparam targets foundry.bicep (account/project/dependent-resources/bare
 # private endpoints only — no DNS). brownfield-foundry-dns.bicepparam targets foundry-dns.bicep
-# (private DNS zone group association) and must be deployed after foundry.bicep succeeds; fill in
-# its *PrivateEndpointName placeholders from that deployment's outputs before running it.
+# (private DNS association) and must be deployed after foundry.bicep succeeds; replace its full
+# private-endpoint ARM resource ID placeholders before running it.
 #
 # The generated files are a PROPOSAL. Review them, get IPAM approval for the CIDRs, and run
 # `az deployment group what-if` before deploying. This script deploys nothing.
@@ -543,21 +543,23 @@ foundry_dns_param_text = f"""using '{foundry_dns_bicep_path}'
 // This file is git-ignored; never commit it.
 //
 // Deploy this scoped to the SAME resource group as brownfield-foundry.bicepparam, only after
-// that deployment succeeds. Copy the *PrivateEndpointName values below from its outputs
-// (foundryPrivateEndpointName, storagePrivateEndpointName, keyVaultPrivateEndpointName,
-// cosmosDBPrivateEndpointName, aiSearchPrivateEndpointName) — or leave a name empty to skip a
-// dependency that did not get its own private endpoint (existing*PrivateEndpoint was true).
+// that deployment succeeds. Replace the required Foundry and Key Vault endpoint IDs below with
+// full ARM resource IDs. Replace each optional Storage, Cosmos DB, and AI Search endpoint ID when
+// that endpoint exists, or set it to '' to skip it.
+//
+// In vnet-link mode, the explicit DNS scope below matches the discovered VNet scope. In
+// zone-group mode, it is the operator-supplied scope containing the existing private DNS zones.
 
 param networkResourceGroupName = {bicep_string(vnet_rg)}
 param dnsIntegrationMode = {bicep_string(dns_mode)}
-param dnsSubscriptionId = {bicep_string(requested_dns_subscription_id) if requested_dns_subscription_id else "''"}
-param dnsResourceGroupName = {bicep_string(dns_rg) if dns_rg else "''"}
+param dnsSubscriptionId = {bicep_string(dns_subscription_id) if dns_subscription_id else "'<dns-zone-subscription-id>'"}
+param dnsResourceGroupName = {bicep_string(dns_rg) if dns_rg else bicep_string(vnet_rg)}
 param vnetName = {bicep_string(vnet_name)}
-param foundryPrivateEndpointName = 'pe-foundry'
-param storagePrivateEndpointName = 'pe-foundry-storage'
-param keyVaultPrivateEndpointName = 'pe-foundry-keyvault'
-param cosmosDBPrivateEndpointName = 'pe-foundry-cosmosdb'
-param aiSearchPrivateEndpointName = 'pe-foundry-aisearch'
+param foundryPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<foundry-private-endpoint-name>'
+param storagePrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<storage-private-endpoint-name>'
+param keyVaultPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<key-vault-private-endpoint-name>'
+param cosmosDBPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<cosmos-db-private-endpoint-name>'
+param aiSearchPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<ai-search-private-endpoint-name>'
 """
 
 network_path = os.path.join(out_dir, "brownfield-network.bicepparam")
@@ -617,5 +619,5 @@ print()
 print("Review all four files, obtain IPAM approval for the CIDRs, then run `az deployment group")
 print("what-if` as described in docs/deploy-00-network.md sections 5.4 and 5.6. Deploy")
 print("brownfield-foundry.bicepparam before brownfield-foundry-dns.bicepparam, and fill in the")
-print("latter's *PrivateEndpointName placeholders from the former's outputs first.")
+print("latter's full private-endpoint ARM resource ID placeholders first.")
 PY
