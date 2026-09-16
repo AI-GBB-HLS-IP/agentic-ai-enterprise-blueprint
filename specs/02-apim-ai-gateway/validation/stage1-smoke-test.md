@@ -17,7 +17,7 @@ Use an identity with:
 
 Obtain customer approval for:
 
-- the APIM subscription, resource group, region, service name, and Premium capacity;
+- the APIM subscription, resource group, region, service name, and Developer or Premium capacity;
 - the existing APIM subnet and approved NSG;
 - the approved route table, or the active tenant-policy exception that requires no route table;
 - the subnet naming exception when the name does not match `apimsubnet-*`;
@@ -77,6 +77,8 @@ export APIM_SUBNET_NAMING_EXCEPTION_REFERENCE='<approved-naming-exception-refere
 export APIM_PUBLIC_IP_NAME='<existing-standard-static-public-ip-name>'
 export APIM_PUBLIC_NETWORK_ACCESS='Enabled'
 export APIM_DNS_RECORD_NAME="$APIM_SERVICE_NAME"
+export APIM_SKU_NAME='Developer'
+export APIM_SKU_CAPACITY='1'
 
 export APIM_APP_INSIGHTS_NAME='<application-insights-name>'
 export APIM_LOG_ANALYTICS_WORKSPACE_ID='<existing-workspace-resource-id-or-empty>'
@@ -214,7 +216,8 @@ APIM_VALIDATE_ENDPOINT_REACHABILITY=true \
 
 Expected:
 
-- APIM is Premium, internal VNet-injected, and has a system-assigned principal;
+- APIM uses the selected Developer or Premium SKU, is internal VNet-injected, and has a
+  system-assigned principal;
 - TLS 1.0/1.1 and the prohibited weak cipher are disabled;
 - gateway, developer, portal, management, and SCM private DNS A records exist;
 - each APIM hostname resolves to RFC1918 space and is reachable from the approved internal host;

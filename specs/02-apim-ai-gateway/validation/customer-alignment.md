@@ -10,7 +10,7 @@ Baseline: VPCx Azure 2.0 `cloudx-patterns` snapshot `a23fe3be99e`.
 | Tenant policy denying route table with shared hybrid NSG | Foundation | Existing `brownfield-network.bicepparam` records the observed denial; foundation uses an explicit exception reference and validates no conflicting route table |
 | No subnet delegation | Foundation | Deployment-time assertion and live subnet check |
 | Azure AD, Key Vault, SQL, Storage service endpoints | Foundation | `requiredServiceEndpoints`; deployment-time assertion and live subnet check |
-| Developer or Premium APIM | Foundation | `apimSkuName`; blueprint restricts to Premium |
+| Developer or Premium APIM | Foundation | `apimSkuName`; Developer is allowed for smoke tests with capacity one and Premium remains the default |
 | Internal VNet mode | Foundation | `virtualNetworkType: 'Internal'`; live endpoint checks |
 | Classic-tier platform public IP | Foundation | `apimPublicIpAddressName`; existing Standard/static resource is associated to APIM |
 | Corporate administrator email | Foundation | `publisherEmail` rejects placeholder and non-corporate examples |

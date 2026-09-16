@@ -12,14 +12,15 @@ param publisherEmail string
 @description('APIM publisher display name.')
 param publisherName string
 
-@description('Existing APIM subnet resource ID for classic Premium VNet injection.')
+@description('Existing APIM subnet resource ID for classic Developer or Premium VNet injection.')
 param apimSubnetId string
 
-@description('Existing customer-approved Standard static public IP resource ID required by classic internal APIM for platform management.')
+@description('Existing customer-approved Standard static public IP resource ID used by classic internal APIM for platform management.')
 param apimPublicIpAddressId string
 
-@description('APIM classic Premium SKU name. Premium v2 remains the preferred future tier.')
+@description('APIM classic SKU name. Developer is for smoke tests only; Premium remains the production-like default.')
 @allowed([
+  'Developer'
   'Premium'
 ])
 param apimSkuName string = 'Premium'

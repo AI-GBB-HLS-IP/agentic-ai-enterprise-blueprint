@@ -181,6 +181,8 @@ validate_foundation_offline() {
   }
 
   assert_present "virtualNetworkType: 'Internal'" "$REPO_ROOT/infra/modules/apim/main.bicep" "APIM is not internal"
+  assert_present "'Developer'" "$REPO_ROOT/infra/modules/apim/main.bicep" "Developer smoke-test SKU is not allowed"
+  assert_present "Developer APIM requires apimSkuCapacity to be 1" "$REPO_ROOT/$FOUNDATION_TEMPLATE" "Developer capacity guard is missing"
   assert_present 'publicIpAddressId:' "$REPO_ROOT/infra/modules/apim/main.bicep" "classic APIM public IP is not associated"
   assert_present 'Gateway.Security.Protocols.Tls10' "$REPO_ROOT/infra/modules/apim/main.bicep" "TLS 1.0 disablement is missing"
   assert_present 'Gateway.Security.Protocols.Tls11' "$REPO_ROOT/infra/modules/apim/main.bicep" "TLS 1.1 disablement is missing"
@@ -303,10 +305,18 @@ validate_foundation_live() {
   fi
 
   if az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}" >/dev/null 2>&1; then
-    local apim_json apim_id workspace_id apim_name
+    local apim_json apim_id workspace_id apim_name expected_sku expected_capacity
     apim_name="${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}"
+    expected_sku="${APIM_SKU_NAME:-Premium}"
+    expected_capacity="${APIM_SKU_CAPACITY:-1}"
     apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}" -o json)"
-    jq -e '.virtualNetworkType == "Internal" and .identity.type == "SystemAssigned" and (.identity.principalId | length > 0)' <<<"$apim_json" >/dev/null
+    jq -e --arg sku "$expected_sku" --argjson capacity "$expected_capacity" '
+      .sku.name == $sku and
+      .sku.capacity == $capacity and
+      .virtualNetworkType == "Internal" and
+      .identity.type == "SystemAssigned" and
+      (.identity.principalId | length > 0)
+    ' <<<"$apim_json" >/dev/null
     jq -e '(.privateIpAddresses // [] | length) > 0' <<<"$apim_json" >/dev/null
     jq -e '
       .customProperties["Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10"] == "false" and

@@ -51,13 +51,14 @@ param apimPublicIpAddressName string
 ])
 param publicNetworkAccess string = 'Enabled'
 
-@description('APIM classic Premium SKU.')
+@description('APIM classic SKU. Developer is permitted for smoke tests; Premium is the production-like default.')
 @allowed([
+  'Developer'
   'Premium'
 ])
 param apimSkuName string = 'Premium'
 
-@description('APIM classic Premium capacity.')
+@description('APIM SKU capacity. Developer requires exactly one unit.')
 @minValue(1)
 param apimSkuCapacity int = 1
 
@@ -128,7 +129,7 @@ var subnetRouteApproved = !empty(approvedApimRouteTableResourceId)
       : fail('Supply the approved APIM route table, or leave the subnet route table empty and provide routeTableExceptionReference.'))
 var subnetHasNoDelegation = length(apimSubnet.properties.delegations ?? []) == 0
   ? true
-  : fail('Classic Premium APIM requires an undelegated subnet.')
+  : fail('Classic Developer and Premium APIM require an undelegated subnet.')
 var configuredServiceEndpoints = map(apimSubnet.properties.serviceEndpoints ?? [], endpoint => toLower(endpoint.service))
 var normalizedRequiredServiceEndpoints = map(requiredServiceEndpoints, endpoint => toLower(endpoint))
 var requiredServiceEndpointsPresent = length(intersection(configuredServiceEndpoints, normalizedRequiredServiceEndpoints)) == length(normalizedRequiredServiceEndpoints)
@@ -142,7 +143,10 @@ var publisherEmailApproved = contains(publisherEmailNormalized, '@') && !endsWit
 var publicIpApproved = apimPublicIp.sku.name == 'Standard' && apimPublicIp.properties.publicIPAllocationMethod == 'Static' && toLower(apimPublicIp.location) == toLower(location)
   ? true
   : fail('The classic internal APIM public IP must use Standard SKU, Static allocation, and the APIM deployment location.')
-var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && publicIpApproved
+var skuCapacityApproved = apimSkuName == 'Developer' && apimSkuCapacity != 1
+  ? fail('Developer APIM requires apimSkuCapacity to be 1.')
+  : true
+var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && publicIpApproved && skuCapacityApproved
 
 module apimMain '../../modules/apim/main.bicep' = {
   name: 'apim-foundation-service'

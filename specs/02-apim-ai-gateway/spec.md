@@ -17,7 +17,7 @@ Foundry-backed API after the separate customer Foundry governance process is com
 - Existing VNet, APIM subnet, approved NSG, and route table or documented tenant exception.
 - Evidence for an `apimsubnet-*` name or a documented naming exception.
 - Four required service endpoints and no subnet delegation.
-- APIM name, Premium capacity, corporate publisher identity, and approved public IP resource ID.
+- APIM name, approved Developer or Premium capacity, corporate publisher identity, and approved public IP resource ID.
 - Private DNS names and VNet link.
 - Application Insights, Log Analytics, diagnostics ownership, and capacity-alert settings.
 - Public-network policy handoff (`Enabled` during activation unless an approved private endpoint
@@ -38,8 +38,9 @@ presence is not evidence that gateway, portal, management, or SCM endpoints are 
 
 - Foundation deployment and validation MUST perform no Foundry account, model, role, backend, or
   governed API lookup.
-- APIM MUST use Premium, internal VNet mode, a system-assigned identity, HTTPS backends, TLS 1.2
-  or stronger, and disabled legacy protocols/ciphers.
+- APIM MUST use Developer for smoke testing or Premium for production-like validation, internal
+  VNet mode, a system-assigned identity, HTTPS backends, TLS 1.2 or stronger, and disabled legacy
+  protocols/ciphers. Developer capacity MUST be `1`.
 - Subnet validation MUST fail before deployment for an unapproved name, missing approved NSG,
   missing route table without exception evidence, any delegation, or missing required service
   endpoint.

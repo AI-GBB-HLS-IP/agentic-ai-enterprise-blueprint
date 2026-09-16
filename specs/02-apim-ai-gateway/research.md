@@ -2,13 +2,13 @@
 
 ## Decisions
 
-### Classic Premium remains the implementation tier
+### Classic Developer and Premium are supported
 
-Premium v2 is the preferred future architecture, but the blueprint retains classic Premium for
-the current production-like private gateway. Classic Premium uses an undelegated subnet and may
-require a Standard static public IP for platform management. The resource does not create a
-public gateway; exposure is determined by `virtualNetworkType: Internal`, DNS, and endpoint
-reachability.
+Premium v2 is the preferred future architecture, but the blueprint retains classic tiers for the
+current private gateway. Developer is allowed for cost-conscious smoke tests with capacity one;
+Premium remains the production-like default. Both use an undelegated subnet and may require a
+Standard static public IP for platform management. The resource does not create a public gateway;
+exposure is determined by `virtualNetworkType: Internal`, DNS, and endpoint reachability.
 
 ### APIM and Foundry are independent
 
@@ -32,9 +32,9 @@ ID is empty; it does not silently pick one policy over the other.
 
 ### Security settings are explicit
 
-The template uses Premium, corporate publisher metadata, internal VNet injection, HTTPS-only
-backends, TLS 1.2+, and disabled legacy protocols/ciphers. This allows static policy checks before
-any Azure deployment.
+The template uses customer-allowed Developer or Premium, corporate publisher metadata, internal
+VNet injection, HTTPS-only backends, TLS 1.2+, and disabled legacy protocols/ciphers. This allows
+static policy checks before any Azure deployment.
 
 ### Diagnostics support policy ownership
 

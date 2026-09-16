@@ -23,8 +23,8 @@ param requiredServiceEndpoints = [
 
 param apimPublicIpAddressName = readEnvironmentVariable('APIM_PUBLIC_IP_NAME', 'pip-apim-agent-factory-poc')
 param publicNetworkAccess = readEnvironmentVariable('APIM_PUBLIC_NETWORK_ACCESS', 'Enabled')
-param apimSkuName = 'Premium'
-param apimSkuCapacity = 1
+param apimSkuName = readEnvironmentVariable('APIM_SKU_NAME', 'Premium')
+param apimSkuCapacity = int(readEnvironmentVariable('APIM_SKU_CAPACITY', '1'))
 
 param privateDnsZoneName = 'azure-api.net'
 param privateDnsRecordName = readEnvironmentVariable('APIM_DNS_RECORD_NAME', 'apim-agent-factory-private-poc')
