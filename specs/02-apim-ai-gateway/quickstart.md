@@ -4,12 +4,17 @@
 
 Stage 1 requires Azure networking and APIM approvals only. Foundry may be unavailable.
 
+For the exact customer-subscription environment variables, evidence capture, expected resource
+inventory, runtime checks, and unchanged-preview procedure, use
+[`validation/stage1-smoke-test.md`](validation/stage1-smoke-test.md).
+
 1. Populate `infra/envs/poc/apim.bicepparam` with approved network, public IP, publisher,
    DNS, diagnostics, and monitoring values.
 2. Run offline and live preflight:
 
    ```bash
-   specs/02-apim-ai-gateway/validation/validate.sh foundation
+   VALIDATION_PHASE=preview \
+     specs/02-apim-ai-gateway/validation/validate.sh foundation
    ```
 
 3. Preview only the foundation:
@@ -36,7 +41,15 @@ Stage 1 requires Azure networking and APIM approvals only. Foundry may be unavai
      --parameters infra/envs/poc/apim.bicepparam
    ```
 
-6. Run `validate.sh foundation` again and record `validation/foundation-runtime.md`.
+6. From an authorized internal network, run runtime validation and record
+   `validation/foundation-runtime.md`:
+
+   ```bash
+   VALIDATION_PHASE=runtime \
+   RUN_WHAT_IF=false \
+   APIM_VALIDATE_ENDPOINT_REACHABILITY=true \
+     specs/02-apim-ai-gateway/validation/validate.sh foundation
+   ```
 
 The expected checkpoint is `foundationReadiness=deployed` and
 `integrationReadiness=not-deployed`. The approved classic-tier public IP may exist for platform

@@ -16,8 +16,12 @@ Required live evidence:
 Run from the authorized environment:
 
 ```bash
+VALIDATION_PHASE=runtime \
+RUN_WHAT_IF=false \
 APIM_VALIDATE_ENDPOINT_REACHABILITY=true \
   specs/02-apim-ai-gateway/validation/validate.sh foundation
 ```
 
 No Foundry resource is required for this evidence.
+See [`stage1-smoke-test.md`](stage1-smoke-test.md) for prerequisites, deployment, expected checks,
+and the evidence return format.

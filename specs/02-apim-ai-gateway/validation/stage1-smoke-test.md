@@ -1,0 +1,253 @@
+# Stage 1 Customer Smoke Test
+
+This runbook validates and deploys only the APIM foundation. It performs no Foundry lookup,
+requires no Foundry permission, and must not be used to mark the OpenSpec live tasks complete
+until the resulting evidence has been reviewed.
+
+## 1. Prerequisites
+
+Run from Bash with Azure CLI 2.60 or later, `jq`, `curl`, and Bicep support through `az bicep`.
+Use an identity with:
+
+- read access to the existing VNet, APIM subnet, NSG, and route table;
+- Contributor or equivalent deployment rights in the APIM resource group;
+- permission to create APIM, private DNS, monitoring resources, and deployment records;
+- access to an internal network that can resolve and reach the APIM private VIP for the runtime
+  endpoint check.
+
+Obtain customer approval for:
+
+- the APIM subscription, resource group, region, service name, and Premium capacity;
+- the existing APIM subnet and approved NSG;
+- the approved route table, or the active tenant-policy exception that requires no route table;
+- the subnet naming exception when the name does not match `apimsubnet-*`;
+- the existing Standard static APIM public IP;
+- the corporate publisher email;
+- blueprint-owned or policy-owned APIM resource diagnostic settings.
+
+Do not commit raw customer resource IDs, subscription details, or command output. Store raw
+evidence in the customer-approved evidence location and return a redacted summary.
+
+## 2. Check Out the Pushed Branch
+
+```bash
+set -euo pipefail
+
+git fetch origin
+if git show-ref --verify --quiet refs/heads/feat/split-apim-foundry-deployment; then
+  git switch feat/split-apim-foundry-deployment
+else
+  git switch --track origin/feat/split-apim-foundry-deployment
+fi
+git pull --ff-only origin feat/split-apim-foundry-deployment
+
+git rev-parse --short HEAD
+# Expected at or after: d6b1d19
+```
+
+## 3. Export Approved Stage 1 Values
+
+Replace every angle-bracket value. Keep one of the route-table alternatives empty.
+
+```bash
+export AZURE_SUBSCRIPTION_ID='<customer-subscription-id>'
+
+export APIM_RESOURCE_GROUP='<apim-resource-group>'
+export APIM_LOCATION='<approved-region>'
+export APIM_SERVICE_NAME='<globally-unique-apim-name>'
+export APIM_PUBLISHER_EMAIL='<corporate-admin-email>'
+export APIM_PUBLISHER_NAME='<approved-publisher-name>'
+
+export APIM_NETWORK_RESOURCE_GROUP='<network-resource-group>'
+export APIM_VNET_NAME='<existing-vnet-name>'
+export APIM_SUBNET_NAME='<existing-apim-subnet-name>'
+export APIM_APPROVED_NSG_RESOURCE_ID='<approved-nsg-resource-id>'
+
+# Route-table profile: set the approved ID and leave the exception empty.
+export APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID='<approved-route-table-resource-id>'
+export APIM_ROUTE_TABLE_EXCEPTION_REFERENCE=''
+
+# Tenant-exception profile: leave the route-table ID empty and provide the evidence reference.
+# export APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID=''
+# export APIM_ROUTE_TABLE_EXCEPTION_REFERENCE='<policy-assignment-or-approved-exception-reference>'
+
+# Required only when APIM_SUBNET_NAME does not match apimsubnet-*.
+export APIM_SUBNET_NAMING_EXCEPTION_REFERENCE='<approved-naming-exception-reference-or-empty>'
+
+export APIM_PUBLIC_IP_NAME='<existing-standard-static-public-ip-name>'
+export APIM_PUBLIC_NETWORK_ACCESS='Enabled'
+export APIM_DNS_RECORD_NAME="$APIM_SERVICE_NAME"
+
+export APIM_APP_INSIGHTS_NAME='<application-insights-name>'
+export APIM_LOG_ANALYTICS_WORKSPACE_ID='<existing-workspace-resource-id-or-empty>'
+export APIM_LOG_ANALYTICS_WORKSPACE_NAME='<workspace-name-if-created>'
+export APIM_DIAGNOSTIC_SETTING_NAME='<diagnostic-setting-name>'
+export APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP='<blueprint-or-policy>'
+export APIM_CAPACITY_ALERT_NAME='<capacity-alert-name>'
+
+az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+az account show --query '{subscription:id,name:name,tenant:tenantId}' -o table
+```
+
+For the observed shared-hybrid-NSG tenant profile, use the tenant-exception route configuration:
+the subnet must have no route table and the exception reference must identify the active policy
+or approved customer decision.
+
+## 4. Verify Prerequisite Resources
+
+```bash
+az group show --name "$APIM_RESOURCE_GROUP" \
+  --query '{name:name,location:location,state:properties.provisioningState}' -o table
+
+az network vnet subnet show \
+  --resource-group "$APIM_NETWORK_RESOURCE_GROUP" \
+  --vnet-name "$APIM_VNET_NAME" \
+  --name "$APIM_SUBNET_NAME" \
+  --query '{
+    name:name,
+    prefix:addressPrefix,
+    nsg:networkSecurityGroup.id,
+    routeTable:routeTable.id,
+    delegations:delegations[].serviceName,
+    serviceEndpoints:serviceEndpoints[].service
+  }' -o json
+
+az network public-ip show \
+  --resource-group "$APIM_RESOURCE_GROUP" \
+  --name "$APIM_PUBLIC_IP_NAME" \
+  --query '{
+    name:name,
+    location:location,
+    sku:sku.name,
+    allocation:publicIPAllocationMethod,
+    zones:zones,
+    ipAddress:ipAddress
+  }' -o json
+```
+
+Expected:
+
+- subnet name is `apimsubnet-*` or the naming exception is non-empty;
+- subnet NSG exactly matches `APIM_APPROVED_NSG_RESOURCE_ID`;
+- route table exactly matches the approved ID, or is absent when exception evidence is supplied;
+- `delegations` is empty;
+- service endpoints include Azure Active Directory, Key Vault, SQL, and Storage;
+- public IP is Standard, Static, in `APIM_LOCATION`, and customer-approved.
+
+## 5. Run Offline Validation
+
+```bash
+OFFLINE_ONLY=true \
+  specs/02-apim-ai-gateway/validation/validate.sh foundation
+```
+
+Expected: `Validation passed for mode: foundation`.
+
+## 6. Run Foundation Preflight and What-If
+
+Choose a customer-approved local evidence directory:
+
+```bash
+export APIM_EVIDENCE_DIR='<customer-approved-local-evidence-directory>'
+mkdir -p "$APIM_EVIDENCE_DIR"
+
+VALIDATION_PHASE=preview \
+RUN_WHAT_IF=true \
+  specs/02-apim-ai-gateway/validation/validate.sh foundation \
+  2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-preview.txt"
+```
+
+Expected:
+
+- command exits `0` and prints `Foundation preview validation passed`;
+- proposed resources are limited to APIM, private `azure-api.net` DNS, Application
+  Insights/Log Analytics, APIM diagnostics, and the capacity alert;
+- no `Microsoft.CognitiveServices`, Foundry role assignment, APIM backend, named-value model
+  mapping, governed API, or product is proposed;
+- no Foundry resource ID, endpoint, model, or permission was supplied.
+
+If the diagnostic ownership is `policy`, the blueprint must not propose its own APIM resource
+diagnostic setting. Azure Policy may add or remediate the setting separately.
+
+## 7. Deploy Stage 1
+
+Review the preview before running:
+
+```bash
+az deployment group create \
+  --resource-group "$APIM_RESOURCE_GROUP" \
+  --name apim-foundation \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters infra/envs/poc/apim.bicepparam \
+  --query '{state:properties.provisioningState,outputs:properties.outputs}' \
+  -o json | tee "$APIM_EVIDENCE_DIR/foundation-deployment.txt"
+```
+
+APIM provisioning can take 30–60 minutes. Expected deployment outputs:
+
+- `apimVirtualNetworkType` is `Internal`;
+- `apimPrincipalId` is non-empty;
+- `privateIpAddresses` contains at least one address;
+- `apimPublicIpPurpose` is `classic-internal-platform-management`;
+- `integrationReadiness` is `not-deployed`;
+- `foundationReadiness.status` is `deployed` for blueprint-owned diagnostics, or remains
+  `pending` until the policy-owned diagnostic setting is verified.
+
+## 8. Run Runtime Smoke Checks
+
+Run from a host connected to the deployment VNet or an explicitly linked network:
+
+```bash
+VALIDATION_PHASE=runtime \
+RUN_WHAT_IF=false \
+APIM_VALIDATE_ENDPOINT_REACHABILITY=true \
+  specs/02-apim-ai-gateway/validation/validate.sh foundation \
+  2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-runtime.txt"
+```
+
+Expected:
+
+- APIM is Premium, internal VNet-injected, and has a system-assigned principal;
+- TLS 1.0/1.1 and the prohibited weak cipher are disabled;
+- gateway, developer, portal, management, and SCM private DNS A records exist;
+- each APIM hostname resolves to RFC1918 space and is reachable from the approved internal host;
+- the platform public IP is not treated as a public gateway;
+- diagnostics include enabled AllLogs and AllMetrics at the required destination;
+- the average `Capacity` alert exists with `GreaterThan` and threshold `60`;
+- integration remains absent/pending and no Foundry check executes.
+
+If Azure Policy owns diagnostics, allow policy remediation to complete before rerunning runtime
+validation. If the command is not run from an internal network, leave
+`APIM_VALIDATE_ENDPOINT_REACHABILITY=false`; exit code `3` then correctly means the reachability
+gate remains blocked.
+
+## 9. Re-run the Unchanged Preview
+
+Without changing any exported value or template:
+
+```bash
+VALIDATION_PHASE=preview \
+RUN_WHAT_IF=true \
+  specs/02-apim-ai-gateway/validation/validate.sh foundation \
+  2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-idempotency-preview.txt"
+```
+
+Expected: no duplicate or unexpected APIM, identity, DNS, networking, workspace, Application
+Insights, diagnostics, or capacity-alert changes. Policy-owned resources may appear only as
+policy-owned effects and must not be overwritten by the template.
+
+## 10. Return Redacted Evidence
+
+Return:
+
+1. Commit SHA tested.
+2. Subscription alias and region, with subscription ID redacted.
+3. Foundation preview resource-type summary and confirmation that no Foundry resource appeared.
+4. Deployment provisioning state and redacted outputs.
+5. Runtime validator result, including DNS/reachability, diagnostics, and alert checks.
+6. Unchanged-preview summary.
+7. Any policy remediation delay, denied action, or unexpected resource change.
+
+After review, repository maintainers can update `foundation-preview.md`,
+`foundation-runtime.md`, `idempotency.md`, #71, and OpenSpec tasks 2.8, 5.2, and 5.4. Stage 2
+tasks remain unchecked until separate Foundry approval and integration evidence are available.

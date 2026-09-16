@@ -12,7 +12,10 @@ approved NSG, route-table or exception reference, subnet naming exception for th
 `hybridsubnet-apim` name, and an existing approved Standard static public IP.
 
 ```bash
-RUN_WHAT_IF=true specs/02-apim-ai-gateway/validation/validate.sh foundation
+VALIDATION_PHASE=preview \
+RUN_WHAT_IF=true \
+  specs/02-apim-ai-gateway/validation/validate.sh foundation
 ```
 
 Do not change this status until the command succeeds and the resource list is attached.
+See [`stage1-smoke-test.md`](stage1-smoke-test.md) for the exact customer handoff.

@@ -12,6 +12,12 @@ Set `OFFLINE_ONLY=true` for compilation and static regression checks without Azu
 run performs safe read-only checks and what-if when the required environment values are present.
 Exit code `3` means offline checks passed but one or more live gates are blocked.
 
+Use `VALIDATION_PHASE=preview` for pre-deployment prerequisite checks and what-if without runtime
+resource checks. Use `VALIDATION_PHASE=runtime` after deployment to skip what-if and inspect the
+deployed stage. The default `all` performs both.
+
+Customer Stage 1 operators should follow [`stage1-smoke-test.md`](stage1-smoke-test.md).
+
 ## Evidence Paths
 
 | Stage | Preview | Runtime |

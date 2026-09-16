@@ -6,6 +6,7 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
 MODE="${1:-all}"
 OFFLINE_ONLY="${OFFLINE_ONLY:-false}"
 RUN_WHAT_IF="${RUN_WHAT_IF:-true}"
+VALIDATION_PHASE="${VALIDATION_PHASE:-all}"
 
 FOUNDATION_TEMPLATE="infra/envs/poc/apim.bicep"
 FOUNDATION_PARAMETERS="infra/envs/poc/apim.bicepparam"
@@ -16,6 +17,14 @@ case "$MODE" in
   foundation|integration|all) ;;
   *)
     echo "Usage: $0 {foundation|integration|all}" >&2
+    exit 2
+    ;;
+esac
+
+case "$VALIDATION_PHASE" in
+  preview|runtime|all) ;;
+  *)
+    echo "VALIDATION_PHASE must be preview, runtime, or all." >&2
     exit 2
     ;;
 esac
@@ -262,13 +271,18 @@ validate_foundation_live() {
     exit 1
   fi
 
-  if [[ "$RUN_WHAT_IF" == "true" ]]; then
+  if [[ "$RUN_WHAT_IF" == "true" && "$VALIDATION_PHASE" != "runtime" ]]; then
     az deployment group what-if \
       --resource-group "$APIM_RESOURCE_GROUP" \
       --name apim-foundation-preview \
       --template-file "$REPO_ROOT/$FOUNDATION_TEMPLATE" \
       --parameters "$REPO_ROOT/$FOUNDATION_PARAMETERS" \
       --result-format ResourceIdOnly
+  fi
+
+  if [[ "$VALIDATION_PHASE" == "preview" ]]; then
+    echo "Foundation preview validation passed."
+    return
   fi
 
   if az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}" >/dev/null 2>&1; then
@@ -307,9 +321,7 @@ validate_foundation_live() {
           echo "ERROR [foundation]: $endpoint did not resolve to a private IPv4 address." >&2
           exit 1
         }
-        if curl --silent --show-error --connect-timeout 5 --max-time 10 "https://$endpoint" -o /dev/null; then
-          :
-        elif [[ "$?" -eq 28 ]]; then
+        if ! curl --silent --show-error --connect-timeout 5 --max-time 10 "https://$endpoint" -o /dev/null; then
           echo "ERROR [foundation]: $endpoint was not reachable from the approved validation network." >&2
           exit 1
         fi
@@ -318,9 +330,13 @@ validate_foundation_live() {
       block foundation "Set APIM_VALIDATE_ENDPOINT_REACHABILITY=true from an authorized network to verify internal gateway, portal, management, and SCM reachability."
     fi
 
-    if [[ "${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}" == "policy" ]]; then
-      az monitor diagnostic-settings list --resource "$apim_id" -o json |
-        jq -e '[.value[] | select((([.logs[]? | select(.enabled == true and (.categoryGroup == "AllLogs" or .category != null))] | length) > 0) and (([.metrics[]? | select(.enabled == true and .category == "AllMetrics")] | length) > 0))] | length > 0' >/dev/null
+    local diagnostic_settings_json
+    diagnostic_settings_json="$(az monitor diagnostic-settings list --resource "$apim_id" -o json)"
+    jq -e '[.value[] | select((([.logs[]? | select(.enabled == true and (.categoryGroup == "AllLogs" or .category != null))] | length) > 0) and (([.metrics[]? | select(.enabled == true and .category == "AllMetrics")] | length) > 0))] | length > 0' \
+      <<<"$diagnostic_settings_json" >/dev/null
+    if [[ "${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}" == "blueprint" ]]; then
+      jq -e --arg name "${APIM_DIAGNOSTIC_SETTING_NAME:-diag-apim-gateway}" \
+        '[.value[] | select(.name == $name)] | length == 1' <<<"$diagnostic_settings_json" >/dev/null
     fi
 
     az monitor metrics alert show \
@@ -330,8 +346,9 @@ validate_foundation_live() {
 
     workspace_id="${APIM_LOG_ANALYTICS_WORKSPACE_ID:-}"
     if [[ -n "$workspace_id" && "${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}" == "policy" ]]; then
-      az monitor diagnostic-settings list --resource "$apim_id" \
-        --query "value[?workspaceId=='$workspace_id'] | length(@)" -o tsv | grep -Eq '^[1-9][0-9]*$'
+      jq -e --arg workspace_id "${workspace_id,,}" \
+        '[.value[] | select(((.workspaceId // "") | ascii_downcase) == $workspace_id)] | length > 0' \
+        <<<"$diagnostic_settings_json" >/dev/null
     fi
   else
     block foundation "APIM is not deployed; runtime identity, DNS, diagnostics, alert, and internal endpoint checks remain pending."
@@ -392,13 +409,18 @@ validate_integration_live() {
     --name "$FOUNDRY_ACCOUNT_NAME" \
     --deployment-name "$FOUNDRY_MODEL_DEPLOYMENT_NAME" >/dev/null
 
-  if [[ "$RUN_WHAT_IF" == "true" ]]; then
+  if [[ "$RUN_WHAT_IF" == "true" && "$VALIDATION_PHASE" != "runtime" ]]; then
     az deployment group what-if \
       --resource-group "$APIM_RESOURCE_GROUP" \
       --name apim-foundry-integration-preview \
       --template-file "$REPO_ROOT/$INTEGRATION_TEMPLATE" \
       --parameters "$REPO_ROOT/$INTEGRATION_PARAMETERS" \
       --result-format ResourceIdOnly
+  fi
+
+  if [[ "$VALIDATION_PHASE" == "preview" ]]; then
+    echo "Integration preview validation passed."
+    return
   fi
 
   if az apim backend show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --backend-id "${APIM_BACKEND_NAME:-foundry-openai-backend}" >/dev/null 2>&1; then
