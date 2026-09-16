@@ -37,7 +37,7 @@ param apimSkuCapacity int = 1
 param publicNetworkAccess string = 'Enabled'
 
 var tlsSecurityProperties = {
-  'Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2': 'false'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2': 'False'
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Ssl30': 'false'
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10': 'false'
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11': 'false'
