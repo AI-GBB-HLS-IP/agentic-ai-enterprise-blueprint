@@ -69,6 +69,8 @@
 - [x] 3.5 Expose integration-only outputs for role assignment, backend, governed API, product,
   model mapping, and readiness; verify a missing Foundry account or approved model causes an
   integration prerequisite failure without proposing changes to foundation-owned resources.
+- [x] 3.7 Remove the client APIM subscription key from the request after gateway validation and
+  before managed-identity backend forwarding.
 - [ ] 3.6 Run the integration `what-if` against a validated APIM foundation and approved Foundry
   environment, recording evidence that only integration-owned resources are added or updated.
 

@@ -237,6 +237,9 @@ validate_integration_offline() {
   assert_present 'authentication-managed-identity' "$REPO_ROOT/infra/modules/apim/backend.bicep" "managed-identity backend policy is missing"
   assert_present 'https://cognitiveservices.azure.com' "$REPO_ROOT/infra/modules/apim/backend.bicep" "Cognitive Services audience is missing"
   assert_present 'subscriptionRequired: true' "$REPO_ROOT/infra/modules/apim/api.bicep" "subscription enforcement is missing"
+  assert_present 'set-header name="Ocp-Apim-Subscription-Key" exists-action="delete"' \
+    "$REPO_ROOT/infra/modules/apim/api.bicep" \
+    "subscription key is not removed before backend forwarding"
   assert_present 'unsupported_model' "$REPO_ROOT/infra/modules/apim/api.bicep" "model allowlist rejection is missing"
   assert_absent 'api[-_]?key|connectionString|accountKey' \
     "$REPO_ROOT/infra/modules/apim/backend.bicep" \
@@ -504,6 +507,7 @@ validate_integration_live() {
     grep -q 'llm-token-limit' <<<"$api_policy"
     grep -q 'unsupported_model' <<<"$api_policy"
     grep -q 'Ocp-Apim-Subscription-Key' <<<"$api_policy"
+    grep -q 'set-header name="Ocp-Apim-Subscription-Key" exists-action="delete"' <<<"$api_policy"
 
     if [[ "${APIM_VALIDATE_INTEGRATION_REQUESTS:-false}" != "true" ]]; then
       block integration "Set APIM_VALIDATE_INTEGRATION_REQUESTS=true with authorized client inputs to verify allowed, unsupported, unauthenticated, and secret-safe telemetry behavior."

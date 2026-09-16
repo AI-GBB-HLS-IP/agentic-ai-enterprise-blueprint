@@ -147,12 +147,13 @@ the Foundry integration stage and MUST NOT be emitted by the APIM foundation sta
 
 ### Requirement: Backend authentication uses managed identity
 The Foundry integration stage MUST configure APIM-to-Foundry authentication with APIM's managed
-identity and MUST NOT introduce Foundry keys, connection strings, or shared secrets.
+identity and MUST NOT introduce Foundry keys, connection strings, or shared secrets. The client
+subscription key MUST be consumed by APIM and removed before forwarding the backend request.
 
 #### Scenario: Inspect backend policy
 - **WHEN** the integrated backend policy is inspected
 - **THEN** it uses managed-identity authentication for the Cognitive Services audience and
-  contains no key-based Foundry credential
+  contains no key-based Foundry credential or forwarded client subscription key
 
 ### Requirement: Each stage has an independent readiness result
 The deployment and validation interfaces SHALL report foundation readiness separately from
