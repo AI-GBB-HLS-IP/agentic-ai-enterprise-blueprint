@@ -1,4 +1,7 @@
-# US2 identity and private DNS evidence (T024)
+# Historical Combined Deployment Evidence — Identity and DNS (T024)
+
+> This combines foundation DNS with integration role/backend/model state and cannot establish
+> either current stage readiness.
 
 Status: **PASS**
 

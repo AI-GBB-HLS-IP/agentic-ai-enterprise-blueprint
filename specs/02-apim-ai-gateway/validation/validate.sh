@@ -3,154 +3,460 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
+MODE="${1:-all}"
+OFFLINE_ONLY="${OFFLINE_ONLY:-false}"
+RUN_WHAT_IF="${RUN_WHAT_IF:-true}"
 
-: "${RG_NAME:=rg-agent-factory-poc}"
-: "${LOCATION:=eastus2}"
-: "${VNET_NAME:=vnet-agent-factory-poc}"
-: "${APIM_SUBNET_NAME:=snet-apim}"
-: "${PRIVATE_ENDPOINT_SUBNET_NAME:=snet-privateendpoints}"
-: "${FOUNDRY_ACCOUNT_NAME:=foundry-agent-factory-poc}"
-: "${MODEL_DEPLOYMENT_NAME:=gpt-4.1-mini}"
-: "${APIM_TEMPLATE_FILE:=infra/envs/poc/apim.bicep}"
-: "${APIM_PARAMETER_FILE:=infra/envs/poc/apim.bicepparam}"
-: "${APIM_DEPLOYMENT_NAME:=apim-preflight}"
-: "${APIM_NAME:=apim-agent-factory-private-poc}"
+FOUNDATION_TEMPLATE="infra/envs/poc/apim.bicep"
+FOUNDATION_PARAMETERS="infra/envs/poc/apim.bicepparam"
+INTEGRATION_TEMPLATE="infra/envs/poc/apim-foundry-integration.bicep"
+INTEGRATION_PARAMETERS="infra/envs/poc/apim-foundry-integration.bicepparam"
 
-required_files=(
-  "infra/modules/apim/main.bicep"
-  "infra/modules/apim/private-dns.bicep"
-  "infra/modules/apim/backend.bicep"
-  "infra/modules/apim/api.bicep"
-  "infra/modules/apim/observability.bicep"
-  "infra/envs/poc/apim.bicep"
-  "infra/envs/poc/apim.bicepparam"
-)
+case "$MODE" in
+  foundation|integration|all) ;;
+  *)
+    echo "Usage: $0 {foundation|integration|all}" >&2
+    exit 2
+    ;;
+esac
 
-echo "== APIM offline validation =="
-for file in "${required_files[@]}"; do
-  if [[ ! -f "$REPO_ROOT/$file" ]]; then
-    echo "ERROR: missing required file: $file" >&2
+blocked=false
+
+block() {
+  echo "BLOCKED [$1]: $2"
+  blocked=true
+}
+
+require_file() {
+  [[ -f "$REPO_ROOT/$1" ]] || {
+    echo "ERROR: missing required file: $1" >&2
+    exit 1
+  }
+}
+
+compile_bicep() {
+  local file="$1"
+  echo "Compiling $file"
+  az bicep build --file "$REPO_ROOT/$file" --stdout >/dev/null
+}
+
+compile_params() {
+  local file="$1"
+  echo "Compiling $file"
+  az bicep build-params --file "$REPO_ROOT/$file" --stdout >/dev/null
+}
+
+compile_to() {
+  local file="$1"
+  local outfile="$2"
+  az bicep build --file "$REPO_ROOT/$file" --outfile "$outfile" >/dev/null
+}
+
+assert_absent() {
+  local pattern="$1"
+  local file="$2"
+  local message="$3"
+  if grep -Eq "$pattern" "$file"; then
+    echo "ERROR: $message" >&2
     exit 1
   fi
-done
+}
 
-bicep_files=(
-  "infra/modules/apim/main.bicep"
-  "infra/modules/apim/private-dns.bicep"
-  "infra/modules/apim/backend.bicep"
-  "infra/modules/apim/api.bicep"
-  "infra/modules/apim/observability.bicep"
-  "infra/envs/poc/apim.bicep"
-)
+assert_present() {
+  local pattern="$1"
+  local file="$2"
+  local message="$3"
+  if ! grep -Eq "$pattern" "$file"; then
+    echo "ERROR: $message" >&2
+    exit 1
+  fi
+}
 
-compile_blocked=false
-if command -v az >/dev/null 2>&1; then
-  for file in "${bicep_files[@]}"; do
-    echo "Compiling $file"
-    az bicep build --file "$REPO_ROOT/$file" --stdout >/dev/null
+azure_session_available() {
+  command -v az >/dev/null 2>&1 && az account show >/dev/null 2>&1
+}
+
+is_private_ipv4() {
+  [[ "$1" =~ ^10\. ]] ||
+    [[ "$1" =~ ^192\.168\. ]] ||
+    [[ "$1" =~ ^172\.(1[6-9]|2[0-9]|3[01])\. ]]
+}
+
+require_env_value() {
+  local name="$1"
+  local stage="$2"
+  if [[ -z "${!name:-}" ]]; then
+    block "$stage" "Set $name to run live validation and what-if."
+    return 1
+  fi
+}
+
+validate_static_ownership() {
+  local temp_dir
+  temp_dir="$(mktemp -d)"
+  trap 'rm -rf "$temp_dir"' RETURN
+
+  compile_to "$FOUNDATION_TEMPLATE" "$temp_dir/foundation.json"
+  compile_to "$INTEGRATION_TEMPLATE" "$temp_dir/integration.json"
+
+  assert_absent 'Microsoft\.CognitiveServices|foundry-openai-backend|approved-models|enterprise-llm-api' \
+    "$temp_dir/foundation.json" \
+    "foundation compiled template contains an integration-owned reference"
+  assert_present '"type": "Microsoft\.ApiManagement/service"' \
+    "$temp_dir/foundation.json" \
+    "foundation compiled template does not deploy APIM"
+  assert_present 'Microsoft\.Network/privateDnsZones' \
+    "$temp_dir/foundation.json" \
+    "foundation compiled template does not deploy private DNS"
+  assert_present 'Microsoft\.Insights/metricAlerts' \
+    "$temp_dir/foundation.json" \
+    "foundation compiled template does not deploy the capacity alert"
+
+  assert_absent '"type": "Microsoft\.ApiManagement/service"|Microsoft\.Network/privateDnsZones|Microsoft\.Insights/components|Microsoft\.OperationalInsights/workspaces|Microsoft\.Insights/metricAlerts' \
+    "$temp_dir/integration.json" \
+    "integration compiled template declares a foundation-owned resource"
+  assert_present 'Microsoft\.Authorization/roleAssignments' \
+    "$temp_dir/integration.json" \
+    "integration compiled template lacks the Foundry role assignment"
+  assert_present 'Microsoft\.ApiManagement/service/backends' \
+    "$temp_dir/integration.json" \
+    "integration compiled template lacks the APIM backend"
+  assert_present 'Microsoft\.ApiManagement/service/apis' \
+    "$temp_dir/integration.json" \
+    "integration compiled template lacks the governed API"
+
+  printf '%s\n' 'Microsoft.CognitiveServices/accounts' >"$temp_dir/seed-foundation"
+  if ! grep -Eq 'Microsoft\.CognitiveServices|foundry-openai-backend|approved-models|enterprise-llm-api' "$temp_dir/seed-foundation"; then
+    echo "ERROR: foundation ownership regression self-test did not detect a seeded reference" >&2
+    exit 1
+  fi
+  printf '%s\n' '"type": "Microsoft.ApiManagement/service"' >"$temp_dir/seed-integration"
+  if ! grep -Eq '"type": "Microsoft\.ApiManagement/service"|Microsoft\.Network/privateDnsZones|Microsoft\.Insights/components|Microsoft\.OperationalInsights/workspaces|Microsoft\.Insights/metricAlerts' "$temp_dir/seed-integration"; then
+    echo "ERROR: integration ownership regression self-test did not detect a seeded resource" >&2
+    exit 1
+  fi
+}
+
+validate_foundation_offline() {
+  echo "== Foundation offline validation =="
+  local files=(
+    "infra/modules/apim/main.bicep"
+    "infra/modules/apim/private-dns.bicep"
+    "infra/modules/apim/observability.bicep"
+    "$FOUNDATION_TEMPLATE"
+    "$FOUNDATION_PARAMETERS"
+  )
+  for file in "${files[@]}"; do require_file "$file"; done
+
+  compile_bicep "infra/modules/apim/main.bicep"
+  compile_bicep "infra/modules/apim/private-dns.bicep"
+  compile_bicep "infra/modules/apim/observability.bicep"
+  compile_bicep "$FOUNDATION_TEMPLATE"
+  compile_params "$FOUNDATION_PARAMETERS"
+
+  assert_present "virtualNetworkType: 'Internal'" "$REPO_ROOT/infra/modules/apim/main.bicep" "APIM is not internal"
+  assert_present 'publicIpAddressId:' "$REPO_ROOT/infra/modules/apim/main.bicep" "classic APIM public IP is not associated"
+  assert_present 'Gateway.Security.Protocols.Tls10' "$REPO_ROOT/infra/modules/apim/main.bicep" "TLS 1.0 disablement is missing"
+  assert_present 'Gateway.Security.Protocols.Tls11' "$REPO_ROOT/infra/modules/apim/main.bicep" "TLS 1.1 disablement is missing"
+  assert_present "categoryGroup: 'AllLogs'" "$REPO_ROOT/infra/modules/apim/observability.bicep" "AllLogs diagnostics are missing"
+  assert_present "category: 'AllMetrics'" "$REPO_ROOT/infra/modules/apim/observability.bicep" "AllMetrics diagnostics are missing"
+  assert_present "metricName: 'Capacity'" "$REPO_ROOT/infra/modules/apim/observability.bicep" "capacity alert is missing"
+  assert_present 'threshold: capacityAlertThreshold' "$REPO_ROOT/infra/modules/apim/observability.bicep" "capacity threshold is missing"
+  assert_absent 'foundry|approvedModels|backendName|apiName|productName|tokenLimit' \
+    "$REPO_ROOT/$FOUNDATION_TEMPLATE" \
+    "foundation source contains integration inputs"
+  assert_absent 'foundry|approvedModels|backendName|apiName|productName|tokenLimit' \
+    "$REPO_ROOT/$FOUNDATION_PARAMETERS" \
+    "foundation parameters contain integration inputs"
+  echo "Foundation offline validation passed."
+}
+
+validate_integration_offline() {
+  echo "== Integration offline validation =="
+  local files=(
+    "infra/modules/apim/foundry-role-assignment.bicep"
+    "infra/modules/apim/backend.bicep"
+    "infra/modules/apim/api.bicep"
+    "$INTEGRATION_TEMPLATE"
+    "$INTEGRATION_PARAMETERS"
+  )
+  for file in "${files[@]}"; do require_file "$file"; done
+
+  compile_bicep "infra/modules/apim/foundry-role-assignment.bicep"
+  compile_bicep "infra/modules/apim/backend.bicep"
+  compile_bicep "infra/modules/apim/api.bicep"
+  compile_bicep "$INTEGRATION_TEMPLATE"
+  compile_params "$INTEGRATION_PARAMETERS"
+
+  assert_present 'authentication-managed-identity' "$REPO_ROOT/infra/modules/apim/backend.bicep" "managed-identity backend policy is missing"
+  assert_present 'https://cognitiveservices.azure.com' "$REPO_ROOT/infra/modules/apim/backend.bicep" "Cognitive Services audience is missing"
+  assert_present 'subscriptionRequired: true' "$REPO_ROOT/infra/modules/apim/api.bicep" "subscription enforcement is missing"
+  assert_present 'unsupported_model' "$REPO_ROOT/infra/modules/apim/api.bicep" "model allowlist rejection is missing"
+  assert_absent 'api[-_]?key|connectionString|accountKey' \
+    "$REPO_ROOT/infra/modules/apim/backend.bicep" \
+    "integration backend appears to contain key-based authentication"
+  echo "Integration offline validation passed."
+}
+
+validate_foundation_live() {
+  echo "== Foundation live read-only validation =="
+  if [[ "$OFFLINE_ONLY" == "true" ]]; then
+    echo "Foundation live checks skipped by OFFLINE_ONLY=true."
+    return
+  fi
+  if ! azure_session_available; then
+    block foundation "An authenticated Azure CLI session is required."
+    return
+  fi
+
+  local missing=false
+  for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_PUBLIC_IP_NAME APIM_PUBLISHER_EMAIL; do
+    require_env_value "$name" foundation || missing=true
   done
-elif command -v bicep >/dev/null 2>&1; then
-  for file in "${bicep_files[@]}"; do
-    echo "Compiling $file"
-    bicep build "$REPO_ROOT/$file" --stdout >/dev/null
+  if [[ -z "${APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID:-}" && -z "${APIM_ROUTE_TABLE_EXCEPTION_REFERENCE:-}" ]]; then
+    block foundation "Set APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID or APIM_ROUTE_TABLE_EXCEPTION_REFERENCE."
+    missing=true
+  fi
+  if [[ "$missing" == true ]]; then
+    return 0
+  fi
+
+  local subnet_json subnet_nsg subnet_route subnet_name
+  subnet_json="$(az network vnet subnet show \
+    --resource-group "$APIM_NETWORK_RESOURCE_GROUP" \
+    --vnet-name "$APIM_VNET_NAME" \
+    --name "$APIM_SUBNET_NAME" -o json)"
+  subnet_name="$(jq -r '.name' <<<"$subnet_json")"
+  subnet_nsg="$(jq -r '.networkSecurityGroup.id // ""' <<<"$subnet_json")"
+  subnet_route="$(jq -r '.routeTable.id // ""' <<<"$subnet_json")"
+
+  if [[ "$subnet_name" != apimsubnet-* && -z "${APIM_SUBNET_NAMING_EXCEPTION_REFERENCE:-}" ]]; then
+    echo "ERROR [foundation]: APIM subnet naming is unapproved and no exception reference was supplied." >&2
+    exit 1
+  fi
+  [[ "${subnet_nsg,,}" == "${APIM_APPROVED_NSG_RESOURCE_ID,,}" ]] || {
+    echo "ERROR [foundation]: APIM subnet NSG does not match the approved NSG." >&2
+    exit 1
+  }
+  if [[ -n "${APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID:-}" ]]; then
+    [[ "${subnet_route,,}" == "${APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID,,}" ]] || {
+      echo "ERROR [foundation]: APIM subnet route table does not match approval." >&2
+      exit 1
+    }
+  elif [[ -n "$subnet_route" ]]; then
+    echo "ERROR [foundation]: route-table exception was supplied but the subnet has a route table." >&2
+    exit 1
+  fi
+  jq -e '(.delegations // [] | length) == 0' <<<"$subnet_json" >/dev/null
+  for endpoint in Microsoft.AzureActiveDirectory Microsoft.KeyVault Microsoft.Sql Microsoft.Storage; do
+    jq -e --arg endpoint "$endpoint" '[.serviceEndpoints[]?.service] | index($endpoint) != null' <<<"$subnet_json" >/dev/null
   done
-else
-  echo "BLOCKED: Neither Azure CLI nor standalone Bicep CLI is installed; compilation skipped."
-  compile_blocked=true
-fi
 
-echo "== Static fail-closed guard checks =="
-grep -q "virtualNetworkType: 'Internal'" "$REPO_ROOT/infra/modules/apim/main.bicep"
-grep -q "authentication-managed-identity" "$REPO_ROOT/infra/modules/apim/backend.bicep"
-grep -q "Microsoft.ApiManagement/service/namedValues" "$REPO_ROOT/infra/modules/apim/api.bicep"
-grep -qE "approvedModels:[[:space:]]*approvedModels" "$REPO_ROOT/infra/envs/poc/apim.bicep"
-grep -qE "param[[:space:]]+approvedModels[[:space:]]*=[[:space:]]*\\[" "$REPO_ROOT/infra/envs/poc/apim.bicepparam"
+  az network public-ip show \
+    --resource-group "$APIM_RESOURCE_GROUP" \
+    --name "$APIM_PUBLIC_IP_NAME" \
+    --query "sku.name=='Standard' && publicIPAllocationMethod=='Static'" -o tsv | grep -qx true
 
-if grep -R -n "approvedModelName" "$REPO_ROOT/infra/modules/apim" "$REPO_ROOT/infra/envs/poc/apim.bicep" >/dev/null; then
-  echo "ERROR: hardcoded single-model policy parameter detected." >&2
-  exit 1
-fi
+  if [[ "$APIM_PUBLISHER_EMAIL" == *@example.com || "$APIM_PUBLISHER_EMAIL" == *@contoso.com ]]; then
+    echo "ERROR [foundation]: APIM_PUBLISHER_EMAIL must be a corporate address." >&2
+    exit 1
+  fi
 
-if grep -R -n -E "Content Safety|semantic cache|secondary backend" "$REPO_ROOT/infra/modules/apim" >/dev/null; then
-  echo "ERROR: out-of-scope capability detected in APIM modules." >&2
-  exit 1
-fi
+  if [[ "$RUN_WHAT_IF" == "true" ]]; then
+    az deployment group what-if \
+      --resource-group "$APIM_RESOURCE_GROUP" \
+      --name apim-foundation-preview \
+      --template-file "$REPO_ROOT/$FOUNDATION_TEMPLATE" \
+      --parameters "$REPO_ROOT/$FOUNDATION_PARAMETERS" \
+      --result-format ResourceIdOnly
+  fi
 
-if grep -R -n -E "api[-_]?key|subscriptionKey|keyVault" "$REPO_ROOT/infra/modules/apim/backend.bicep" >/dev/null; then
-  echo "ERROR: backend module appears to include secret/key-based auth." >&2
-  exit 1
-fi
+  if az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}" >/dev/null 2>&1; then
+    local apim_json apim_id workspace_id apim_name
+    apim_name="${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}"
+    apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}" -o json)"
+    jq -e '.virtualNetworkType == "Internal" and .identity.type == "SystemAssigned" and (.identity.principalId | length > 0)' <<<"$apim_json" >/dev/null
+    jq -e '(.privateIpAddresses // [] | length) > 0' <<<"$apim_json" >/dev/null
+    jq -e '
+      .customProperties["Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10"] == "false" and
+      .customProperties["Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11"] == "false" and
+      .customProperties["Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls10"] == "false" and
+      .customProperties["Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11"] == "false" and
+      .customProperties["Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168"] == "false"
+    ' <<<"$apim_json" >/dev/null
+    apim_id="$(jq -r '.id' <<<"$apim_json")"
 
-if grep -R -n -E "/mcp/|/a2a/|service/apis/.+mcp|service/apis/.+a2a" "$REPO_ROOT/infra/modules/apim" >/dev/null; then
-  echo "ERROR: MCP/A2A resources are out of scope for Chapter 02 core gateway." >&2
-  exit 1
-fi
+    for record in "$apim_name" "$apim_name.developer" "$apim_name.portal" "$apim_name.management" "$apim_name.scm"; do
+      az network private-dns record-set a show \
+        --resource-group "$APIM_RESOURCE_GROUP" \
+        --zone-name "${APIM_PRIVATE_DNS_ZONE_NAME:-azure-api.net}" \
+        --name "$record" \
+        --query "aRecords | length(@)" -o tsv | grep -Eq '^[1-9][0-9]*$'
+    done
 
-live_blocked="$compile_blocked"
+    if [[ "${APIM_VALIDATE_ENDPOINT_REACHABILITY:-false}" == "true" ]]; then
+      local endpoint ip
+      for endpoint in \
+        "$apim_name.azure-api.net" \
+        "$apim_name.developer.azure-api.net" \
+        "$apim_name.portal.azure-api.net" \
+        "$apim_name.management.azure-api.net" \
+        "$apim_name.scm.azure-api.net"; do
+        ip="$(getent ahostsv4 "$endpoint" | awk 'NR == 1 { print $1 }')"
+        [[ -n "$ip" ]] && is_private_ipv4 "$ip" || {
+          echo "ERROR [foundation]: $endpoint did not resolve to a private IPv4 address." >&2
+          exit 1
+        }
+        if curl --silent --show-error --connect-timeout 5 --max-time 10 "https://$endpoint" -o /dev/null; then
+          :
+        elif [[ "$?" -eq 28 ]]; then
+          echo "ERROR [foundation]: $endpoint was not reachable from the approved validation network." >&2
+          exit 1
+        fi
+      done
+    else
+      block foundation "Set APIM_VALIDATE_ENDPOINT_REACHABILITY=true from an authorized network to verify internal gateway, portal, management, and SCM reachability."
+    fi
 
-if ! command -v az >/dev/null 2>&1; then
-  echo "BLOCKED: Azure CLI is not installed; live Azure prerequisite checks skipped."
-  live_blocked=true
-elif ! az account show >/dev/null 2>&1; then
-  echo "BLOCKED: No active Azure login/session; live Azure prerequisite checks skipped."
-  live_blocked=true
-else
-  echo "== Live read-only prerequisite checks =="
-  az group show --name "$RG_NAME" \
-    --query "location=='$LOCATION' && properties.provisioningState=='Succeeded'" -o tsv | grep -qx true
+    if [[ "${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}" == "policy" ]]; then
+      az monitor diagnostic-settings list --resource "$apim_id" -o json |
+        jq -e '[.value[] | select((([.logs[]? | select(.enabled == true and (.categoryGroup == "AllLogs" or .category != null))] | length) > 0) and (([.metrics[]? | select(.enabled == true and .category == "AllMetrics")] | length) > 0))] | length > 0' >/dev/null
+    fi
 
-  VNET_ID="$(az network vnet show -g "$RG_NAME" -n "$VNET_NAME" --query id -o tsv)"
+    az monitor metrics alert show \
+      --resource-group "$APIM_RESOURCE_GROUP" \
+      --name "${APIM_CAPACITY_ALERT_NAME:-alert-apim-capacity-over-60}" \
+      --query "criteria.allOf[?metricName=='Capacity' && timeAggregation=='Average' && threshold>=\`60\`] | length(@)" -o tsv | grep -qx 1
 
-  az network vnet subnet show -g "$RG_NAME" --vnet-name "$VNET_NAME" -n "$APIM_SUBNET_NAME" \
-    --query "addressPrefix=='10.0.1.0/24'" -o tsv | grep -qx true
+    workspace_id="${APIM_LOG_ANALYTICS_WORKSPACE_ID:-}"
+    if [[ -n "$workspace_id" && "${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}" == "policy" ]]; then
+      az monitor diagnostic-settings list --resource "$apim_id" \
+        --query "value[?workspaceId=='$workspace_id'] | length(@)" -o tsv | grep -Eq '^[1-9][0-9]*$'
+    fi
+  else
+    block foundation "APIM is not deployed; runtime identity, DNS, diagnostics, alert, and internal endpoint checks remain pending."
+  fi
+}
 
-  az network vnet subnet show -g "$RG_NAME" --vnet-name "$VNET_NAME" -n "$PRIVATE_ENDPOINT_SUBNET_NAME" \
-    --query "addressPrefix=='10.0.4.0/24'" -o tsv | grep -qx true
+validate_integration_live() {
+  echo "== Integration live read-only validation =="
+  if [[ "$OFFLINE_ONLY" == "true" ]]; then
+    echo "Integration live checks skipped by OFFLINE_ONLY=true."
+    return
+  fi
+  if ! azure_session_available; then
+    block integration "An authenticated Azure CLI session is required."
+    return
+  fi
 
-  az network vnet subnet show -g "$RG_NAME" --vnet-name "$VNET_NAME" -n "$APIM_SUBNET_NAME" \
-    --query "networkSecurityGroup.id!=null" -o tsv | grep -qx true
+  local missing=false
+  for name in APIM_RESOURCE_GROUP APIM_SERVICE_NAME FOUNDRY_RESOURCE_GROUP FOUNDRY_ACCOUNT_NAME FOUNDRY_ACCOUNT_ID FOUNDRY_PUBLIC_MODEL_NAME FOUNDRY_MODEL_DEPLOYMENT_NAME GENAI_APPROVAL_REFERENCE FOUNDRY_ENABLEMENT_REFERENCE FOUNDRY_CUSTOMER_POLICY_SOURCE; do
+    require_env_value "$name" integration || missing=true
+  done
+  if [[ "$missing" == true ]]; then
+    return 0
+  fi
 
-  az cognitiveservices account show -g "$RG_NAME" -n "$FOUNDRY_ACCOUNT_NAME" \
-    --query "location=='$LOCATION'" -o tsv | grep -qx true
+  local apim_json foundry_json apim_principal foundry_id foundry_location
+  apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" -o json)"
+  apim_principal="$(jq -r '.identity.principalId // ""' <<<"$apim_json")"
+  [[ -n "$apim_principal" ]] || {
+    echo "ERROR [integration]: existing APIM has no system-assigned principal." >&2
+    exit 1
+  }
+
+  foundry_json="$(az cognitiveservices account show --resource-group "$FOUNDRY_RESOURCE_GROUP" --name "$FOUNDRY_ACCOUNT_NAME" -o json)"
+  foundry_id="$(jq -r '.id' <<<"$foundry_json")"
+  foundry_location="$(jq -r '.location | ascii_downcase' <<<"$foundry_json")"
+  [[ "${foundry_id,,}" == "${FOUNDRY_ACCOUNT_ID,,}" ]] || {
+    echo "ERROR [integration]: FOUNDRY_ACCOUNT_ID does not match the selected account." >&2
+    exit 1
+  }
+  [[ "$(jq -r '.properties.publicNetworkAccess // .publicNetworkAccess // ""' <<<"$foundry_json")" == "Disabled" ]] || {
+    echo "ERROR [integration]: Foundry public network access must be Disabled." >&2
+    exit 1
+  }
+  case ",${FOUNDRY_APPROVED_REGIONS:-eastus,eastus2,westeurope}," in
+    *",$foundry_location,"*) ;;
+    *)
+      echo "ERROR [integration]: Foundry region is not in FOUNDRY_APPROVED_REGIONS." >&2
+      exit 1
+      ;;
+  esac
+
+  az network private-endpoint-connection list --id "$foundry_id" \
+    --query "[?privateLinkServiceConnectionState.status=='Approved'] | length(@)" -o tsv | grep -Eq '^[1-9][0-9]*$'
 
   az cognitiveservices account deployment show \
-    --resource-group "$RG_NAME" \
+    --resource-group "$FOUNDRY_RESOURCE_GROUP" \
     --name "$FOUNDRY_ACCOUNT_NAME" \
-    --deployment-name "$MODEL_DEPLOYMENT_NAME" \
-    --query "name=='$MODEL_DEPLOYMENT_NAME'" -o tsv | grep -qx true
+    --deployment-name "$FOUNDRY_MODEL_DEPLOYMENT_NAME" >/dev/null
 
-  az network private-dns zone show -g "$RG_NAME" -n "privatelink.azure-api.net" \
-    --query "name=='privatelink.azure-api.net'" -o tsv | grep -qx true || true
-
-  az deployment group what-if \
-    --resource-group "$RG_NAME" \
-    --template-file "$REPO_ROOT/$APIM_TEMPLATE_FILE" \
-    --parameters "$REPO_ROOT/$APIM_PARAMETER_FILE" \
-    --name "$APIM_DEPLOYMENT_NAME" \
-    --result-format ResourceIdOnly
-
-  if az apim show -g "$RG_NAME" -n "$APIM_NAME" >/dev/null 2>&1; then
-    az apim show -g "$RG_NAME" -n "$APIM_NAME" \
-      --query "virtualNetworkType=='Internal' && (publicIPAddresses==null || length(publicIPAddresses)==\`0\`)" -o tsv | grep -qx true
-
-    APIM_PRINCIPAL_ID="$(az apim show -g "$RG_NAME" -n "$APIM_NAME" --query identity.principalId -o tsv)"
-    FOUNDRY_SCOPE="$(az cognitiveservices account show -g "$RG_NAME" -n "$FOUNDRY_ACCOUNT_NAME" --query id -o tsv)"
-    az role assignment list --assignee "$APIM_PRINCIPAL_ID" --scope "$FOUNDRY_SCOPE" \
-      --query "[?roleDefinitionName=='Cognitive Services OpenAI User'] | length(@)" -o tsv | grep -qx 1
-  else
-    echo "INFO: APIM resource not deployed yet; runtime posture checks remain pending."
+  if [[ "$RUN_WHAT_IF" == "true" ]]; then
+    az deployment group what-if \
+      --resource-group "$APIM_RESOURCE_GROUP" \
+      --name apim-foundry-integration-preview \
+      --template-file "$REPO_ROOT/$INTEGRATION_TEMPLATE" \
+      --parameters "$REPO_ROOT/$INTEGRATION_PARAMETERS" \
+      --result-format ResourceIdOnly
   fi
 
-  echo "Live prerequisite checks completed."
+  if az apim backend show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --backend-id "${APIM_BACKEND_NAME:-foundry-openai-backend}" >/dev/null 2>&1; then
+    az role assignment list --assignee "$apim_principal" --scope "$foundry_id" \
+      --query "[?roleDefinitionName=='Cognitive Services OpenAI User'] | length(@)" -o tsv | grep -qx 1
+    az apim backend show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --backend-id "${APIM_BACKEND_NAME:-foundry-openai-backend}" \
+      --query "starts_with(url, 'https://')" -o tsv | grep -qx true
+    az apim api show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --api-id "${APIM_API_NAME:-enterprise-llm-api}" \
+      --query "subscriptionRequired" -o tsv | grep -qx true
+    az apim nv show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --named-value-id approved-models \
+      --query "secret==\`false\`" -o tsv | grep -qx true
+    local api_policy
+    api_policy="$(az apim api policy show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --api-id "${APIM_API_NAME:-enterprise-llm-api}" --query value -o tsv)"
+    grep -q 'authentication-managed-identity' <<<"$api_policy"
+    grep -q 'llm-token-limit' <<<"$api_policy"
+    grep -q 'unsupported_model' <<<"$api_policy"
+    grep -q 'Ocp-Apim-Subscription-Key' <<<"$api_policy"
+
+    if [[ "${APIM_VALIDATE_INTEGRATION_REQUESTS:-false}" != "true" ]]; then
+      block integration "Set APIM_VALIDATE_INTEGRATION_REQUESTS=true with authorized client inputs to verify allowed, unsupported, unauthenticated, and secret-safe telemetry behavior."
+    fi
+  else
+    block integration "Integration resources are not deployed; role, backend, API, request, and telemetry checks remain pending."
+  fi
+}
+
+if ! command -v az >/dev/null 2>&1; then
+  echo "ERROR: Azure CLI with Bicep support is required for offline compilation." >&2
+  exit 1
+fi
+if ! command -v jq >/dev/null 2>&1; then
+  echo "ERROR: jq is required for validation." >&2
+  exit 1
 fi
 
-if [[ "$live_blocked" == true ]]; then
-  if [[ "$compile_blocked" == true ]]; then
-    echo "Static checks passed; Bicep compilation and live gates remain blocked."
-  else
-    echo "Offline checks passed; live gates are blocked pending Azure access."
-  fi
+case "$MODE" in
+  foundation)
+    validate_foundation_offline
+    validate_static_ownership
+    validate_foundation_live
+    ;;
+  integration)
+    validate_integration_offline
+    validate_static_ownership
+    validate_integration_live
+    ;;
+  all)
+    validate_foundation_offline
+    validate_integration_offline
+    validate_static_ownership
+    validate_foundation_live
+    validate_integration_live
+    ;;
+esac
+
+if [[ "$blocked" == true ]]; then
+  echo "Offline validation passed; one or more live stage gates are BLOCKED."
   exit 3
 fi
 
-echo "All APIM validations passed."
+echo "Validation passed for mode: $MODE"

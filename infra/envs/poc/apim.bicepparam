@@ -1,44 +1,39 @@
 using './apim.bicep'
 
-// Example topology: fully-separated (3 RG) — network, Foundry, and APIM each in their own
-// resource group. See ../README.md "Deploy" for other supported topologies (1 or 2 RGs); for
-// those, adjust or remove networkResourceGroupName/foundryResourceGroupName below to match the
-// RG(s) you actually deploy into.
-param location = 'eastus2'
-param apimServiceName = 'apim-agent-factory-private-poc'
-param publisherEmail = 'platform-eng@example.com'
-param publisherName = 'Agent Factory Platform Engineering'
+// Stage 1 foundation parameters. Environment-backed values intentionally fail preflight when
+// customer approval evidence or target resource identifiers have not been supplied.
+param location = readEnvironmentVariable('APIM_LOCATION', 'eastus')
+param apimServiceName = readEnvironmentVariable('APIM_SERVICE_NAME', 'apim-agent-factory-private-poc')
+param publisherEmail = readEnvironmentVariable('APIM_PUBLISHER_EMAIL', '')
+param publisherName = readEnvironmentVariable('APIM_PUBLISHER_NAME', 'Agent Factory Platform Engineering')
 
-param networkResourceGroupName = 'rg-agent-blueprint-poc-network'
-param vnetName = 'vnet-agent-factory-poc'
-param apimSubnetName = 'hybridsubnet-apim'
-param foundryResourceGroupName = 'rg-agent-blueprint-poc-foundry'
-param foundryAccountName = 'foundry-agent-factory-poc'
-param approvedModels = [
-  {
-    publicName: 'gpt-4.1-mini'
-    deploymentName: 'gpt-4.1-mini'
-    enabled: true
-  }
+param networkResourceGroupName = readEnvironmentVariable('APIM_NETWORK_RESOURCE_GROUP', 'VPCXRG')
+param vnetName = readEnvironmentVariable('APIM_VNET_NAME', 'azr-133-eastus')
+param apimSubnetName = readEnvironmentVariable('APIM_SUBNET_NAME', 'hybridsubnet-apim')
+param approvedApimNsgResourceId = readEnvironmentVariable('APIM_APPROVED_NSG_RESOURCE_ID', '')
+param approvedApimRouteTableResourceId = readEnvironmentVariable('APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID', '')
+param subnetNamingExceptionReference = readEnvironmentVariable('APIM_SUBNET_NAMING_EXCEPTION_REFERENCE', '')
+param routeTableExceptionReference = readEnvironmentVariable('APIM_ROUTE_TABLE_EXCEPTION_REFERENCE', '')
+param requiredServiceEndpoints = [
+  'Microsoft.AzureActiveDirectory'
+  'Microsoft.KeyVault'
+  'Microsoft.Sql'
+  'Microsoft.Storage'
 ]
-param publicNetworkAccess = readEnvironmentVariable('APIM_PUBLIC_NETWORK_ACCESS', 'Enabled')
 
+param apimPublicIpAddressName = readEnvironmentVariable('APIM_PUBLIC_IP_NAME', 'pip-apim-agent-factory-poc')
+param publicNetworkAccess = readEnvironmentVariable('APIM_PUBLIC_NETWORK_ACCESS', 'Enabled')
 param apimSkuName = 'Premium'
 param apimSkuCapacity = 1
 
-param backendName = 'foundry-openai-backend'
-param apiName = 'enterprise-llm-api'
-param apiDisplayName = 'Enterprise LLM API'
-param apiPath = 'llm/v1'
-param productName = 'governed-llm-product'
-param productDisplayName = 'Governed LLM Product'
-param tokenLimitPerMinute = 10000
-param foundryApiVersion = '2024-10-21'
-
 param privateDnsZoneName = 'azure-api.net'
-param privateDnsRecordName = 'apim-agent-factory-private-poc'
+param privateDnsRecordName = readEnvironmentVariable('APIM_DNS_RECORD_NAME', 'apim-agent-factory-private-poc')
 
-param applicationInsightsName = 'appi-apim-agent-factory-poc'
-param logAnalyticsWorkspaceId = ''
-param logAnalyticsWorkspaceName = 'law-agent-factory-poc'
-param diagnosticSettingName = 'diag-apim-gateway'
+param applicationInsightsName = readEnvironmentVariable('APIM_APP_INSIGHTS_NAME', 'appi-apim-agent-factory-poc')
+param logAnalyticsWorkspaceId = readEnvironmentVariable('APIM_LOG_ANALYTICS_WORKSPACE_ID', '')
+param logAnalyticsWorkspaceName = readEnvironmentVariable('APIM_LOG_ANALYTICS_WORKSPACE_NAME', 'law-agent-factory-poc')
+param diagnosticSettingName = readEnvironmentVariable('APIM_DIAGNOSTIC_SETTING_NAME', 'diag-apim-gateway')
+param diagnosticSettingsOwnership = readEnvironmentVariable('APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP', 'policy')
+param capacityAlertName = readEnvironmentVariable('APIM_CAPACITY_ALERT_NAME', 'alert-apim-capacity-over-60')
+param capacityAlertThreshold = 60
+param capacityAlertActionGroupIds = []

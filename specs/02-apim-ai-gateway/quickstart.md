@@ -1,160 +1,95 @@
-# Quickstart Validation Guide
+# Quickstart: Staged APIM AI Gateway
 
-This guide validates the Chapter 02 APIM gateway implementation under:
+## Stage 1 — APIM Foundation
 
-- `infra/modules/apim/`
-- `infra/envs/poc/apim.bicep`
-- `infra/envs/poc/apim.bicepparam`
+Stage 1 requires Azure networking and APIM approvals only. Foundry may be unavailable.
 
-It assumes Azure CLI, Bicep CLI, subscription access, and a private test host
-(`vm-fnd-jbox`) reachable via Bastion in `vnet-agent-factory-poc`.
+1. Populate `infra/envs/poc/apim.bicepparam` with approved network, public IP, publisher,
+   DNS, diagnostics, and monitoring values.
+2. Run offline and live preflight:
 
-## Prerequisites
+   ```bash
+   specs/02-apim-ai-gateway/validation/validate.sh foundation
+   ```
 
-1. Confirm the existing resource group, VNet, `snet-apim` subnet, and Chapter 01 Foundry
-   deployment (account, project, `gpt-4.1-mini` model deployment) are present.
-2. Confirm `snet-apim` is currently unused and has no conflicting resource before delegation.
-3. Confirm the deployment plan in `.azure/` (if used locally) has recorded approval before any
-   step below runs against the live subscription.
-4. Run the local deterministic validator first:
+3. Preview only the foundation:
 
-```bash
-./specs/02-apim-ai-gateway/validation/validate.sh
-```
+   ```bash
+   az deployment group what-if \
+     --resource-group <apim-resource-group> \
+     --name apim-foundation-preview \
+     --template-file infra/envs/poc/apim.bicep \
+     --parameters infra/envs/poc/apim.bicepparam \
+     --result-format ResourceIdOnly
+   ```
 
-If the script reports live-gate blockers, do not mark deployment readiness as passed.
+4. Verify the preview contains APIM, `azure-api.net` DNS, and monitoring resources only. It must
+   contain no Cognitive Services lookup, role assignment, backend, model mapping, product, or
+   governed API.
+5. Deploy:
 
-## Validate the deployment preview
+   ```bash
+   az deployment group create \
+     --resource-group <apim-resource-group> \
+     --name apim-foundation \
+     --template-file infra/envs/poc/apim.bicep \
+     --parameters infra/envs/poc/apim.bicepparam
+   ```
 
-```bash
-az bicep build --file infra/modules/apim/main.bicep
-az bicep build --file infra/modules/apim/private-dns.bicep
-az bicep build --file infra/modules/apim/backend.bicep
-az bicep build --file infra/modules/apim/api.bicep
-az bicep build --file infra/modules/apim/observability.bicep
-az deployment group what-if \
-  --resource-group rg-agent-factory-poc \
-  --template-file infra/envs/poc/apim.bicep \
-  --parameters infra/envs/poc/apim.bicepparam
-```
+6. Run `validate.sh foundation` again and record `validation/foundation-runtime.md`.
 
-Expected: only declared Chapter 02 resources are created (subnet delegation, APIM instance,
-private DNS zone/link/records, role assignment, backend, API, observability); no changes to
-the existing VNet, Foundry account/project/model deployment, or `privatelink.azure-api.net`
-zone.
+The expected checkpoint is `foundationReadiness=deployed` and
+`integrationReadiness=not-deployed`. The approved classic-tier public IP may exist for platform
+management; validate that APIM service endpoints remain internal instead of treating the public
+IP resource itself as exposure.
 
-Save output to `specs/02-apim-ai-gateway/validation/us1-what-if.md` (US1 scope) and
-`specs/02-apim-ai-gateway/validation/us3-what-if.md` (US3 scope).
+## Optional Enterprise DNS Extension
 
-## Validate subnet delegation and APIM network posture
+The default private `azure-api.net` zone supports the deployment VNet and explicitly linked
+networks. For broader enterprise resolution, separately obtain approved custom domains and CA
+certificates, configure APIM custom hostnames, and request internal DNS A records to the APIM
+private VIP.
 
-```bash
-az network vnet subnet show -g rg-agent-factory-poc \
-  --vnet-name vnet-agent-factory-poc -n snet-apim \
-  --query 'delegations'
-az apim show -g rg-agent-factory-poc -n <apim-name> \
-  --query '{virtualNetworkType:virtualNetworkType,identity:identity,publicIpAddresses:publicIpAddresses}'
-```
+## Stage 2 — Foundry Integration
 
-Expected: the dedicated subnet and existing NSG association are preserved; the APIM instance has
-`virtualNetworkType: Internal`, a system-assigned identity, and no public IP addresses.
+Begin only after Stage 1 is ready and customer Foundry governance is complete.
 
-Save output to `specs/02-apim-ai-gateway/validation/us1-gateway.md`.
+1. Populate `infra/envs/poc/apim-foundry-integration.bicepparam` with the existing APIM reference,
+   Foundry account, governance evidence, allowed regions, approved model mappings, and API policy
+   settings.
+2. Run integration preflight:
 
-## Validate identity and role assignment
+   ```bash
+   specs/02-apim-ai-gateway/validation/validate.sh integration
+   ```
 
-```bash
-az role assignment list \
-  --assignee <apim-principal-id> \
-  --scope /subscriptions/<sub-id>/resourceGroups/rg-agent-factory-poc/providers/Microsoft.CognitiveServices/accounts/foundry-agent-factory-poc
-```
+3. Preview integration-owned changes:
 
-Expected: exactly one assignment, `Cognitive Services OpenAI User`, scoped only to the Foundry
-account (not the resource group or subscription).
+   ```bash
+   az deployment group what-if \
+     --resource-group <apim-resource-group> \
+     --name apim-foundry-integration-preview \
+     --template-file infra/envs/poc/apim-foundry-integration.bicep \
+     --parameters infra/envs/poc/apim-foundry-integration.bicepparam \
+     --result-format ResourceIdOnly
+   ```
 
-## Validate private DNS
+4. Confirm the preview adds only the Foundry account-scoped role assignment and APIM
+   backend/model/API/product/policies. It must not declare APIM, DNS, workspace, Application
+   Insights, diagnostic settings, or alerts.
+5. Deploy and validate:
 
-```bash
-az network private-dns zone show -g rg-agent-factory-poc -n azure-api.net
-az network private-dns link vnet list -g rg-agent-factory-poc -z azure-api.net -o table
-```
+   ```bash
+   az deployment group create \
+     --resource-group <apim-resource-group> \
+     --name apim-foundry-integration \
+     --template-file infra/envs/poc/apim-foundry-integration.bicep \
+     --parameters infra/envs/poc/apim-foundry-integration.bicepparam
 
-From `vm-fnd-jbox`, resolve the APIM gateway hostname and confirm it returns a private
-`10.0.1.x` address, not a public IP.
+   specs/02-apim-ai-gateway/validation/validate.sh integration
+   ```
 
-Save output to `specs/02-apim-ai-gateway/validation/us2-identity-dns.md`.
+6. Record `validation/integration-runtime.md` with authorized, unsupported-model,
+   unauthenticated, and telemetry results.
 
-## Validate the client-facing API
-
-Send ten consecutive non-streaming `chat/completions` requests from a private client, with a
-valid APIM subscription key, to the client-facing API path. Expected: at least 9 of 10 succeed
-and are attributable to the `gpt-4.1-mini` deployment.
-
-Confirm the `approved-models` APIM named value exists and is non-secret. Its value is a
-base64-encoded projection of the `approvedModels` array in
-`infra/envs/poc/apim.bicepparam`; do not maintain a second model allowlist directly in the
-policy.
-
-The Bicep module serializes the array to JSON and then base64-encodes it so quotes and other JSON
-characters can pass through APIM Named Value substitution into policy XML without an independent
-XML-escaping contract. The policy decodes the UTF-8 value and parses the resulting JSON array
-before resolving `publicName` to `deploymentName`. Base64 is transport encoding, not encryption;
-the Named Value intentionally has `secret: false` because this configuration contains no
-credentials.
-
-To inspect the deployed value from a Bash environment:
-
-```bash
-az rest --method get \
-  --url "https://management.azure.com/subscriptions/<subscription-id>/resourceGroups/rg-agent-factory-poc/providers/Microsoft.ApiManagement/service/apim-agent-factory-private-poc/namedValues/approved-models?api-version=2022-08-01" \
-  --query properties.value -o tsv |
-  base64 --decode | jq .
-```
-
-Treat `infra/envs/poc/apim.bicepparam` as the source of truth. Update the array through Bicep and
-redeploy rather than editing the live Named Value or policy manually.
-
-Send a request with an unlisted model name. Expected: APIM returns `400` with error code
-`unsupported_model` before forwarding the request to Foundry. Send a request with the listed
-public model name and confirm APIM resolves it to the configured Foundry deployment.
-
-Send one request with no subscription key (or an invalid one). Expected: APIM rejects it (401/
-403) and the request never reaches the Foundry backend — confirm via APIM/Foundry request logs
-that no corresponding Foundry-side call occurred.
-
-Save output to `specs/02-apim-ai-gateway/validation/us3-requests.md`.
-
-## Validate token metrics and observability
-
-Inspect the Application Insights component and Log Analytics workspace for emitted
-`llm-emit-token-metric` telemetry attributable to the calling subscription. Confirm no request
-body, response body, or subscription key is present in the diagnostic logs.
-
-Save output to `specs/02-apim-ai-gateway/validation/us3-observability.md`.
-
-## Validate scope boundary
-
-```bash
-az apim api list -g rg-agent-factory-poc -n <apim-name> -o table
-```
-
-Expected: exactly one API (the client-facing `chat/completions` route). No MCP server API and
-no A2A agent API exist after this deployment — confirming the increment stayed within its
-approved core-gateway boundary.
-
-## Validate idempotency
-
-Re-run the same what-if with unchanged parameters and verify no duplicate APIM/DNS/role/API
-resources are proposed.
-
-Save output comparison to `specs/02-apim-ai-gateway/validation/idempotency.md`.
-
-## Failure cases
-
-The validation must fail with an affected resource and remediation hint for: missing or
-incorrect `snet-apim` delegation, a public gateway endpoint being present, an overly broad role
-assignment scope, an unresolved or public-resolving DNS hostname, a successful unauthenticated
-request, missing/incorrect token metrics, or the presence of any MCP/A2A component.
-
-Record the consolidated readiness and blockers in
-`specs/02-apim-ai-gateway/validation/final-report.md`.
+Use `validate.sh all` to run both stages in order when every Stage 2 prerequisite is available.

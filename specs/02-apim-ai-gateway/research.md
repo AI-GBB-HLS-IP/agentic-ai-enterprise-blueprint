@@ -1,105 +1,75 @@
-# Research: APIM AI Gateway (Core Gateway)
+# Research: Staged APIM AI Gateway
 
-## R1: Classic Premium VNet injection
+## Decisions
 
-**Decision**: Use `Microsoft.ApiManagement/service` with SKU `Premium`,
-`virtualNetworkType: Internal`, and `virtualNetworkConfiguration.subnetResourceId` pointing at
-the existing dedicated `snet-apim` subnet. Premium v2 remains the preferred future tier, but
-classic Premium is the approved non-production architecture because it preserves the production
-VNet-injected design while Premium v2 capacity is unavailable.
+### Classic Premium remains the implementation tier
 
-**Rationale**: Classic Premium VNet injection uses the dedicated APIM subnet directly and does not use the
-stv2-specific `Microsoft.Web/serverFarms` delegation. The subnet must be validated as dedicated,
-with its existing NSG association preserved, before APIM creation. VNet injection is configured
-at APIM creation time and is not interchangeable with v2 outbound integration.
+Premium v2 is the preferred future architecture, but the blueprint retains classic Premium for
+the current production-like private gateway. Classic Premium uses an undelegated subnet and may
+require a Standard static public IP for platform management. The resource does not create a
+public gateway; exposure is determined by `virtualNetworkType: Internal`, DNS, and endpoint
+reachability.
 
-**Alternatives considered**:
-- *`Microsoft.Web/serverFarms` delegation* — rejected for classic Premium; it is an stv2-specific
-  requirement and is not part of this classic-tier design.
-- *External VNet mode* — rejected; exposes a public gateway endpoint, which violates the
-  private-by-default constitution principle.
-- *Premium v2* — retained as the preferred future target, but not deployable in the current
-  subscription/region due to the documented capacity restriction.
+### APIM and Foundry are independent
 
-## R2: Private DNS zone naming
+Azure APIM can be provisioned without a Foundry account. Foundry deployment and customer
+enablement have no APIM prerequisite. Combining the resources made approval and permissions for
+one service block the other, so the entry points and readiness gates are split.
 
-**Decision**: Create a new private DNS zone named `azure-api.net`, distinct from the existing
-`privatelink.azure-api.net` zone already linked to `vnet-agent-factory-poc` by Network
-Foundation.
+### Customer APIM network controls are fail-closed
 
-**Rationale**: Internal-mode VNet-injected APIM instances publish their gateway hostname under
-the `azure-api.net` zone (not a `privatelink.*` name), because clients inside the VNet resolve
-the APIM instance's own custom/default hostname directly rather than through Azure Private Link's
-standard `privatelink.<service>` convention. Reusing or renaming the existing
-`privatelink.azure-api.net` zone would conflate two different Azure networking mechanisms
-(Private Link private endpoints vs. VNet-injected internal-mode services) and is explicitly
-called out as an edge case to avoid in `spec.md`.
+The reviewed VPCx Azure 2.0 profile requires:
 
-**Alternatives considered**:
-- *Reuse `privatelink.azure-api.net`* — rejected; wrong mechanism, would not resolve the internal
-  VNet-injected hostname correctly and risks zone/record conflicts.
+- `apimsubnet-*` naming or approved exception;
+- approved hybrid NSG;
+- `apim-routetable-<location>` or approved exception;
+- no delegation;
+- Azure Active Directory, Key Vault, SQL, and Storage service endpoints.
 
-## R3: Backend authentication to Foundry
+The observed tenant policy denies a route table on a subnet using the shared hybrid NSG. The
+implementation therefore requires a non-empty exception reference when the expected route table
+ID is empty; it does not silently pick one policy over the other.
 
-**Decision**: Configure the APIM backend for Foundry using the `authentication-managed-identity`
-policy element with `resource="https://cognitiveservices.azure.com"`, relying on APIM's
-system-assigned managed identity and its `Cognitive Services OpenAI User` role assignment scoped
-to the `foundry-agent-factory-poc` account.
+### Security settings are explicit
 
-**Rationale**: This is the only backend-auth mechanism that avoids issuing, storing, or
-transmitting a Foundry API key anywhere, consistent with Chapter 01's own no-key design and the
-constitution's "private by default, no bypass" principle.
+The template uses Premium, corporate publisher metadata, internal VNet injection, HTTPS-only
+backends, TLS 1.2+, and disabled legacy protocols/ciphers. This allows static policy checks before
+any Azure deployment.
 
-**Alternatives considered**:
-- *API key in a named value/Key Vault reference* — rejected; reintroduces a long-lived secret
-  this platform is explicitly designed to eliminate.
-- *User-assigned managed identity* — rejected as unnecessary complexity for a single-gateway,
-  single-backend POC; system-assigned identity is simpler to reason about and to audit for this
-  scope, and does not preclude switching later if multiple APIM instances need to share an
-  identity.
+### Diagnostics support policy ownership
 
-## R4: Observability
+The foundation creates AllLogs/AllMetrics diagnostics only in `blueprint` mode. In `policy` mode
+it omits that resource, avoiding a conflict with Azure Policy, while live validation requires an
+existing setting with the expected workspace and categories. Application Insights and APIM
+gateway diagnostics remain blueprint telemetry.
 
-**Decision**: Reuse a Log Analytics workspace if Chapter 01 already created one in
-`rg-agent-factory-poc`; otherwise create a new workspace. Add a dedicated Application Insights
-component, an APIM logger resource pointing at it, and a diagnostic setting that captures gateway
-and request logs while excluding request/response bodies and headers that could contain secrets.
+### Capacity monitoring belongs to foundation
 
-**Rationale**: Confirming reuse-vs-create avoids duplicate Log Analytics workspaces in a small
-POC resource group; excluding bodies/headers from logs avoids incidentally capturing subscription
-keys or model payloads in a diagnostic sink.
+An Azure Monitor metric alert on APIM `Capacity` is created at an average threshold greater than
+60 percent. This can be validated before any model request exists.
 
-**Alternatives considered**:
-- *No observability in this increment* — rejected; FR-009 in `spec.md` requires it, and token
-  metrics (FR-008) depend on the APIM logger/Application Insights pipeline to be emitted
-  correctly.
+### Foundry governance belongs to integration
 
-## R5: Token rate limiting and metrics policy shape
+Stage 2 requires non-empty GenAI approval and account-enablement evidence, a maintained allowed
+region list, private Foundry posture, and model allowlisting. The supplied parameter example
+contains placeholders; live validation resolves the actual account and deployment.
 
-**Decision**: Apply `llm-token-limit` and `llm-emit-token-metric` in the inbound policy pipeline
-(keyed/dimensioned by `context.Subscription.Id` and API) on the client-facing
-`chat/completions` API.
+### Managed identity and least privilege
 
-**Rationale**: APIM accepts `llm-emit-token-metric` only in the inbound section for this service.
-The policy still derives token usage from the LLM response and satisfies FR-008's requirement for
-subscription-attributable token consumption without requiring a custom logging pipeline.
+The integration template derives the APIM principal from the existing APIM service and assigns
+only `Cognitive Services OpenAI User` at the selected Foundry account scope. The backend policy
+uses the Cognitive Services audience and no keys or connection strings.
 
-**Alternatives considered**:
-- *`azure-openai-token-limit` (legacy policy name)* — rejected in favor of the newer
-  `llm-token-limit`/`llm-emit-token-metric` policies, which generalize across OpenAI-compatible
-  backends and are what the blueprint chapter documents.
+### Enterprise custom DNS is conditional
 
-## Outstanding implementation-time confirmations
+The private `azure-api.net` zone supports the deployment VNet and linked networks. Broader
+enterprise resolution requires separately approved custom domains, CA certificates, and
+enterprise DNS A records to the APIM private VIP.
 
-The following must be reconfirmed against the live subscription's provider API during
-implementation, not assumed from this research alone (consistent with the Chapter 01 pattern of
-treating provider behavior as a research gate, not a hard-coded guess):
+## Deferred or Live-Only Confirmation
 
-1. The exact `Microsoft.ApiManagement/service` API version available in the target subscription
-   that supports `virtualNetworkType: Internal` with stv2/stv2-compatible SKUs.
-2. Whether a Log Analytics workspace already exists in `rg-agent-factory-poc` from Chapter 01 (to
-   decide reuse vs. create).
-3. The exact current schema/attribute names for `llm-token-limit` and `llm-emit-token-metric` in
-   the APIM policy XML schema version available in this subscription.
-4. Confirmation that `snet-apim` remains unused and unclaimed by any other resource before the
-   delegation is applied.
+- Exact allowed Foundry regions and models must come from the maintained customer policy source.
+- Azure what-if needs real resource group names, approved identifiers, and access.
+- Policy-owned diagnostics require live inspection.
+- Endpoint reachability must be tested from an authorized network location.
+- End-to-end request and telemetry evidence requires a deployed, approved Foundry integration.

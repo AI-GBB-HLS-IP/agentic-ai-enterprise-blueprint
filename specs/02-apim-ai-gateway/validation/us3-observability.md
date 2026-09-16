@@ -1,4 +1,6 @@
-# US3 observability evidence (T033)
+# Historical Blocked Integration Evidence — Observability (T033)
+
+> This remains blocked and is not current integration readiness evidence.
 
 Status: **BLOCKED (live Azure gate unresolved)**
 

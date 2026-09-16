@@ -1,4 +1,7 @@
-# US3 request behavior evidence (T032)
+# Historical Partial Integration Evidence — Requests (T032)
+
+> This predates the staged integration entry point and remains incomplete. See
+> `integration-runtime.md`.
 
 Status: **PARTIAL PASS (request behavior passed; rejected-call backend correlation pending)**
 

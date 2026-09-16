@@ -1,4 +1,6 @@
-# US3 what-if evidence (T031)
+# Historical Combined Deployment Evidence — US3 What-If (T031)
+
+> This is not an integration-only preview. See `integration-preview.md`.
 
 Status: **PASS (what-if executed for full APIM composition)**
 
