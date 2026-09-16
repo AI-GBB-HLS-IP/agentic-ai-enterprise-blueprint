@@ -78,6 +78,9 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 resource apimLogger 'Microsoft.ApiManagement/service/loggers@2024-05-01' = {
   parent: apimService
   name: apimLoggerName
+  // The APIM RP stores this child as locationless, but VPCx allowed-region policy evaluates the deployment request.
+  #disable-next-line BCP187
+  location: location
   properties: {
     loggerType: 'applicationInsights'
     description: 'APIM gateway logger forwarding diagnostic events to Application Insights.'
@@ -92,6 +95,9 @@ resource apimLogger 'Microsoft.ApiManagement/service/loggers@2024-05-01' = {
 resource apimDiagnostic 'Microsoft.ApiManagement/service/diagnostics@2024-05-01' = {
   parent: apimService
   name: apimDiagnosticName
+  // The APIM RP stores this child as locationless, but VPCx allowed-region policy evaluates the deployment request.
+  #disable-next-line BCP187
+  location: location
   properties: {
     loggerId: apimLogger.id
     alwaysLog: 'allErrors'

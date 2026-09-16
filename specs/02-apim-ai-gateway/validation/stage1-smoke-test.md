@@ -169,6 +169,13 @@ Expected:
 If the diagnostic ownership is `policy`, the blueprint must not propose its own APIM resource
 diagnostic setting. Azure Policy may add or remediate the setting separately.
 
+The APIM logger and API diagnostic are locationless child resources after creation. Their
+deployment requests explicitly carry the APIM region so VPCx allowed-region policy can evaluate
+them before the APIM resource provider discards that request-only metadata. If policy still
+reports a null or disallowed location for `Microsoft.ApiManagement/service/loggers` or
+`Microsoft.ApiManagement/service/diagnostics`, retain the validation output and request a policy
+exclusion or exemption; changing the APIM region or using `global` is not an equivalent fix.
+
 ## 7. Deploy Stage 1
 
 Review the preview before running:

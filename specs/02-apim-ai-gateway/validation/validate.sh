@@ -163,6 +163,23 @@ validate_foundation_offline() {
   compile_bicep "$FOUNDATION_TEMPLATE"
   compile_params "$FOUNDATION_PARAMETERS"
 
+  local observability_template
+  observability_template="$(mktemp)"
+  trap 'rm -f "$observability_template"' RETURN
+  compile_to "infra/modules/apim/observability.bicep" "$observability_template"
+  jq -e '
+    [.resources[]
+      | select(
+          .type == "Microsoft.ApiManagement/service/loggers"
+          or .type == "Microsoft.ApiManagement/service/diagnostics"
+        )
+    ]
+    | length == 2 and all(has("location") and .location != null)
+  ' "$observability_template" >/dev/null || {
+    echo "ERROR: APIM logger and diagnostic deployment requests must carry policy-compatible location metadata." >&2
+    exit 1
+  }
+
   assert_present "virtualNetworkType: 'Internal'" "$REPO_ROOT/infra/modules/apim/main.bicep" "APIM is not internal"
   assert_present 'publicIpAddressId:' "$REPO_ROOT/infra/modules/apim/main.bicep" "classic APIM public IP is not associated"
   assert_present 'Gateway.Security.Protocols.Tls10' "$REPO_ROOT/infra/modules/apim/main.bicep" "TLS 1.0 disablement is missing"
