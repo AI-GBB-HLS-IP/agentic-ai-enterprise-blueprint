@@ -61,6 +61,8 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
     publisherName: publisherName
     publicIpAddressId: apimPublicIpAddressId
     publicNetworkAccess: publicNetworkAccess
+    legacyPortalStatus: 'Disabled'
+    natGatewayState: 'Disabled'
     virtualNetworkType: 'Internal'
     virtualNetworkConfiguration: {
       subnetResourceId: apimSubnetId

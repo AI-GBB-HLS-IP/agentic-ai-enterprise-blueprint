@@ -52,6 +52,14 @@ param apimPublicIpTags object = {
   ProjectCode: 'APIM'
 }
 
+@description('DDoS protection mode preserved on the APIM platform public IP.')
+@allowed([
+  'Disabled'
+  'Enabled'
+  'VirtualNetworkInherited'
+])
+param apimPublicIpDdosProtectionMode string = 'VirtualNetworkInherited'
+
 @description('APIM public network access policy handoff.')
 @allowed([
   'Enabled'
@@ -91,6 +99,10 @@ param logAnalyticsWorkspaceId string = ''
 
 @description('Workspace name used when creating a new Log Analytics workspace.')
 param logAnalyticsWorkspaceName string = 'law-agent-factory-poc'
+
+@description('Log Analytics retention in days.')
+@minValue(30)
+param logAnalyticsRetentionInDays int = 90
 
 @description('Azure Monitor diagnostic setting name.')
 param diagnosticSettingName string = 'diag-apim-gateway'
@@ -135,6 +147,9 @@ resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
     publicIPAllocationMethod: 'Static'
     dnsSettings: {
       domainNameLabel: apimPublicIpDnsLabel
+    }
+    ddosSettings: {
+      protectionMode: apimPublicIpDdosProtectionMode
     }
   }
 }
@@ -207,6 +222,7 @@ module observability '../../modules/apim/observability.bicep' = {
     applicationInsightsName: applicationInsightsName
     logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
     logAnalyticsWorkspaceName: logAnalyticsWorkspaceName
+    logAnalyticsRetentionInDays: logAnalyticsRetentionInDays
     diagnosticSettingName: diagnosticSettingName
     diagnosticSettingsOwnership: diagnosticSettingsOwnership
     capacityAlertName: capacityAlertName

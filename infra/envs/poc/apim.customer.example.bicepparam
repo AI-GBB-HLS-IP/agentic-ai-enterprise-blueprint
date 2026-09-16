@@ -19,6 +19,7 @@ param requiredServiceEndpoints = json(readEnvironmentVariable('APIM_REQUIRED_SER
 param apimPublicIpAddressName = readEnvironmentVariable('APIM_PUBLIC_IP_NAME', '<customer-approved-apim-public-ip-name>')
 param apimPublicIpDnsLabel = readEnvironmentVariable('APIM_PUBLIC_IP_DNS_LABEL', '<globally-unique-regional-dns-label>')
 param apimPublicIpTags = json(readEnvironmentVariable('APIM_PUBLIC_IP_TAGS', '{"ProjectCode":"APIM"}'))
+param apimPublicIpDdosProtectionMode = readEnvironmentVariable('APIM_PUBLIC_IP_DDOS_PROTECTION_MODE', 'VirtualNetworkInherited')
 
 param publicNetworkAccess = readEnvironmentVariable('APIM_PUBLIC_NETWORK_ACCESS', 'Enabled')
 param apimSkuName = readEnvironmentVariable('APIM_SKU_NAME', 'Developer')
@@ -31,6 +32,7 @@ param privateDnsRecordName = readEnvironmentVariable('APIM_DNS_RECORD_NAME', '<s
 param applicationInsightsName = readEnvironmentVariable('APIM_APP_INSIGHTS_NAME', '<application-insights-name>')
 param logAnalyticsWorkspaceId = readEnvironmentVariable('APIM_LOG_ANALYTICS_WORKSPACE_ID', '')
 param logAnalyticsWorkspaceName = readEnvironmentVariable('APIM_LOG_ANALYTICS_WORKSPACE_NAME', '<log-analytics-workspace-name>')
+param logAnalyticsRetentionInDays = int(readEnvironmentVariable('APIM_LOG_ANALYTICS_RETENTION_DAYS', '90'))
 param diagnosticSettingName = readEnvironmentVariable('APIM_DIAGNOSTIC_SETTING_NAME', 'diag-apim-gateway')
 param diagnosticSettingsOwnership = readEnvironmentVariable('APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP', 'policy')
 param capacityAlertName = readEnvironmentVariable('APIM_CAPACITY_ALERT_NAME', 'alert-apim-capacity-over-60')

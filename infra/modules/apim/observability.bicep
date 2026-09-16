@@ -15,6 +15,10 @@ param logAnalyticsWorkspaceId string = ''
 @description('Workspace name used when a new workspace is created.')
 param logAnalyticsWorkspaceName string = 'law-agent-factory-poc'
 
+@description('Log Analytics retention in days.')
+@minValue(30)
+param logAnalyticsRetentionInDays int = 90
+
 @description('APIM logger name for Application Insights integration.')
 param apimLoggerName string = 'application-insights'
 
@@ -53,7 +57,7 @@ resource createdWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' 
     sku: {
       name: 'PerGB2018'
     }
-    retentionInDays: 30
+    retentionInDays: logAnalyticsRetentionInDays
     features: {
       searchVersion: 1
       enableLogAccessUsingOnlyResourcePermissions: true

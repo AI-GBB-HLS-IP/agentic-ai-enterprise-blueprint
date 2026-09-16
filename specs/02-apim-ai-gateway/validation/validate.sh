@@ -196,16 +196,20 @@ validate_foundation_offline() {
   }
 
   assert_present "virtualNetworkType: 'Internal'" "$REPO_ROOT/infra/modules/apim/main.bicep" "APIM is not internal"
+  assert_present "legacyPortalStatus: 'Disabled'" "$REPO_ROOT/infra/modules/apim/main.bicep" "legacy APIM portal is not explicitly disabled"
+  assert_present "natGatewayState: 'Disabled'" "$REPO_ROOT/infra/modules/apim/main.bicep" "APIM NAT gateway state is not explicitly disabled"
   assert_present "'Developer'" "$REPO_ROOT/infra/modules/apim/main.bicep" "Developer smoke-test SKU is not allowed"
   assert_present "Developer APIM requires apimSkuCapacity to be 1" "$REPO_ROOT/$FOUNDATION_TEMPLATE" "Developer capacity guard is missing"
   assert_present "'Microsoft.Network/publicIPAddresses@2023-11-01'" "$REPO_ROOT/$FOUNDATION_TEMPLATE" "foundation does not create the APIM platform public IP"
   assert_present "publicIPAllocationMethod: 'Static'" "$REPO_ROOT/$FOUNDATION_TEMPLATE" "APIM public IP is not static"
+  assert_present 'apimPublicIpDdosProtectionMode' "$REPO_ROOT/$FOUNDATION_TEMPLATE" "APIM public IP DDoS mode is not preserved"
   assert_present 'APIM_PUBLIC_IP_TAGS' "$REPO_ROOT/$FOUNDATION_PARAMETERS" "APIM public IP customer tag input is missing"
   assert_present 'publicIpAddressId:' "$REPO_ROOT/infra/modules/apim/main.bicep" "classic APIM public IP is not associated"
   assert_present 'Gateway.Security.Protocols.Tls10' "$REPO_ROOT/infra/modules/apim/main.bicep" "TLS 1.0 disablement is missing"
   assert_present 'Gateway.Security.Protocols.Tls11' "$REPO_ROOT/infra/modules/apim/main.bicep" "TLS 1.1 disablement is missing"
   assert_present "categoryGroup: 'AllLogs'" "$REPO_ROOT/infra/modules/apim/observability.bicep" "AllLogs diagnostics are missing"
   assert_present "category: 'AllMetrics'" "$REPO_ROOT/infra/modules/apim/observability.bicep" "AllMetrics diagnostics are missing"
+  assert_present 'retentionInDays: logAnalyticsRetentionInDays' "$REPO_ROOT/infra/modules/apim/observability.bicep" "Log Analytics retention is not parameterized"
   assert_present "metricName: 'Capacity'" "$REPO_ROOT/infra/modules/apim/observability.bicep" "capacity alert is missing"
   assert_present 'threshold: capacityAlertThreshold' "$REPO_ROOT/infra/modules/apim/observability.bicep" "capacity threshold is missing"
   assert_absent 'foundry|approvedModels|backendName|apiName|productName|tokenLimit' \
