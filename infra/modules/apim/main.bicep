@@ -37,6 +37,7 @@ param apimSkuCapacity int = 1
 param publicNetworkAccess string = 'Enabled'
 
 var tlsSecurityProperties = {
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2': 'false'
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Ssl30': 'false'
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10': 'false'
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11': 'false'
@@ -62,7 +63,6 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
     publicIpAddressId: apimPublicIpAddressId
     publicNetworkAccess: publicNetworkAccess
     legacyPortalStatus: 'Disabled'
-    natGatewayState: 'Disabled'
     virtualNetworkType: 'Internal'
     virtualNetworkConfiguration: {
       subnetResourceId: apimSubnetId

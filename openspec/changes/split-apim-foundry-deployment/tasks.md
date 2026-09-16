@@ -49,8 +49,8 @@
   preserving blueprint-owned DNS for environments where policy permits it and emitting an
   explicit customer DNS handoff.
 - [x] 2.12 Preserve policy-managed APIM, public-IP, and Log Analytics properties during repeated
-  deployment so what-if does not enable the legacy portal, remove inherited DDoS posture, or
-  reduce retention.
+  deployment so what-if does not enable the legacy portal, remove the HTTP/2 restriction or
+  inherited DDoS posture, reduce retention, or manage the unsupported APIM NAT state.
 - [ ] 2.8 Run the foundation `what-if` without Foundry parameters and record evidence showing only
   foundation-owned changes and no Foundry lookup or permission requirement.
 

@@ -197,7 +197,7 @@ validate_foundation_offline() {
 
   assert_present "virtualNetworkType: 'Internal'" "$REPO_ROOT/infra/modules/apim/main.bicep" "APIM is not internal"
   assert_present "legacyPortalStatus: 'Disabled'" "$REPO_ROOT/infra/modules/apim/main.bicep" "legacy APIM portal is not explicitly disabled"
-  assert_present "natGatewayState: 'Disabled'" "$REPO_ROOT/infra/modules/apim/main.bicep" "APIM NAT gateway state is not explicitly disabled"
+  assert_present "Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2': 'false'" "$REPO_ROOT/infra/modules/apim/main.bicep" "APIM HTTP/2 is not explicitly disabled"
   assert_present "'Developer'" "$REPO_ROOT/infra/modules/apim/main.bicep" "Developer smoke-test SKU is not allowed"
   assert_present "Developer APIM requires apimSkuCapacity to be 1" "$REPO_ROOT/$FOUNDATION_TEMPLATE" "Developer capacity guard is missing"
   assert_present "'Microsoft.Network/publicIPAddresses@2023-11-01'" "$REPO_ROOT/$FOUNDATION_TEMPLATE" "foundation does not create the APIM platform public IP"
