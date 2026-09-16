@@ -4,6 +4,49 @@ This runbook validates and deploys only the APIM foundation. It performs no Foun
 requires no Foundry permission, and must not be used to mark the OpenSpec live tasks complete
 until the resulting evidence has been reviewed.
 
+## Fast Path
+
+Use one local parameter file instead of exporting every template input:
+
+```bash
+cp infra/envs/poc/apim.customer.example.bicepparam \
+  infra/envs/poc/apim.customer.bicepparam
+```
+
+Replace every angle-bracket fallback value or export the corresponding `APIM_*` environment
+variable. Every parameter follows the same environment-backed pattern, and the local customer
+file is ignored by Git. The POC template creates the approved Standard/static APIM platform
+public IP, including its DNS label and `ProjectCode=APIM` tag.
+
+The customer example defaults `APIM_PRIVATE_DNS_MODE` to `external`. This matches the observed
+production pattern: custom corporate hostnames and certificates resolve through corporate DNS
+servers reached through the hub. The deployment outputs `privateDnsHandoff` with the private IP
+and required APIM hostnames for the DNS team.
+
+Run the three standard Azure checks:
+
+```bash
+az deployment group validate \
+  --resource-group <apim-resource-group> \
+  --name apim-foundation \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters infra/envs/poc/apim.customer.bicepparam
+
+az deployment group what-if \
+  --resource-group <apim-resource-group> \
+  --name apim-foundation \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters infra/envs/poc/apim.customer.bicepparam
+
+az deployment group create \
+  --resource-group <apim-resource-group> \
+  --name apim-foundation \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters infra/envs/poc/apim.customer.bicepparam
+```
+
+The remaining sections are the advanced evidence and runtime-verification path.
+
 ## 1. Prerequisites
 
 Run from Bash with Azure CLI 2.60 or later, `jq`, `curl`, and Bicep support through `az bicep`.
@@ -21,7 +64,7 @@ Obtain customer approval for:
 - the existing APIM subnet and approved NSG;
 - the approved route table, or the active tenant-policy exception that requires no route table;
 - the subnet naming exception when the name does not match `apimsubnet-*`;
-- the existing Standard static APIM public IP;
+- the customer-approved public IP name, DNS label, and tags that the template will create;
 - the corporate publisher email;
 - blueprint-owned or policy-owned APIM resource diagnostic settings.
 
@@ -74,7 +117,8 @@ export APIM_ROUTE_TABLE_EXCEPTION_REFERENCE=''
 # Required only when APIM_SUBNET_NAME does not match apimsubnet-*.
 export APIM_SUBNET_NAMING_EXCEPTION_REFERENCE='<approved-naming-exception-reference-or-empty>'
 
-export APIM_PUBLIC_IP_NAME='<existing-standard-static-public-ip-name>'
+export APIM_PUBLIC_IP_NAME='<customer-approved-public-ip-name>'
+export APIM_PUBLIC_IP_DNS_LABEL='<globally-unique-regional-dns-label>'
 export APIM_PUBLIC_NETWORK_ACCESS='Enabled'
 export APIM_DNS_RECORD_NAME="$APIM_SERVICE_NAME"
 export APIM_SKU_NAME='Developer'
@@ -114,17 +158,6 @@ az network vnet subnet show \
     serviceEndpoints:serviceEndpoints[].service
   }' -o json
 
-az network public-ip show \
-  --resource-group "$APIM_RESOURCE_GROUP" \
-  --name "$APIM_PUBLIC_IP_NAME" \
-  --query '{
-    name:name,
-    location:location,
-    sku:sku.name,
-    allocation:publicIPAllocationMethod,
-    zones:zones,
-    ipAddress:ipAddress
-  }' -o json
 ```
 
 Expected:
@@ -134,7 +167,8 @@ Expected:
 - route table exactly matches the approved ID, or is absent when exception evidence is supplied;
 - `delegations` is empty;
 - service endpoints include Azure Active Directory, Key Vault, SQL, and Storage;
-- public IP is Standard, Static, in `APIM_LOCATION`, and customer-approved.
+- public IP naming, DNS label, and `ProjectCode=APIM` tag are customer-approved; the template
+  enforces Standard, Static, Regional, and `APIM_LOCATION`.
 
 ## 5. Run Offline Validation
 

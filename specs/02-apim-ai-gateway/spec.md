@@ -17,8 +17,9 @@ Foundry-backed API after the separate customer Foundry governance process is com
 - Existing VNet, APIM subnet, approved NSG, and route table or documented tenant exception.
 - Evidence for an `apimsubnet-*` name or a documented naming exception.
 - Four required service endpoints and no subnet delegation.
-- APIM name, approved Developer or Premium capacity, corporate publisher identity, and approved public IP resource ID.
-- Private DNS names and VNet link.
+- APIM name, approved Developer or Premium capacity, corporate publisher identity, and approved
+  public IP name, DNS label, and tags.
+- Private DNS ownership mode, zone/record names, or external corporate-DNS handoff.
 - Application Insights, Log Analytics, diagnostics ownership, and capacity-alert settings.
 - Public-network policy handoff (`Enabled` during activation unless an approved private endpoint
   permits `Disabled`).
@@ -26,13 +27,15 @@ Foundry-backed API after the separate customer Foundry governance process is com
 ### Owned Resources
 
 - `Microsoft.ApiManagement/service` with system-assigned identity and internal VNet injection.
-- `azure-api.net` private DNS zone, VNet link, and internal endpoint A records.
+- `azure-api.net` private DNS zone, VNet link, and internal endpoint A records when
+  blueprint-owned; otherwise an external DNS handoff containing hostnames and private IPs.
 - Application Insights, APIM logger/diagnostic, and optional Log Analytics workspace.
 - APIM resource diagnostic settings when blueprint-owned.
 - Average APIM capacity alert with a threshold of 60 percent.
 
-The approved Standard static public IP supports classic internal APIM platform management. Its
-presence is not evidence that gateway, portal, management, or SCM endpoints are public.
+The foundation creates the approved Standard static public IP used for classic internal APIM
+platform management. Its presence is not evidence that gateway, portal, management, or SCM
+endpoints are public.
 
 ### Foundation Requirements
 

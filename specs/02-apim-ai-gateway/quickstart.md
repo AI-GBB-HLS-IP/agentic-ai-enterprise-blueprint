@@ -4,52 +4,53 @@
 
 Stage 1 requires Azure networking and APIM approvals only. Foundry may be unavailable.
 
-For the exact customer-subscription environment variables, evidence capture, expected resource
-inventory, runtime checks, and unchanged-preview procedure, use
+Use one untracked customer parameter file; no duplicate environment-variable setup is required:
+
+```bash
+cp infra/envs/poc/apim.customer.example.bicepparam \
+  infra/envs/poc/apim.customer.bicepparam
+```
+
+Populate the fallback values or export the corresponding `APIM_*` environment variables, then use
+the standard Azure deployment sequence:
+
+```bash
+az deployment group validate \
+  --resource-group <apim-resource-group> \
+  --name apim-foundation \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters infra/envs/poc/apim.customer.bicepparam
+
+az deployment group what-if \
+  --resource-group <apim-resource-group> \
+  --name apim-foundation \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters infra/envs/poc/apim.customer.bicepparam
+
+az deployment group create \
+  --resource-group <apim-resource-group> \
+  --name apim-foundation \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters infra/envs/poc/apim.customer.bicepparam
+```
+
+The template creates the customer-named Standard/static APIM platform public IP, DNS label, and
+`ProjectCode=APIM` tag. The customer example defaults `APIM_PRIVATE_DNS_MODE` to `external`
+because VPCx workload subscriptions use corporate DNS through the hub. Verify the preview contains
+only APIM foundation, public IP, monitoring, and alert resources and no Foundry resources or
+workload-owned private DNS zone.
+
+After deployment, use the advanced validator only for runtime evidence:
+
+```bash
+VALIDATION_PHASE=runtime \
+RUN_WHAT_IF=false \
+APIM_VALIDATE_ENDPOINT_REACHABILITY=true \
+  specs/02-apim-ai-gateway/validation/validate.sh foundation
+```
+
+For evidence capture and the unchanged-preview procedure, see
 [`validation/stage1-smoke-test.md`](validation/stage1-smoke-test.md).
-
-1. Populate `infra/envs/poc/apim.bicepparam` with approved network, public IP, publisher,
-   DNS, diagnostics, and monitoring values.
-2. Run offline and live preflight:
-
-   ```bash
-   VALIDATION_PHASE=preview \
-     specs/02-apim-ai-gateway/validation/validate.sh foundation
-   ```
-
-3. Preview only the foundation:
-
-   ```bash
-   az deployment group what-if \
-     --resource-group <apim-resource-group> \
-     --name apim-foundation-preview \
-     --template-file infra/envs/poc/apim.bicep \
-     --parameters infra/envs/poc/apim.bicepparam \
-     --result-format ResourceIdOnly
-   ```
-
-4. Verify the preview contains APIM, `azure-api.net` DNS, and monitoring resources only. It must
-   contain no Cognitive Services lookup, role assignment, backend, model mapping, product, or
-   governed API.
-5. Deploy:
-
-   ```bash
-   az deployment group create \
-     --resource-group <apim-resource-group> \
-     --name apim-foundation \
-     --template-file infra/envs/poc/apim.bicep \
-     --parameters infra/envs/poc/apim.bicepparam
-   ```
-
-6. From an authorized internal network, run runtime validation and record
-   `validation/foundation-runtime.md`:
-
-   ```bash
-   VALIDATION_PHASE=runtime \
-   RUN_WHAT_IF=false \
-   APIM_VALIDATE_ENDPOINT_REACHABILITY=true \
-     specs/02-apim-ai-gateway/validation/validate.sh foundation
-   ```
 
 The expected checkpoint is `foundationReadiness=deployed` and
 `integrationReadiness=not-deployed`. The approved classic-tier public IP may exist for platform

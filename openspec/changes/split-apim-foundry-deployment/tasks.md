@@ -40,6 +40,14 @@
 - [x] 2.7 Document the optional enterprise custom-domain path with approved CA certificates and
   internal DNS A records to the APIM private VIP; verify the default VNet-local path does not
   require a custom domain.
+- [x] 2.9 Simplify the POC smoke-test contract so the foundation template creates the approved
+  Standard/static APIM public IP and operators use one ignored `apim.customer.bicepparam` for
+  direct Azure validate, what-if, and create commands.
+- [x] 2.10 Standardize every tracked `.bicepparam` assignment on typed
+  `readEnvironmentVariable(...)` inputs and enforce the convention in Chapter 02 validation.
+- [x] 2.11 Add external APIM DNS mode for VPCx environments that deny workload-owned private DNS,
+  preserving blueprint-owned DNS for environments where policy permits it and emitting an
+  explicit customer DNS handoff.
 - [ ] 2.8 Run the foundation `what-if` without Foundry parameters and record evidence showing only
   foundation-owned changes and no Foundry lookup or permission requirement.
 

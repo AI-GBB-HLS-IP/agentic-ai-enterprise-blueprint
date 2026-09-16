@@ -12,26 +12,16 @@ param foundryAccountId = readEnvironmentVariable('FOUNDRY_ACCOUNT_ID', '')
 param genAiApprovalReference = readEnvironmentVariable('GENAI_APPROVAL_REFERENCE', '')
 param foundryEnablementReference = readEnvironmentVariable('FOUNDRY_ENABLEMENT_REFERENCE', '')
 param customerPolicySource = readEnvironmentVariable('FOUNDRY_CUSTOMER_POLICY_SOURCE', '')
-param approvedFoundryRegions = [
-  'eastus'
-  'eastus2'
-  'westeurope'
-]
-param requirePrivateFoundryAccess = true
+param approvedFoundryRegions = json(readEnvironmentVariable('FOUNDRY_APPROVED_REGIONS', '["eastus","eastus2","westeurope"]'))
+param requirePrivateFoundryAccess = bool(readEnvironmentVariable('FOUNDRY_REQUIRE_PRIVATE_ACCESS', 'true'))
 
-param approvedModels = [
-  {
-    publicName: readEnvironmentVariable('FOUNDRY_PUBLIC_MODEL_NAME', '')
-    deploymentName: readEnvironmentVariable('FOUNDRY_MODEL_DEPLOYMENT_NAME', '')
-    enabled: true
-  }
-]
+param approvedModels = json(readEnvironmentVariable('FOUNDRY_APPROVED_MODELS', '[]'))
 
-param backendName = 'foundry-openai-backend'
-param apiName = 'enterprise-llm-api'
-param apiDisplayName = 'Enterprise LLM API'
-param apiPath = 'llm/v1'
-param productName = 'governed-llm-product'
-param productDisplayName = 'Governed LLM Product'
-param tokenLimitPerMinute = 10000
-param foundryApiVersion = '2024-10-21'
+param backendName = readEnvironmentVariable('APIM_FOUNDRY_BACKEND_NAME', 'foundry-openai-backend')
+param apiName = readEnvironmentVariable('APIM_GOVERNED_API_NAME', 'enterprise-llm-api')
+param apiDisplayName = readEnvironmentVariable('APIM_GOVERNED_API_DISPLAY_NAME', 'Enterprise LLM API')
+param apiPath = readEnvironmentVariable('APIM_GOVERNED_API_PATH', 'llm/v1')
+param productName = readEnvironmentVariable('APIM_GOVERNED_PRODUCT_NAME', 'governed-llm-product')
+param productDisplayName = readEnvironmentVariable('APIM_GOVERNED_PRODUCT_DISPLAY_NAME', 'Governed LLM Product')
+param tokenLimitPerMinute = int(readEnvironmentVariable('APIM_TOKEN_LIMIT_PER_MINUTE', '10000'))
+param foundryApiVersion = readEnvironmentVariable('FOUNDRY_API_VERSION', '2024-10-21')

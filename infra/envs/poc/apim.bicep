@@ -41,8 +41,16 @@ param requiredServiceEndpoints array = [
   'Microsoft.Storage'
 ]
 
-@description('Existing customer-approved Standard static public IP name in the APIM resource group.')
+@description('Customer-approved Standard static public IP name created for APIM platform management.')
 param apimPublicIpAddressName string
+
+@description('Globally unique regional DNS label for the APIM platform public IP.')
+param apimPublicIpDnsLabel string = '${apimServiceName}-mgmt'
+
+@description('Tags applied to the APIM platform public IP.')
+param apimPublicIpTags object = {
+  ProjectCode: 'APIM'
+}
 
 @description('APIM public network access policy handoff.')
 @allowed([
@@ -64,6 +72,13 @@ param apimSkuCapacity int = 1
 
 @description('Private DNS zone name for internal APIM endpoint resolution.')
 param privateDnsZoneName string = 'azure-api.net'
+
+@description('Private DNS ownership mode. Use external when customer DNS is managed outside the workload subscription.')
+@allowed([
+  'blueprint'
+  'external'
+])
+param privateDnsDeploymentMode string = 'blueprint'
 
 @description('A-record name inside azure-api.net for the APIM gateway.')
 param privateDnsRecordName string = apimServiceName
@@ -108,8 +123,20 @@ resource apimSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' exist
   name: apimSubnetName
 }
 
-resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' existing = {
+resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   name: apimPublicIpAddressName
+  location: location
+  tags: apimPublicIpTags
+  sku: {
+    name: 'Standard'
+    tier: 'Regional'
+  }
+  properties: {
+    publicIPAllocationMethod: 'Static'
+    dnsSettings: {
+      domainNameLabel: apimPublicIpDnsLabel
+    }
+  }
 }
 
 var subnetNameApproved = startsWith(toLower(apimSubnetName), 'apimsubnet-') || !empty(subnetNamingExceptionReference)
@@ -140,13 +167,10 @@ var publisherEmailNormalized = toLower(publisherEmail)
 var publisherEmailApproved = contains(publisherEmailNormalized, '@') && !endsWith(publisherEmailNormalized, '@example.com') && !endsWith(publisherEmailNormalized, '@contoso.com')
   ? true
   : fail('publisherEmail must be an approved corporate administrator address, not an empty or example-domain value.')
-var publicIpApproved = apimPublicIp.sku.name == 'Standard' && apimPublicIp.properties.publicIPAllocationMethod == 'Static' && toLower(apimPublicIp.location) == toLower(location)
-  ? true
-  : fail('The classic internal APIM public IP must use Standard SKU, Static allocation, and the APIM deployment location.')
 var skuCapacityApproved = apimSkuName == 'Developer' && apimSkuCapacity != 1
   ? fail('Developer APIM requires apimSkuCapacity to be 1.')
   : true
-var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && publicIpApproved && skuCapacityApproved
+var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && skuCapacityApproved
 
 module apimMain '../../modules/apim/main.bicep' = {
   name: 'apim-foundation-service'
@@ -167,6 +191,7 @@ module privateDns '../../modules/apim/private-dns.bicep' = {
   name: 'apim-foundation-private-dns'
   params: {
     privateDnsZoneName: privateDnsZoneName
+    deployPrivateDns: privateDnsDeploymentMode == 'blueprint'
     vnetId: vnet.id
     vnetName: vnetName
     apimGatewayRecordName: privateDnsRecordName
@@ -206,6 +231,14 @@ output privateDnsZoneId string = privateDns.outputs.privateDnsZoneId
 output privateDnsLinkId string = privateDns.outputs.privateDnsLinkId
 output privateDnsGatewayFqdn string = privateDns.outputs.apimGatewayFqdn
 output privateDnsAdditionalEndpointFqdns array = privateDns.outputs.additionalEndpointFqdns
+output privateDnsDeploymentMode string = privateDnsDeploymentMode
+output privateDnsHandoff object = {
+  required: privateDnsDeploymentMode == 'external'
+  privateIpAddresses: apimMain.outputs.privateIpAddresses
+  hostnames: concat([
+    privateDns.outputs.apimGatewayFqdn
+  ], privateDns.outputs.additionalEndpointFqdns)
+}
 output appInsightsId string = observability.outputs.applicationInsightsId
 output logAnalyticsWorkspaceId string = observability.outputs.logAnalyticsWorkspaceId
 output diagnosticSettingId string = observability.outputs.diagnosticSettingId

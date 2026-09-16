@@ -12,7 +12,8 @@
 - Customer policy: `approvedApimNsgResourceId`, `approvedApimRouteTableResourceId`,
   `routeTableExceptionReference`, `subnetNamingExceptionReference`,
   `requiredServiceEndpoints`.
-- APIM platform public IP: `apimPublicIpAddressName`.
+- APIM platform public IP: `apimPublicIpAddressName`, `apimPublicIpDnsLabel`,
+  `apimPublicIpTags`.
 - Policy handoff: `publicNetworkAccess`, `diagnosticSettingsOwnership`.
 - DNS: `privateDnsZoneName`, `privateDnsRecordName`.
 - Monitoring: `applicationInsightsName`, `logAnalyticsWorkspaceId`,
@@ -34,9 +35,9 @@ or governed API.
 
 **File:** `infra/modules/apim/main.bicep`
 
-Deploys only `Microsoft.ApiManagement/service` and its system identity. It accepts an approved
-public IP resource ID and emits no Foundry parameter, reference, role assignment, or readiness
-field.
+Deploys only `Microsoft.ApiManagement/service` and its system identity. The environment entry
+point supplies the ID of its created APIM platform public IP; the module emits no Foundry
+parameter, reference, role assignment, or readiness field.
 
 ## Stage 2 Entry Point
 

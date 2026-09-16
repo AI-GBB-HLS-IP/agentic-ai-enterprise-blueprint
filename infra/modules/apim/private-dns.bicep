@@ -3,6 +3,9 @@ targetScope = 'resourceGroup'
 @description('Private DNS zone name for internal APIM hostnames.')
 param privateDnsZoneName string = 'azure-api.net'
 
+@description('Whether this module creates the private DNS zone, VNet link, and records.')
+param deployPrivateDns bool = true
+
 @description('Virtual network resource ID linked to the zone.')
 param vnetId string
 
@@ -23,12 +26,12 @@ param additionalEndpointSubdomains array = [
   'scm'
 ]
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (deployPrivateDns) {
   name: privateDnsZoneName
   location: 'global'
 }
 
-resource privateDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+resource privateDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (deployPrivateDns) {
   parent: privateDnsZone
   name: '${vnetName}-link'
   location: 'global'
@@ -40,7 +43,7 @@ resource privateDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLin
   }
 }
 
-resource apimGatewayRecord 'Microsoft.Network/privateDnsZones/A@2020-06-01' = if (length(apimPrivateIpAddresses) > 0) {
+resource apimGatewayRecord 'Microsoft.Network/privateDnsZones/A@2020-06-01' = if (deployPrivateDns && length(apimPrivateIpAddresses) > 0) {
   parent: privateDnsZone
   name: apimGatewayRecordName
   properties: {
@@ -51,7 +54,7 @@ resource apimGatewayRecord 'Microsoft.Network/privateDnsZones/A@2020-06-01' = if
   }
 }
 
-resource apimAdditionalEndpointRecords 'Microsoft.Network/privateDnsZones/A@2020-06-01' = [for subdomain in additionalEndpointSubdomains: if (length(apimPrivateIpAddresses) > 0) {
+resource apimAdditionalEndpointRecords 'Microsoft.Network/privateDnsZones/A@2020-06-01' = [for subdomain in additionalEndpointSubdomains: if (deployPrivateDns && length(apimPrivateIpAddresses) > 0) {
   parent: privateDnsZone
   name: '${apimGatewayRecordName}.${subdomain}'
   properties: {
@@ -62,16 +65,17 @@ resource apimAdditionalEndpointRecords 'Microsoft.Network/privateDnsZones/A@2020
   }
 }]
 
-output privateDnsZoneId string = privateDnsZone.id
-output privateDnsLinkId string = privateDnsVnetLink.id
+output privateDnsZoneId string = deployPrivateDns ? privateDnsZone.id : ''
+output privateDnsLinkId string = deployPrivateDns ? privateDnsVnetLink.id : ''
 output apimGatewayFqdn string = '${apimGatewayRecordName}.${privateDnsZoneName}'
-output apimGatewayRecordId string = length(apimPrivateIpAddresses) > 0 ? apimGatewayRecord.id : ''
+output apimGatewayRecordId string = deployPrivateDns && length(apimPrivateIpAddresses) > 0 ? apimGatewayRecord.id : ''
 output additionalEndpointFqdns array = [for subdomain in additionalEndpointSubdomains: '${apimGatewayRecordName}.${subdomain}.${privateDnsZoneName}']
 output dnsReadiness object = {
-  zone: 'deployed'
-  link: 'deployed'
-  record: length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending'
-  additionalEndpointRecords: length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending'
+  mode: deployPrivateDns ? 'blueprint' : 'external'
+  zone: deployPrivateDns ? 'deployed' : 'external'
+  link: deployPrivateDns ? 'deployed' : 'external'
+  record: !deployPrivateDns ? 'external-handoff-required' : (length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending')
+  additionalEndpointRecords: !deployPrivateDns ? 'external-handoff-required' : (length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending')
   privateIpCount: length(apimPrivateIpAddresses)
-  status: length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending'
+  status: deployPrivateDns && length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending'
 }

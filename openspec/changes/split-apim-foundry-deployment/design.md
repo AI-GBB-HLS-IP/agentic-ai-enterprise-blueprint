@@ -119,7 +119,8 @@ Foundation preflight will validate the customer policy profile before provisioni
 - the APIM route table or a documented tenant-specific exception;
 - no subnet delegation;
 - the four required service endpoints;
-- a customer-approved public IP resource for classic internal APIM;
+- customer-approved public IP naming, DNS label, and tags for the Standard/static resource
+  created by the POC foundation template;
 - a corporate administrator email;
 - Premium tier, internal VNet mode, HTTPS backends, TLS 1.2-or-stronger settings, and disabled
   weak protocols/ciphers.
@@ -131,9 +132,11 @@ denies a route table when the shared hybrid NSG is attached. The implementation 
 choose between these conflicting controls: validation must require either the documented customer
 profile or explicit evidence of the active tenant-approved exception.
 
-The required public IP is treated as an APIM platform/control-plane dependency, not evidence of a
-public gateway. Exposure validation will use internal VNet mode and endpoint reachability rather
-than asserting that no public IP resource exists.
+The POC foundation creates the required Standard/static public IP so a smoke test does not depend
+on a separate manual prerequisite. Its name, DNS label, and tags remain customer inputs. The
+public IP is treated as an APIM platform/control-plane dependency, not evidence of a public
+gateway. Exposure validation will use internal VNet mode and endpoint reachability rather than
+asserting that no public IP resource exists.
 
 ### 8. Expand foundation monitoring to the customer baseline
 
@@ -153,6 +156,12 @@ enterprise network in internal mode. Chapter 02 will therefore document approved
 approved CA certificates, and internal DNS A records to the private VIP as an optional extension
 when consumers require broader internal reachability. This does not gate foundation validation
 for VNet-local consumers.
+
+VPCx workload subscriptions may deny private DNS zones entirely and use corporate DNS servers
+through a hub VNet, as observed in the production APIM environment. The foundation therefore
+supports `blueprint` DNS mode where zone creation is allowed and `external` mode where it emits
+the required hostnames and private IPs for customer DNS fulfillment without attempting
+cross-subscription or corporate DNS writes.
 
 ### 10. Make customer Foundry governance a Stage 2 gate
 

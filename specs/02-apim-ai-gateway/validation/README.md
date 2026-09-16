@@ -38,14 +38,15 @@ Foundation:
 - `APIM_APPROVED_NSG_RESOURCE_ID`
 - `APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID` or `APIM_ROUTE_TABLE_EXCEPTION_REFERENCE`
 - `APIM_SUBNET_NAMING_EXCEPTION_REFERENCE` when the name is not `apimsubnet-*`
-- `APIM_PUBLIC_IP_NAME`, `APIM_PUBLISHER_EMAIL`
+- `APIM_PUBLISHER_EMAIL`
 
 Integration:
 
 - existing APIM and Foundry resource group/name/ID values;
 - `GENAI_APPROVAL_REFERENCE`, `FOUNDRY_ENABLEMENT_REFERENCE`,
   `FOUNDRY_CUSTOMER_POLICY_SOURCE`;
-- `FOUNDRY_MODEL_DEPLOYMENT_NAME` and approved model name.
+- `FOUNDRY_APPROVED_MODELS` as a JSON array, for example
+  `[{"publicName":"gpt-4.1-mini","deploymentName":"gpt-4.1-mini","enabled":true}]`.
 
 Use `APIM_VALIDATE_ENDPOINT_REACHABILITY=true` only from an authorized internal network. Use
 `APIM_VALIDATE_INTEGRATION_REQUESTS=true` only when authorized request and telemetry inputs are

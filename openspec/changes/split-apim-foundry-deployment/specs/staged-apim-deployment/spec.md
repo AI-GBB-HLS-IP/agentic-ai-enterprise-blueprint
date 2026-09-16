@@ -7,9 +7,9 @@ provisioned and validated before an approved Foundry account and model deploymen
 
 ### Requirement: APIM foundation is independently deployable
 The system SHALL provide an APIM foundation stage that deploys or configures the APIM-specific
-networking, internal VNet-injected APIM service, system-assigned managed identity, private DNS,
-and monitoring without requiring a Foundry account, Foundry endpoint, Foundry resource ID, or
-model deployment.
+networking, internal VNet-injected APIM service, system-assigned managed identity, private DNS or
+an explicit external DNS handoff, and monitoring without requiring a Foundry account, Foundry
+endpoint, Foundry resource ID, or model deployment.
 
 #### Scenario: Deploy foundation while Foundry approval is pending
 - **WHEN** the network inputs are valid and no Foundry resource is available
@@ -33,8 +33,9 @@ documented tenant exception, no subnet delegation, and the required
 
 #### Scenario: Validate foundation network posture
 - **WHEN** the foundation stage is deployed
-- **THEN** APIM uses internal VNet injection, its gateway resolves privately through the APIM DNS
-  configuration, and no public gateway path is introduced
+- **THEN** APIM uses internal VNet injection, its gateway either resolves privately through the
+  blueprint DNS configuration or emits the records required by customer DNS, and no public
+  gateway path is introduced
 
 #### Scenario: Customer network profile is satisfied
 - **WHEN** foundation preflight evaluates the target APIM subnet
@@ -48,8 +49,9 @@ documented tenant exception, no subnet delegation, and the required
 
 ### Requirement: Classic internal APIM public IP is not a public gateway
 When the selected classic APIM tier requires a public IP resource for Azure platform management
-traffic, the APIM foundation stage SHALL create or reference the approved public IP and associate
-it with APIM while keeping every APIM service endpoint in internal VNet mode.
+traffic, the POC APIM foundation stage SHALL create the approved Standard/static public IP from
+customer-supplied naming, DNS-label, and tag inputs and associate it with APIM while keeping every
+APIM service endpoint in internal VNet mode.
 
 #### Scenario: Provision classic internal APIM
 - **WHEN** the customer-approved classic APIM configuration requires a public IP

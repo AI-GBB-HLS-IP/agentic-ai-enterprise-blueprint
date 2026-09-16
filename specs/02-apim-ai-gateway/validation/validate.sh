@@ -43,6 +43,19 @@ require_file() {
   }
 }
 
+validate_parameter_conventions() {
+  local file violation
+  while IFS= read -r file; do
+    while IFS= read -r violation; do
+      [[ -z "$violation" ]] && continue
+      if [[ "$violation" != *readEnvironmentVariable* ]]; then
+        echo "ERROR: $file has a parameter assignment that is not environment-backed: $violation" >&2
+        exit 1
+      fi
+    done < <(grep -En '^[[:space:]]*param[[:space:]]+[[:alnum:]_]+[[:space:]]*=' "$file" || true)
+  done < <(find "$REPO_ROOT/infra" -type f -name '*.bicepparam' | sort)
+}
+
 compile_bicep() {
   local file="$1"
   echo "Compiling $file"
@@ -154,6 +167,7 @@ validate_foundation_offline() {
     "infra/modules/apim/observability.bicep"
     "$FOUNDATION_TEMPLATE"
     "$FOUNDATION_PARAMETERS"
+    "infra/envs/poc/apim.customer.example.bicepparam"
   )
   for file in "${files[@]}"; do require_file "$file"; done
 
@@ -162,6 +176,7 @@ validate_foundation_offline() {
   compile_bicep "infra/modules/apim/observability.bicep"
   compile_bicep "$FOUNDATION_TEMPLATE"
   compile_params "$FOUNDATION_PARAMETERS"
+  compile_params "infra/envs/poc/apim.customer.example.bicepparam"
 
   local observability_template
   observability_template="$(mktemp)"
@@ -183,6 +198,9 @@ validate_foundation_offline() {
   assert_present "virtualNetworkType: 'Internal'" "$REPO_ROOT/infra/modules/apim/main.bicep" "APIM is not internal"
   assert_present "'Developer'" "$REPO_ROOT/infra/modules/apim/main.bicep" "Developer smoke-test SKU is not allowed"
   assert_present "Developer APIM requires apimSkuCapacity to be 1" "$REPO_ROOT/$FOUNDATION_TEMPLATE" "Developer capacity guard is missing"
+  assert_present "'Microsoft.Network/publicIPAddresses@2023-11-01'" "$REPO_ROOT/$FOUNDATION_TEMPLATE" "foundation does not create the APIM platform public IP"
+  assert_present "publicIPAllocationMethod: 'Static'" "$REPO_ROOT/$FOUNDATION_TEMPLATE" "APIM public IP is not static"
+  assert_present 'APIM_PUBLIC_IP_TAGS' "$REPO_ROOT/$FOUNDATION_PARAMETERS" "APIM public IP customer tag input is missing"
   assert_present 'publicIpAddressId:' "$REPO_ROOT/infra/modules/apim/main.bicep" "classic APIM public IP is not associated"
   assert_present 'Gateway.Security.Protocols.Tls10' "$REPO_ROOT/infra/modules/apim/main.bicep" "TLS 1.0 disablement is missing"
   assert_present 'Gateway.Security.Protocols.Tls11' "$REPO_ROOT/infra/modules/apim/main.bicep" "TLS 1.1 disablement is missing"
@@ -238,7 +256,7 @@ validate_foundation_live() {
   fi
 
   local missing=false
-  for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_PUBLIC_IP_NAME APIM_PUBLISHER_EMAIL; do
+  for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_PUBLISHER_EMAIL; do
     require_env_value "$name" foundation || missing=true
   done
   if [[ -z "${APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID:-}" && -z "${APIM_ROUTE_TABLE_EXCEPTION_REFERENCE:-}" ]]; then
@@ -279,11 +297,6 @@ validate_foundation_live() {
   for endpoint in Microsoft.AzureActiveDirectory Microsoft.KeyVault Microsoft.Sql Microsoft.Storage; do
     jq -e --arg endpoint "$endpoint" '[.serviceEndpoints[]?.service] | index($endpoint) != null' <<<"$subnet_json" >/dev/null
   done
-
-  az network public-ip show \
-    --resource-group "$APIM_RESOURCE_GROUP" \
-    --name "$APIM_PUBLIC_IP_NAME" \
-    --query "sku.name=='Standard' && publicIPAllocationMethod=='Static'" -o tsv | grep -qx true
 
   if [[ "$APIM_PUBLISHER_EMAIL" == *@example.com || "$APIM_PUBLISHER_EMAIL" == *@contoso.com ]]; then
     echo "ERROR [foundation]: APIM_PUBLISHER_EMAIL must be a corporate address." >&2
@@ -326,14 +339,26 @@ validate_foundation_live() {
       .customProperties["Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168"] == "false"
     ' <<<"$apim_json" >/dev/null
     apim_id="$(jq -r '.id' <<<"$apim_json")"
+    local apim_public_ip_id
+    apim_public_ip_id="$(jq -r '.publicIpAddressId // ""' <<<"$apim_json")"
+    [[ -n "$apim_public_ip_id" ]] || {
+      echo "ERROR [foundation]: APIM has no associated platform public IP resource ID." >&2
+      exit 1
+    }
+    az resource show --ids "$apim_public_ip_id" --api-version 2023-11-01 \
+      --query "sku.name=='Standard' && properties.publicIPAllocationMethod=='Static'" -o tsv | grep -qx true
 
-    for record in "$apim_name" "$apim_name.developer" "$apim_name.portal" "$apim_name.management" "$apim_name.scm"; do
-      az network private-dns record-set a show \
-        --resource-group "$APIM_RESOURCE_GROUP" \
-        --zone-name "${APIM_PRIVATE_DNS_ZONE_NAME:-azure-api.net}" \
-        --name "$record" \
-        --query "aRecords | length(@)" -o tsv | grep -Eq '^[1-9][0-9]*$'
-    done
+    if [[ "${APIM_PRIVATE_DNS_MODE:-blueprint}" == "blueprint" ]]; then
+      for record in "$apim_name" "$apim_name.developer" "$apim_name.portal" "$apim_name.management" "$apim_name.scm"; do
+        az network private-dns record-set a show \
+          --resource-group "$APIM_RESOURCE_GROUP" \
+          --zone-name "${APIM_PRIVATE_DNS_ZONE_NAME:-azure-api.net}" \
+          --name "$record" \
+          --query "aRecords | length(@)" -o tsv | grep -Eq '^[1-9][0-9]*$'
+      done
+    else
+      block foundation "External DNS mode requires customer confirmation that the APIM hostnames resolve to the reported private IP."
+    fi
 
     if [[ "${APIM_VALIDATE_ENDPOINT_REACHABILITY:-false}" == "true" ]]; then
       local endpoint ip
@@ -394,14 +419,29 @@ validate_integration_live() {
   fi
 
   local missing=false
-  for name in APIM_RESOURCE_GROUP APIM_SERVICE_NAME FOUNDRY_RESOURCE_GROUP FOUNDRY_ACCOUNT_NAME FOUNDRY_ACCOUNT_ID FOUNDRY_PUBLIC_MODEL_NAME FOUNDRY_MODEL_DEPLOYMENT_NAME GENAI_APPROVAL_REFERENCE FOUNDRY_ENABLEMENT_REFERENCE FOUNDRY_CUSTOMER_POLICY_SOURCE; do
+  for name in APIM_RESOURCE_GROUP APIM_SERVICE_NAME FOUNDRY_RESOURCE_GROUP FOUNDRY_ACCOUNT_NAME FOUNDRY_ACCOUNT_ID FOUNDRY_APPROVED_MODELS GENAI_APPROVAL_REFERENCE FOUNDRY_ENABLEMENT_REFERENCE FOUNDRY_CUSTOMER_POLICY_SOURCE; do
     require_env_value "$name" integration || missing=true
   done
   if [[ "$missing" == true ]]; then
     return 0
   fi
 
-  local apim_json foundry_json apim_principal foundry_id foundry_location
+  local apim_json foundry_json apim_principal foundry_id foundry_location approved_regions_json approved_models_json model_deployment
+  approved_regions_json="${FOUNDRY_APPROVED_REGIONS:-[\"eastus\",\"eastus2\",\"westeurope\"]}"
+  approved_models_json="$FOUNDRY_APPROVED_MODELS"
+  jq -e 'type == "array" and length > 0 and all(.[];
+    (.publicName | type == "string" and length > 0) and
+    (.deploymentName | type == "string" and length > 0) and
+    (.enabled | type == "boolean")
+  )' <<<"$approved_models_json" >/dev/null || {
+    echo "ERROR [integration]: FOUNDRY_APPROVED_MODELS must be a non-empty JSON array with publicName, deploymentName, and enabled values." >&2
+    exit 1
+  }
+  jq -e '[.[] | select(.enabled == true)] | length > 0' <<<"$approved_models_json" >/dev/null || {
+    echo "ERROR [integration]: FOUNDRY_APPROVED_MODELS must enable at least one model." >&2
+    exit 1
+  }
+
   apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" -o json)"
   apim_principal="$(jq -r '.identity.principalId // ""' <<<"$apim_json")"
   [[ -n "$apim_principal" ]] || {
@@ -420,21 +460,20 @@ validate_integration_live() {
     echo "ERROR [integration]: Foundry public network access must be Disabled." >&2
     exit 1
   }
-  case ",${FOUNDRY_APPROVED_REGIONS:-eastus,eastus2,westeurope}," in
-    *",$foundry_location,"*) ;;
-    *)
-      echo "ERROR [integration]: Foundry region is not in FOUNDRY_APPROVED_REGIONS." >&2
-      exit 1
-      ;;
-  esac
+  jq -e --arg location "$foundry_location" 'index($location) != null' <<<"$approved_regions_json" >/dev/null || {
+    echo "ERROR [integration]: Foundry region is not in FOUNDRY_APPROVED_REGIONS." >&2
+    exit 1
+  }
 
   az network private-endpoint-connection list --id "$foundry_id" \
     --query "[?privateLinkServiceConnectionState.status=='Approved'] | length(@)" -o tsv | grep -Eq '^[1-9][0-9]*$'
 
-  az cognitiveservices account deployment show \
-    --resource-group "$FOUNDRY_RESOURCE_GROUP" \
-    --name "$FOUNDRY_ACCOUNT_NAME" \
-    --deployment-name "$FOUNDRY_MODEL_DEPLOYMENT_NAME" >/dev/null
+  while IFS= read -r model_deployment; do
+    az cognitiveservices account deployment show \
+      --resource-group "$FOUNDRY_RESOURCE_GROUP" \
+      --name "$FOUNDRY_ACCOUNT_NAME" \
+      --deployment-name "$model_deployment" >/dev/null
+  done < <(jq -r '.[] | select(.enabled == true) | .deploymentName' <<<"$approved_models_json")
 
   if [[ "$RUN_WHAT_IF" == "true" && "$VALIDATION_PHASE" != "runtime" ]]; then
     az deployment group what-if \
@@ -482,6 +521,8 @@ if ! command -v jq >/dev/null 2>&1; then
   echo "ERROR: jq is required for validation." >&2
   exit 1
 fi
+
+validate_parameter_conventions
 
 case "$MODE" in
   foundation)

@@ -8,8 +8,8 @@ Insights/Log Analytics, diagnostics handling, and a capacity alert. It contains 
 Services lookup, Foundry role assignment, backend, model mapping, product, or governed API.
 
 Live what-if requires actual values for the APIM resource group, approved corporate publisher,
-approved NSG, route-table or exception reference, subnet naming exception for the current
-`hybridsubnet-apim` name, and an existing approved Standard static public IP.
+approved NSG, route-table or exception reference, subnet naming exception where applicable, and
+customer-approved public-IP naming, DNS-label, and tag values.
 
 ```bash
 VALIDATION_PHASE=preview \
