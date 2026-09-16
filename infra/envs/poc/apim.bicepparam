@@ -7,9 +7,9 @@ param apimServiceName = readEnvironmentVariable('APIM_SERVICE_NAME', 'apim-agent
 param publisherEmail = readEnvironmentVariable('APIM_PUBLISHER_EMAIL', '')
 param publisherName = readEnvironmentVariable('APIM_PUBLISHER_NAME', 'Agent Factory Platform Engineering')
 
-param networkResourceGroupName = readEnvironmentVariable('APIM_NETWORK_RESOURCE_GROUP', 'VPCXRG')
-param vnetName = readEnvironmentVariable('APIM_VNET_NAME', 'azr-133-eastus')
-param apimSubnetName = readEnvironmentVariable('APIM_SUBNET_NAME', 'hybridsubnet-apim')
+param networkResourceGroupName = readEnvironmentVariable('APIM_NETWORK_RESOURCE_GROUP', '')
+param vnetName = readEnvironmentVariable('APIM_VNET_NAME', '')
+param apimSubnetName = readEnvironmentVariable('APIM_SUBNET_NAME', '')
 param approvedApimNsgResourceId = readEnvironmentVariable('APIM_APPROVED_NSG_RESOURCE_ID', '')
 param approvedApimRouteTableResourceId = readEnvironmentVariable('APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID', '')
 param subnetNamingExceptionReference = readEnvironmentVariable('APIM_SUBNET_NAMING_EXCEPTION_REFERENCE', '')
