@@ -279,7 +279,7 @@ public_ip_match() {
 }
 approved_id="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-test/providers/Microsoft.Network/publicIPAddresses/pip-apim-agent-factory-poc"
 assert_succeeds "an exact case-insensitive public IP resource ID match must pass" \
-  public_ip_match "${approved_id^^}" "$approved_id"
+  public_ip_match "$(printf '%s' "$approved_id" | tr '[:lower:]' '[:upper:]')" "$approved_id"
 assert_fails "a public IP resource ID from a different resource must fail" \
   public_ip_match "$approved_id-other" "$approved_id"
 assert_fails "a public IP resource ID that is only a prefix match must still fail" \
