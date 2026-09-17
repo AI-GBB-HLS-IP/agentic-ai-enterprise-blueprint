@@ -11,12 +11,17 @@ Use one local parameter file instead of exporting every template input:
 ```bash
 cp infra/envs/poc/apim.customer.example.bicepparam \
   infra/envs/poc/apim.customer.bicepparam
+
+export APIM_CUSTOMER_PARAMETER_FILE='infra/envs/poc/apim.customer.bicepparam'
 ```
 
 Replace every angle-bracket fallback value or export the corresponding `APIM_*` environment
 variable. Every parameter follows the same environment-backed pattern, and the local customer
 file is ignored by Git. The POC template creates the approved Standard/static APIM platform
 public IP, including its DNS label and `ProjectCode=APIM` tag.
+
+`APIM_CUSTOMER_PARAMETER_FILE` is a runbook shell variable used by the explicit Azure deployment
+commands below. The validator does not currently accept a foundation parameter-file override.
 
 The customer example defaults `APIM_PRIVATE_DNS_MODE` to `external`. This matches the observed
 production pattern: custom corporate hostnames and certificates resolve through corporate DNS
@@ -30,19 +35,19 @@ az deployment group validate \
   --resource-group <apim-resource-group> \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters infra/envs/poc/apim.customer.bicepparam
+  --parameters "$APIM_CUSTOMER_PARAMETER_FILE"
 
 az deployment group what-if \
   --resource-group <apim-resource-group> \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters infra/envs/poc/apim.customer.bicepparam
+  --parameters "$APIM_CUSTOMER_PARAMETER_FILE"
 
 az deployment group create \
   --resource-group <apim-resource-group> \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters infra/envs/poc/apim.customer.bicepparam
+  --parameters "$APIM_CUSTOMER_PARAMETER_FILE"
 ```
 
 The remaining sections are the advanced evidence and runtime-verification path.
@@ -94,6 +99,7 @@ Replace every angle-bracket value. Keep one of the route-table alternatives empt
 
 ```bash
 export AZURE_SUBSCRIPTION_ID='<customer-subscription-id>'
+export APIM_CUSTOMER_PARAMETER_FILE='infra/envs/poc/apim.customer.bicepparam'
 
 export APIM_RESOURCE_GROUP='<apim-resource-group>'
 export APIM_LOCATION='<approved-region>'
@@ -133,6 +139,7 @@ export APIM_CAPACITY_ALERT_NAME='<capacity-alert-name>'
 
 az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 az account show --query '{subscription:id,name:name,tenant:tenantId}' -o table
+test -f "$APIM_CUSTOMER_PARAMETER_FILE"
 ```
 
 For the observed shared-hybrid-NSG tenant profile, use the tenant-exception route configuration:
@@ -179,7 +186,7 @@ OFFLINE_ONLY=true \
 
 Expected: `Validation passed for mode: foundation`.
 
-## 6. Run Foundation Preflight and What-If
+## 6. Run Foundation Preflight and Customer What-If
 
 Choose a customer-approved local evidence directory:
 
@@ -188,14 +195,30 @@ export APIM_EVIDENCE_DIR='<customer-approved-local-evidence-directory>'
 mkdir -p "$APIM_EVIDENCE_DIR"
 
 VALIDATION_PHASE=preview \
-RUN_WHAT_IF=true \
+RUN_WHAT_IF=false \
   specs/02-apim-ai-gateway/validation/validate.sh foundation \
+  2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-preflight.txt"
+
+az deployment group validate \
+  --resource-group "$APIM_RESOURCE_GROUP" \
+  --name apim-foundation \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters "$APIM_CUSTOMER_PARAMETER_FILE" \
+  2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-validate.txt"
+
+az deployment group what-if \
+  --resource-group "$APIM_RESOURCE_GROUP" \
+  --name apim-foundation-preview \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters "$APIM_CUSTOMER_PARAMETER_FILE" \
+  --result-format ResourceIdOnly \
   2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-preview.txt"
 ```
 
 Expected:
 
-- command exits `0` and prints `Foundation preview validation passed`;
+- the validator preflight exits `0` and prints `Foundation preview validation passed`;
+- Azure validation succeeds and the what-if uses the populated customer parameter file;
 - proposed resources are limited to APIM, private `azure-api.net` DNS, Application
   Insights/Log Analytics, APIM diagnostics, and the capacity alert;
 - no `Microsoft.CognitiveServices`, Foundry role assignment, APIM backend, named-value model
@@ -221,7 +244,7 @@ az deployment group create \
   --resource-group "$APIM_RESOURCE_GROUP" \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters infra/envs/poc/apim.bicepparam \
+  --parameters "$APIM_CUSTOMER_PARAMETER_FILE" \
   --query '{state:properties.provisioningState,outputs:properties.outputs}' \
   -o json | tee "$APIM_EVIDENCE_DIR/foundation-deployment.txt"
 ```
@@ -270,9 +293,12 @@ gate remains blocked.
 Without changing any exported value or template:
 
 ```bash
-VALIDATION_PHASE=preview \
-RUN_WHAT_IF=true \
-  specs/02-apim-ai-gateway/validation/validate.sh foundation \
+az deployment group what-if \
+  --resource-group "$APIM_RESOURCE_GROUP" \
+  --name apim-foundation-idempotency-preview \
+  --template-file infra/envs/poc/apim.bicep \
+  --parameters "$APIM_CUSTOMER_PARAMETER_FILE" \
+  --result-format ResourceIdOnly \
   2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-idempotency-preview.txt"
 ```
 
