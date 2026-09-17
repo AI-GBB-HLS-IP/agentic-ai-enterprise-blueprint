@@ -107,6 +107,9 @@ resource chatOperation 'Microsoft.ApiManagement/service/apis/operations@2024-05-
 resource productApiBinding 'Microsoft.ApiManagement/service/products/apis@2024-05-01' = {
   parent: governedProduct
   name: apiName
+  dependsOn: [
+    chatApi
+  ]
 }
 
 var apiPolicyXml = concat(
