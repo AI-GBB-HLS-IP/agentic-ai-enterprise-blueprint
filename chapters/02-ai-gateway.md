@@ -49,7 +49,7 @@ management, and SCM endpoints remain internal and must resolve to the APIM priva
   - no subnet delegation is configured;
   - service endpoints include `Microsoft.AzureActiveDirectory`, `Microsoft.KeyVault`,
     `Microsoft.Sql`, and `Microsoft.Storage`.
-- A customer-approved Standard, static, zone-redundant public IP in the APIM resource group.
+- A customer-approved Standard, static public IP in the APIM resource group.
 - A corporate APIM publisher email.
 - A policy decision for diagnostics: blueprint-owned, or policy-owned and validated in place.
 
