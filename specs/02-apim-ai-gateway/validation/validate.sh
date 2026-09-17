@@ -64,8 +64,12 @@ compile_bicep() {
 
 compile_params() {
   local file="$1"
+  local compile_stage1_readiness="${APIM_STAGE1_FOUNDATION_READINESS:-{\"network\":\"validated\",\"apim\":\"deployed\",\"identity\":\"deployed\",\"dns\":\"deployed\",\"observability\":\"deployed\",\"status\":\"deployed\"}}"
+  local compile_approved_regions="${FOUNDRY_APPROVED_REGIONS:-[\"compile-only-region\"]}"
   echo "Compiling $file"
-  az bicep build-params --file "$REPO_ROOT/$file" --stdout >/dev/null
+  APIM_STAGE1_FOUNDATION_READINESS="$compile_stage1_readiness" \
+    FOUNDRY_APPROVED_REGIONS="$compile_approved_regions" \
+    az bicep build-params --file "$REPO_ROOT/$file" --stdout >/dev/null
 }
 
 compile_to() {
@@ -157,6 +161,72 @@ validate_foundation_workspace_selection() {
     echo "ERROR [foundation]: APIM_LOG_ANALYTICS_WORKSPACE_NAME must be a valid 4-63 character Azure workspace name using letters, numbers, and hyphens." >&2
     exit 1
   fi
+}
+
+resolve_foundation_workspace_id() {
+  if [[ -n "${APIM_LOG_ANALYTICS_WORKSPACE_ID:-}" ]]; then
+    printf '%s\n' "$APIM_LOG_ANALYTICS_WORKSPACE_ID"
+    return
+  fi
+  [[ -n "${APIM_LOG_ANALYTICS_WORKSPACE_NAME:-}" ]] || return 1
+  az monitor log-analytics workspace show \
+    --resource-group "$APIM_RESOURCE_GROUP" \
+    --workspace-name "$APIM_LOG_ANALYTICS_WORKSPACE_NAME" \
+    --query id -o tsv
+}
+
+diagnostics_match_expected_workspace() {
+  local diagnostic_settings_json="$1"
+  local expected_workspace_id="$2"
+  local diagnostics_owner="$3"
+  local diagnostic_setting_name="$4"
+  jq -e \
+    --arg owner "$diagnostics_owner" \
+    --arg name "$diagnostic_setting_name" \
+    --arg workspace_id "$(lowercase "$expected_workspace_id")" '
+      [.value[]
+        | select(
+            ((.workspaceId // "") | ascii_downcase) == $workspace_id
+            and ([.logs[]? | select(.enabled == true and .categoryGroup == "AllLogs")] | length) > 0
+            and ([.metrics[]? | select(.enabled == true and .category == "AllMetrics")] | length) > 0
+            and ($owner != "blueprint" or .name == $name)
+          )
+      ]
+      | length == 1
+    ' <<<"$diagnostic_settings_json" >/dev/null
+}
+
+apim_classic_sku_supported() {
+  jq -e '
+    ((.sku.name | ascii_downcase) == "developer" and .sku.capacity == 1)
+    or ((.sku.name | ascii_downcase) == "premium")
+  ' <<<"$1" >/dev/null
+}
+
+validate_apim_endpoint_reachability() {
+  local apim_name="$1"
+  local apim_json="$2"
+  local endpoint ip
+  for endpoint in \
+    "$apim_name.azure-api.net" \
+    "$apim_name.developer.azure-api.net" \
+    "$apim_name.portal.azure-api.net" \
+    "$apim_name.management.azure-api.net" \
+    "$apim_name.scm.azure-api.net"; do
+    ip="$(getent ahostsv4 "$endpoint" | awk 'NR == 1 { print $1 }')"
+    if [[ -z "$ip" ]] || ! is_private_ipv4 "$ip"; then
+      echo "ERROR [foundation]: $endpoint did not resolve to a private IPv4 address." >&2
+      return 1
+    fi
+    jq -e --arg ip "$ip" '(.privateIPAddresses // []) | index($ip) != null' <<<"$apim_json" >/dev/null || {
+      echo "ERROR [foundation]: $endpoint resolved to $ip instead of an APIM-reported private IP." >&2
+      return 1
+    }
+    if ! curl --silent --show-error --connect-timeout 5 --max-time 10 "https://$endpoint" -o /dev/null; then
+      echo "ERROR [foundation]: $endpoint was not reachable from the approved validation network." >&2
+      return 1
+    fi
+  done
 }
 
 validate_static_ownership() {
@@ -424,27 +494,7 @@ validate_foundation_live() {
     fi
 
     if [[ "${APIM_VALIDATE_ENDPOINT_REACHABILITY:-false}" == "true" ]]; then
-      local endpoint ip
-      for endpoint in \
-        "$apim_name.azure-api.net" \
-        "$apim_name.developer.azure-api.net" \
-        "$apim_name.portal.azure-api.net" \
-        "$apim_name.management.azure-api.net" \
-        "$apim_name.scm.azure-api.net"; do
-        ip="$(getent ahostsv4 "$endpoint" | awk 'NR == 1 { print $1 }')"
-        if [[ -z "$ip" ]] || ! is_private_ipv4 "$ip"; then
-          echo "ERROR [foundation]: $endpoint did not resolve to a private IPv4 address." >&2
-          exit 1
-        fi
-        jq -e --arg ip "$ip" '(.privateIPAddresses // []) | index($ip) != null' <<<"$apim_json" >/dev/null || {
-          echo "ERROR [foundation]: $endpoint resolved to $ip instead of an APIM-reported private IP." >&2
-          exit 1
-        }
-        if ! curl --silent --show-error --connect-timeout 5 --max-time 10 "https://$endpoint" -o /dev/null; then
-          echo "ERROR [foundation]: $endpoint was not reachable from the approved validation network." >&2
-          exit 1
-        fi
-      done
+      validate_apim_endpoint_reachability "$apim_name" "$apim_json" || exit 1
     elif [[ "${APIM_PRIVATE_DNS_MODE:-blueprint}" == "external" ]]; then
       block foundation "External DNS requires APIM_VALIDATE_ENDPOINT_REACHABILITY=true from an authorized network to validate customer-managed resolution and reachability."
     else
@@ -453,20 +503,19 @@ validate_foundation_live() {
 
     local diagnostic_settings_json expected_workspace_id expected_workspace_label diagnostics_owner
     diagnostic_settings_json="$(az monitor diagnostic-settings list --resource "$apim_id" -o json)"
+    if ! expected_workspace_id="$(resolve_foundation_workspace_id)" || [[ -z "$expected_workspace_id" ]]; then
+      if [[ -n "${APIM_LOG_ANALYTICS_WORKSPACE_NAME:-}" ]]; then
+        block foundation "Log Analytics workspace $APIM_LOG_ANALYTICS_WORKSPACE_NAME was not found in resource group $APIM_RESOURCE_GROUP; runtime diagnostics validation cannot resolve its resource ID."
+      else
+        block foundation "Runtime diagnostics validation could not resolve an expected Log Analytics workspace ID."
+      fi
+      return 0
+    fi
     if [[ -n "${APIM_LOG_ANALYTICS_WORKSPACE_ID:-}" ]]; then
-      expected_workspace_id="$APIM_LOG_ANALYTICS_WORKSPACE_ID"
       expected_workspace_label="$APIM_LOG_ANALYTICS_WORKSPACE_ID"
     else
-      if ! expected_workspace_id="$(az monitor log-analytics workspace show \
-        --resource-group "$APIM_RESOURCE_GROUP" \
-        --workspace-name "$APIM_LOG_ANALYTICS_WORKSPACE_NAME" \
-        --query id -o tsv)" || [[ -z "$expected_workspace_id" ]]; then
-        block foundation "Log Analytics workspace $APIM_LOG_ANALYTICS_WORKSPACE_NAME was not found in resource group $APIM_RESOURCE_GROUP; runtime diagnostics validation cannot resolve its resource ID."
-        return 0
-      fi
       expected_workspace_label="$APIM_LOG_ANALYTICS_WORKSPACE_NAME ($expected_workspace_id)"
     fi
-    expected_workspace_id="$(lowercase "$expected_workspace_id")"
     diagnostics_owner="${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}"
     case "$diagnostics_owner" in
       blueprint|policy) ;;
@@ -475,20 +524,11 @@ validate_foundation_live() {
         exit 1
         ;;
     esac
-    jq -e \
-      --arg owner "$diagnostics_owner" \
-      --arg name "${APIM_DIAGNOSTIC_SETTING_NAME:-diag-apim-gateway}" \
-      --arg workspace_id "$expected_workspace_id" '
-        [.value[]
-          | select(
-              ((.workspaceId // "") | ascii_downcase) == $workspace_id
-              and ([.logs[]? | select(.enabled == true and .categoryGroup == "AllLogs")] | length) > 0
-              and ([.metrics[]? | select(.enabled == true and .category == "AllMetrics")] | length) > 0
-              and ($owner != "blueprint" or .name == $name)
-            )
-        ]
-        | length == 1
-      ' <<<"$diagnostic_settings_json" >/dev/null || {
+    diagnostics_match_expected_workspace \
+      "$diagnostic_settings_json" \
+      "$expected_workspace_id" \
+      "$diagnostics_owner" \
+      "${APIM_DIAGNOSTIC_SETTING_NAME:-diag-apim-gateway}" || {
       echo "ERROR [foundation]: $diagnostics_owner diagnostics must send AllLogs and AllMetrics to the resolved Log Analytics workspace." >&2
       exit 1
     }
@@ -567,10 +607,11 @@ validate_integration_live() {
     echo "ERROR [integration]: APIM_STAGE1_SERVICE_ID does not match the selected Stage 1 APIM service." >&2
     exit 1
   }
-  jq -e '
-    ((.sku.name == "Developer" and .sku.capacity == 1) or .sku.name == "Premium")
-    and .virtualNetworkType == "Internal"
-  ' <<<"$apim_json" >/dev/null || {
+  apim_classic_sku_supported "$apim_json" || {
+    echo "ERROR [integration]: Stage 2 requires a validated internal APIM Stage 1 foundation using Developer capacity 1 or Premium." >&2
+    exit 1
+  }
+  [[ "$(lowercase "$(jq -r '.virtualNetworkType // ""' <<<"$apim_json")")" == "internal" ]] || {
     echo "ERROR [integration]: Stage 2 requires a validated internal APIM Stage 1 foundation using Developer capacity 1 or Premium." >&2
     exit 1
   }
@@ -735,40 +776,42 @@ validate_integration_live() {
   fi
 }
 
-if ! command -v az >/dev/null 2>&1; then
-  echo "ERROR: Azure CLI with Bicep support is required for offline compilation." >&2
-  exit 1
+if [[ "${VALIDATOR_LIBRARY_ONLY:-false}" != "true" ]]; then
+  if ! command -v az >/dev/null 2>&1; then
+    echo "ERROR: Azure CLI with Bicep support is required for offline compilation." >&2
+    exit 1
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "ERROR: jq is required for validation." >&2
+    exit 1
+  fi
+
+  validate_parameter_conventions
+
+  case "$MODE" in
+    foundation)
+      validate_foundation_offline
+      validate_static_ownership
+      validate_foundation_live
+      ;;
+    integration)
+      validate_integration_offline
+      validate_static_ownership
+      validate_integration_live
+      ;;
+    all)
+      validate_foundation_offline
+      validate_integration_offline
+      validate_static_ownership
+      validate_foundation_live
+      validate_integration_live
+      ;;
+  esac
+
+  if [[ "$blocked" == true ]]; then
+    echo "Offline validation passed; one or more live stage gates are BLOCKED."
+    exit 3
+  fi
+
+  echo "Validation passed for mode: $MODE"
 fi
-if ! command -v jq >/dev/null 2>&1; then
-  echo "ERROR: jq is required for validation." >&2
-  exit 1
-fi
-
-validate_parameter_conventions
-
-case "$MODE" in
-  foundation)
-    validate_foundation_offline
-    validate_static_ownership
-    validate_foundation_live
-    ;;
-  integration)
-    validate_integration_offline
-    validate_static_ownership
-    validate_integration_live
-    ;;
-  all)
-    validate_foundation_offline
-    validate_integration_offline
-    validate_static_ownership
-    validate_foundation_live
-    validate_integration_live
-    ;;
-esac
-
-if [[ "$blocked" == true ]]; then
-  echo "Offline validation passed; one or more live stage gates are BLOCKED."
-  exit 3
-fi
-
-echo "Validation passed for mode: $MODE"
