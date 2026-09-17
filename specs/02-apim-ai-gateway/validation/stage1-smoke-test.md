@@ -128,7 +128,9 @@ export APIM_SUBNET_NAMING_EXCEPTION_REFERENCE='<approved-naming-exception-refere
 export APIM_PUBLIC_IP_NAME='<customer-approved-public-ip-name>'
 export APIM_PUBLIC_IP_DNS_LABEL='<globally-unique-regional-dns-label>'
 export APIM_PUBLIC_NETWORK_ACCESS='Enabled'
+export APIM_PRIVATE_DNS_MODE='external'
 export APIM_DNS_RECORD_NAME="$APIM_SERVICE_NAME"
+export APIM_EXTERNAL_DNS_VALIDATION_REFERENCE=''
 export APIM_SKU_NAME='Developer'
 export APIM_SKU_CAPACITY='1'
 

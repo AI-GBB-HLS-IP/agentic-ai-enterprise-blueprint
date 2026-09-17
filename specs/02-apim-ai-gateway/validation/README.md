@@ -40,6 +40,8 @@ Foundation:
 - `APIM_SUBNET_NAMING_EXCEPTION_REFERENCE` when the name is not `apimsubnet-*`
 - `APIM_PUBLISHER_EMAIL`
 - `APIM_LOG_ANALYTICS_WORKSPACE_ID`
+- `APIM_EXTERNAL_DNS_VALIDATION_REFERENCE` after live validation when customer-managed DNS owns
+  APIM private endpoint resolution
 - `APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE` after live validation when Azure Policy owns
   the diagnostic setting
 - optionally `APIM_FOUNDATION_PARAMETERS_FILE` (preferred) or `FOUNDATION_PARAMETERS` to select

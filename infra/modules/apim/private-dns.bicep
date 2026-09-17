@@ -70,13 +70,13 @@ resource apimAdditionalEndpointRecords 'Microsoft.Network/privateDnsZones/A@2020
 
 var normalizedExternalDnsValidationReference = toLower(trim(externalDnsValidationReference))
 var externalDnsValidationReferenceIsPlaceholder = contains(externalDnsValidationReference, '<') || contains(externalDnsValidationReference, '>') || contains(normalizedExternalDnsValidationReference, 'placeholder') || contains(normalizedExternalDnsValidationReference, 'replace-me') || normalizedExternalDnsValidationReference == 'todo' || normalizedExternalDnsValidationReference == 'tbd'
-var externalDnsValidated = !deployPrivateDns
-  ? (empty(normalizedExternalDnsValidationReference)
-      ? false
-      : (!externalDnsValidationReferenceIsPlaceholder
+var externalDnsValidated = empty(normalizedExternalDnsValidationReference)
+  ? false
+  : (!externalDnsValidationReferenceIsPlaceholder
+      ? (!deployPrivateDns
           ? true
-          : fail('externalDnsValidationReference must contain real, non-placeholder external DNS validation evidence.')))
-  : false
+          : fail('externalDnsValidationReference applies only when deployPrivateDns is false.'))
+      : fail('externalDnsValidationReference must contain real, non-placeholder external DNS validation evidence.'))
 
 output privateDnsZoneId string = deployPrivateDns ? privateDnsZone.id : ''
 output privateDnsLinkId string = deployPrivateDns ? privateDnsVnetLink.id : ''
