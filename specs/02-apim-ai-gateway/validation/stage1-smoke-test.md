@@ -12,7 +12,7 @@ Use one local parameter file instead of exporting every template input:
 cp infra/envs/poc/apim.customer.example.bicepparam \
   infra/envs/poc/apim.customer.bicepparam
 
-export APIM_CUSTOMER_PARAMETER_FILE='infra/envs/poc/apim.customer.bicepparam'
+export APIM_FOUNDATION_PARAMETERS_FILE='infra/envs/poc/apim.customer.bicepparam'
 ```
 
 Replace every angle-bracket fallback value or export the corresponding `APIM_*` environment
@@ -20,8 +20,8 @@ variable. Every parameter follows the same environment-backed pattern, and the l
 file is ignored by Git. The POC template creates the approved Standard/static APIM platform
 public IP, including its DNS label and `ProjectCode=APIM` tag.
 
-`APIM_CUSTOMER_PARAMETER_FILE` is a runbook shell variable used by the explicit Azure deployment
-commands below. The validator does not currently accept a foundation parameter-file override.
+`APIM_FOUNDATION_PARAMETERS_FILE` is used by both the explicit Azure deployment commands and the
+validator. The legacy `FOUNDATION_PARAMETERS` alias remains supported.
 
 The customer example defaults `APIM_PRIVATE_DNS_MODE` to `external`. This matches the observed
 production pattern: custom corporate hostnames and certificates resolve through corporate DNS
@@ -35,19 +35,19 @@ az deployment group validate \
   --resource-group <apim-resource-group> \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters "$APIM_CUSTOMER_PARAMETER_FILE"
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE"
 
 az deployment group what-if \
   --resource-group <apim-resource-group> \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters "$APIM_CUSTOMER_PARAMETER_FILE"
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE"
 
 az deployment group create \
   --resource-group <apim-resource-group> \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters "$APIM_CUSTOMER_PARAMETER_FILE"
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE"
 ```
 
 The remaining sections are the advanced evidence and runtime-verification path.
@@ -99,7 +99,7 @@ Replace every angle-bracket value. Keep one of the route-table alternatives empt
 
 ```bash
 export AZURE_SUBSCRIPTION_ID='<customer-subscription-id>'
-export APIM_CUSTOMER_PARAMETER_FILE='infra/envs/poc/apim.customer.bicepparam'
+export APIM_FOUNDATION_PARAMETERS_FILE='infra/envs/poc/apim.customer.bicepparam'
 
 export APIM_RESOURCE_GROUP='<apim-resource-group>'
 export APIM_LOCATION='<approved-region>'
@@ -139,7 +139,7 @@ export APIM_CAPACITY_ALERT_NAME='<capacity-alert-name>'
 
 az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 az account show --query '{subscription:id,name:name,tenant:tenantId}' -o table
-test -f "$APIM_CUSTOMER_PARAMETER_FILE"
+test -f "$APIM_FOUNDATION_PARAMETERS_FILE"
 ```
 
 For the observed shared-hybrid-NSG tenant profile, use the tenant-exception route configuration:
@@ -203,14 +203,14 @@ az deployment group validate \
   --resource-group "$APIM_RESOURCE_GROUP" \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters "$APIM_CUSTOMER_PARAMETER_FILE" \
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE" \
   2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-validate.txt"
 
 az deployment group what-if \
   --resource-group "$APIM_RESOURCE_GROUP" \
   --name apim-foundation-preview \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters "$APIM_CUSTOMER_PARAMETER_FILE" \
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE" \
   --result-format ResourceIdOnly \
   2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-preview.txt"
 ```
@@ -229,7 +229,7 @@ If the diagnostic ownership is `policy`, the blueprint must not propose its own 
 diagnostic setting. Azure Policy may add or remediate the setting separately.
 
 The APIM logger and API diagnostic are locationless child resources after creation. Their
-deployment requests explicitly carry the APIM region so VPCx allowed-region policy can evaluate
+deployment requests explicitly carry the APIM region so the customer allowed-region policy can evaluate
 them before the APIM resource provider discards that request-only metadata. If policy still
 reports a null or disallowed location for `Microsoft.ApiManagement/service/loggers` or
 `Microsoft.ApiManagement/service/diagnostics`, retain the validation output and request a policy
@@ -244,7 +244,7 @@ az deployment group create \
   --resource-group "$APIM_RESOURCE_GROUP" \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters "$APIM_CUSTOMER_PARAMETER_FILE" \
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE" \
   --query '{state:properties.provisioningState,outputs:properties.outputs}' \
   -o json | tee "$APIM_EVIDENCE_DIR/foundation-deployment.txt"
 ```
@@ -258,6 +258,13 @@ APIM provisioning can take 30–60 minutes. Expected deployment outputs:
 - `integrationReadiness` is `not-deployed`;
 - `foundationReadiness.status` is `deployed` for blueprint-owned diagnostics, or remains
   `pending` until the policy-owned diagnostic setting is verified.
+
+For policy-owned diagnostics, first run the runtime checks below and retain the redacted evidence
+in the customer-approved evidence location. Then set
+`APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE` to that real, non-placeholder evidence reference
+and redeploy the unchanged Stage 1 template. The resulting `foundationReadiness` output records
+the reference and reports observability and overall status as `deployed`; do not set the value
+before the live diagnostic destination and categories have passed validation.
 
 ## 8. Run Runtime Smoke Checks
 
@@ -297,7 +304,7 @@ az deployment group what-if \
   --resource-group "$APIM_RESOURCE_GROUP" \
   --name apim-foundation-idempotency-preview \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters "$APIM_CUSTOMER_PARAMETER_FILE" \
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE" \
   --result-format ResourceIdOnly \
   2>&1 | tee "$APIM_EVIDENCE_DIR/foundation-idempotency-preview.txt"
 ```

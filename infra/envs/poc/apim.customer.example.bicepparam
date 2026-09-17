@@ -35,6 +35,7 @@ param logAnalyticsWorkspaceName = readEnvironmentVariable('APIM_LOG_ANALYTICS_WO
 param logAnalyticsRetentionInDays = int(readEnvironmentVariable('APIM_LOG_ANALYTICS_RETENTION_DAYS', '90'))
 param diagnosticSettingName = readEnvironmentVariable('APIM_DIAGNOSTIC_SETTING_NAME', 'diag-apim-gateway')
 param diagnosticSettingsOwnership = readEnvironmentVariable('APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP', 'policy')
+param policyOwnedDiagnosticSettingsValidationReference = readEnvironmentVariable('APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE', '')
 param capacityAlertName = readEnvironmentVariable('APIM_CAPACITY_ALERT_NAME', 'alert-apim-capacity-over-60')
 param capacityAlertThreshold = int(readEnvironmentVariable('APIM_CAPACITY_ALERT_THRESHOLD', '60'))
 param capacityAlertActionGroupIds = json(readEnvironmentVariable('APIM_CAPACITY_ALERT_ACTION_GROUP_IDS', '[]'))

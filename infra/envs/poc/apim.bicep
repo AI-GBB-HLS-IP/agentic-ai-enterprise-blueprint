@@ -63,7 +63,6 @@ param apimPublicIpDdosProtectionMode string = 'VirtualNetworkInherited'
 @description('APIM public network access policy handoff.')
 @allowed([
   'Enabled'
-  'Disabled'
 ])
 param publicNetworkAccess string = 'Enabled'
 
@@ -270,10 +269,18 @@ output appInsightsId string = observability.outputs.applicationInsightsId
 output logAnalyticsWorkspaceId string = observability.outputs.logAnalyticsWorkspaceId
 output diagnosticSettingId string = observability.outputs.diagnosticSettingId
 output capacityAlertId string = observability.outputs.capacityAlertId
-var policyOwnedDiagnosticSettingsValidated = diagnosticSettingsOwnership == 'policy' && !empty(policyOwnedDiagnosticSettingsValidationReference)
+var normalizedPolicyValidationReference = toLower(trim(policyOwnedDiagnosticSettingsValidationReference))
+var policyValidationReferenceIsPlaceholder = contains(policyOwnedDiagnosticSettingsValidationReference, '<') || contains(policyOwnedDiagnosticSettingsValidationReference, '>') || contains(normalizedPolicyValidationReference, 'placeholder') || contains(normalizedPolicyValidationReference, 'replace-me') || normalizedPolicyValidationReference == 'todo' || normalizedPolicyValidationReference == 'tbd'
+var policyOwnedDiagnosticSettingsValidated = diagnosticSettingsOwnership == 'policy'
+  ? (empty(normalizedPolicyValidationReference)
+      ? false
+      : (!policyValidationReferenceIsPlaceholder
+          ? true
+          : fail('policyOwnedDiagnosticSettingsValidationReference must contain real, non-placeholder validation evidence.')))
+  : false
 var observabilityReady = observability.outputs.observabilityReadiness.status == 'deployed' || policyOwnedDiagnosticSettingsValidated
 var observabilityStatus = policyOwnedDiagnosticSettingsValidated
-  ? 'validated'
+  ? 'deployed'
   : observability.outputs.observabilityReadiness.status
 output foundationReadiness object = {
   network: foundationPolicyValidated ? 'validated' : 'failed'

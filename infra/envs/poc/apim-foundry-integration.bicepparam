@@ -4,6 +4,8 @@ using './apim-foundry-integration.bicep'
 // environment; placeholders intentionally block live preflight.
 param apimResourceGroupName = readEnvironmentVariable('APIM_RESOURCE_GROUP', '')
 param apimServiceName = readEnvironmentVariable('APIM_SERVICE_NAME', 'apim-agent-factory-private-poc')
+param stage1ApimServiceId = readEnvironmentVariable('APIM_STAGE1_SERVICE_ID', '')
+param stage1FoundationReadiness = json(readEnvironmentVariable('APIM_STAGE1_FOUNDATION_READINESS'))
 
 param foundryResourceGroupName = readEnvironmentVariable('FOUNDRY_RESOURCE_GROUP', '')
 param foundryAccountName = readEnvironmentVariable('FOUNDRY_ACCOUNT_NAME', '')
@@ -13,7 +15,6 @@ param genAiApprovalReference = readEnvironmentVariable('GENAI_APPROVAL_REFERENCE
 param foundryEnablementReference = readEnvironmentVariable('FOUNDRY_ENABLEMENT_REFERENCE', '')
 param customerPolicySource = readEnvironmentVariable('FOUNDRY_CUSTOMER_POLICY_SOURCE', '')
 param approvedFoundryRegions = json(readEnvironmentVariable('FOUNDRY_APPROVED_REGIONS'))
-param requirePrivateFoundryAccess = bool(readEnvironmentVariable('FOUNDRY_REQUIRE_PRIVATE_ACCESS', 'true'))
 
 param approvedModels = json(readEnvironmentVariable('FOUNDRY_APPROVED_MODELS', '[]'))
 

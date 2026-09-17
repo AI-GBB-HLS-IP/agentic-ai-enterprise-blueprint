@@ -15,28 +15,30 @@ Populate the fallback values or export the corresponding `APIM_*` environment va
 the standard Azure deployment sequence:
 
 ```bash
+export APIM_FOUNDATION_PARAMETERS_FILE='infra/envs/poc/apim.customer.bicepparam'
+
 az deployment group validate \
   --resource-group <apim-resource-group> \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters infra/envs/poc/apim.customer.bicepparam
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE"
 
 az deployment group what-if \
   --resource-group <apim-resource-group> \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters infra/envs/poc/apim.customer.bicepparam
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE"
 
 az deployment group create \
   --resource-group <apim-resource-group> \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
-  --parameters infra/envs/poc/apim.customer.bicepparam
+  --parameters "$APIM_FOUNDATION_PARAMETERS_FILE"
 ```
 
 The template creates the customer-named Standard/static APIM platform public IP, DNS label, and
 `ProjectCode=APIM` tag. The customer example defaults `APIM_PRIVATE_DNS_MODE` to `external`
-because VPCx workload subscriptions use corporate DNS through the hub. Verify the preview contains
+for customer-managed corporate DNS through the hub. Verify the preview contains
 only APIM foundation, public IP, monitoring, and alert resources and no Foundry resources or
 workload-owned private DNS zone.
 
@@ -68,9 +70,10 @@ private VIP.
 
 Begin only after Stage 1 is ready and customer Foundry governance is complete.
 
-1. Populate `infra/envs/poc/apim-foundry-integration.bicepparam` with the existing APIM reference,
-   Foundry account, governance evidence, allowed regions, approved model mappings, and API policy
-   settings.
+1. Export the validated Stage 1 outputs as `APIM_STAGE1_SERVICE_ID` and the JSON
+   `APIM_STAGE1_FOUNDATION_READINESS`, then populate
+   `infra/envs/poc/apim-foundry-integration.bicepparam` with the Foundry account, governance
+   evidence, explicitly approved regions, approved model mappings, and API policy settings.
 2. Run integration preflight:
 
    ```bash

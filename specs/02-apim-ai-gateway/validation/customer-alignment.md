@@ -24,7 +24,7 @@ controlled evidence location rather than embedded in repository documentation.
 | Generative AI governance approval | Integration | `genAiApprovalReference`; required non-placeholder preflight input |
 | Foundry account enablement | Integration | `foundryEnablementReference`; required non-placeholder preflight input |
 | Approved Foundry region | Integration | `approvedFoundryRegions`; live validator checks account location |
-| Private Foundry access | Integration | `requirePrivateFoundryAccess`; live validator requires disabled public network access |
+| Private Foundry access | Integration | Stage 2 unconditionally requires disabled public network access |
 | Customer-approved model list | Integration | `approvedModels` plus `customerPolicySource`; live validator resolves each deployment |
 | Least-privilege model invocation | Integration | `Cognitive Services OpenAI User` at the selected account scope |
 | No shared Foundry credentials | Integration | APIM backend policy uses managed identity; static secret/key regression checks |

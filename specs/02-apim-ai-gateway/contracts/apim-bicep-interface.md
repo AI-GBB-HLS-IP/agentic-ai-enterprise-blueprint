@@ -14,7 +14,8 @@
   `requiredServiceEndpoints`.
 - APIM platform public IP: `apimPublicIpAddressName`, `apimPublicIpDnsLabel`,
   `apimPublicIpTags`.
-- Policy handoff: `publicNetworkAccess`, `diagnosticSettingsOwnership`.
+- Policy handoff: `publicNetworkAccess` (Stage 1 permits only `Enabled`),
+  `diagnosticSettingsOwnership`, `policyOwnedDiagnosticSettingsValidationReference`.
 - DNS: `privateDnsZoneName`, `privateDnsRecordName`.
 - Monitoring: `applicationInsightsName`, `logAnalyticsWorkspaceId`,
   `logAnalyticsWorkspaceName`, `diagnosticSettingName`, `capacityAlertName`,
@@ -45,10 +46,11 @@ parameter, reference, role assignment, or readiness field.
 
 ### Inputs
 
-- Existing APIM: `apimResourceGroupName`, `apimServiceName`.
+- Existing APIM: `apimResourceGroupName`, `apimServiceName`, `stage1ApimServiceId`,
+  `stage1FoundationReadiness`.
 - Existing Foundry: `foundryResourceGroupName`, `foundryAccountName`, `foundryAccountId`.
 - Governance: `genAiApprovalReference`, `foundryEnablementReference`,
-  `customerPolicySource`, `approvedFoundryRegions`, `requirePrivateFoundryAccess`.
+  `customerPolicySource`, `approvedFoundryRegions`.
 - Integration: `approvedModels`, backend/API/product names, `tokenLimitPerMinute`,
   `foundryApiVersion`.
 
@@ -57,7 +59,7 @@ parameter, reference, role assignment, or readiness field.
 - Existing APIM identity and selected Foundry scope.
 - Role assignment, backend, API, product, and model-mapping resource IDs.
 - Approved model count and mappings.
-- `foundationReadiness` as `existing-reference`.
+- `foundationReadiness` as `validated`.
 - `integrationReadiness`.
 
 ## Invariants

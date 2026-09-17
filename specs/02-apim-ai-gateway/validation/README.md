@@ -39,12 +39,20 @@ Foundation:
 - `APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID` or `APIM_ROUTE_TABLE_EXCEPTION_REFERENCE`
 - `APIM_SUBNET_NAMING_EXCEPTION_REFERENCE` when the name is not `apimsubnet-*`
 - `APIM_PUBLISHER_EMAIL`
+- `APIM_LOG_ANALYTICS_WORKSPACE_ID`
+- `APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE` after live validation when Azure Policy owns
+  the diagnostic setting
+- optionally `APIM_FOUNDATION_PARAMETERS_FILE` (preferred) or `FOUNDATION_PARAMETERS` to select
+  a non-default Stage 1 parameter file
 
 Integration:
 
 - existing APIM and Foundry resource group/name/ID values;
+- `APIM_STAGE1_SERVICE_ID` and `APIM_STAGE1_FOUNDATION_READINESS` copied from the validated Stage 1
+  deployment outputs;
 - `GENAI_APPROVAL_REFERENCE`, `FOUNDRY_ENABLEMENT_REFERENCE`,
   `FOUNDRY_CUSTOMER_POLICY_SOURCE`;
+- `FOUNDRY_APPROVED_REGIONS` as a required non-empty JSON array with no repository fallback;
 - `FOUNDRY_APPROVED_MODELS` as a JSON array, for example
   `[{"publicName":"gpt-4.1-mini","deploymentName":"gpt-4.1-mini","enabled":true}]`.
 

@@ -281,6 +281,9 @@ validate_integration_offline() {
   assert_present 'set-header name="Ocp-Apim-Subscription-Key" exists-action="delete"' \
     "$REPO_ROOT/infra/modules/apim/api.bicep" \
     "subscription key is not removed before backend forwarding"
+  assert_present 'set-query-parameter name="subscription-key" exists-action="delete"' \
+    "$REPO_ROOT/infra/modules/apim/api.bicep" \
+    "subscription key query parameter is not removed before backend forwarding"
   assert_present 'unsupported_model' "$REPO_ROOT/infra/modules/apim/api.bicep" "model allowlist rejection is missing"
   assert_absent 'api[-_]?key|connectionString|accountKey' \
     "$REPO_ROOT/infra/modules/apim/backend.bicep" \
@@ -458,6 +461,9 @@ validate_foundation_live() {
       echo "ERROR [foundation]: $diagnostics_owner diagnostics must send AllLogs and AllMetrics to APIM_LOG_ANALYTICS_WORKSPACE_ID." >&2
       exit 1
     }
+    if [[ "$diagnostics_owner" == "policy" ]]; then
+      require_governance_reference APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE foundation || return 0
+    fi
     echo "Validated $diagnostics_owner APIM diagnostics to workspace $APIM_LOG_ANALYTICS_WORKSPACE_ID."
 
     az monitor metrics alert show \
@@ -482,7 +488,7 @@ validate_integration_live() {
   fi
 
   local missing=false
-  for name in APIM_RESOURCE_GROUP APIM_SERVICE_NAME FOUNDRY_RESOURCE_GROUP FOUNDRY_ACCOUNT_NAME FOUNDRY_ACCOUNT_ID FOUNDRY_APPROVED_REGIONS FOUNDRY_APPROVED_MODELS; do
+  for name in APIM_RESOURCE_GROUP APIM_SERVICE_NAME APIM_STAGE1_SERVICE_ID APIM_STAGE1_FOUNDATION_READINESS FOUNDRY_RESOURCE_GROUP FOUNDRY_ACCOUNT_NAME FOUNDRY_ACCOUNT_ID FOUNDRY_APPROVED_REGIONS FOUNDRY_APPROVED_MODELS; do
     require_env_value "$name" integration || missing=true
   done
   for name in GENAI_APPROVAL_REFERENCE FOUNDRY_ENABLEMENT_REFERENCE FOUNDRY_CUSTOMER_POLICY_SOURCE; do
@@ -492,7 +498,7 @@ validate_integration_live() {
     return 0
   fi
 
-  local apim_json foundry_json apim_principal foundry_id foundry_location approved_regions_json approved_models_json model_deployment
+  local apim_json apim_id foundry_json apim_principal foundry_id foundry_location approved_regions_json approved_models_json model_deployment
   approved_regions_json="$FOUNDRY_APPROVED_REGIONS"
   approved_models_json="$FOUNDRY_APPROVED_MODELS"
   jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' \
@@ -512,8 +518,24 @@ validate_integration_live() {
     echo "ERROR [integration]: FOUNDRY_APPROVED_MODELS must enable at least one model." >&2
     exit 1
   }
+  jq -e '
+    .network == "validated" and
+    .apim == "deployed" and
+    .identity == "deployed" and
+    .dns == "deployed" and
+    .observability == "deployed" and
+    .status == "deployed"
+  ' <<<"$APIM_STAGE1_FOUNDATION_READINESS" >/dev/null || {
+    echo "ERROR [integration]: APIM_STAGE1_FOUNDATION_READINESS must be the deployed Stage 1 foundationReadiness output." >&2
+    exit 1
+  }
 
   apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" -o json)"
+  apim_id="$(jq -r '.id' <<<"$apim_json")"
+  [[ "$(lowercase "$apim_id")" == "$(lowercase "$APIM_STAGE1_SERVICE_ID")" ]] || {
+    echo "ERROR [integration]: APIM_STAGE1_SERVICE_ID does not match the selected Stage 1 APIM service." >&2
+    exit 1
+  }
   jq -e '.sku.name == "Premium" and .virtualNetworkType == "Internal"' <<<"$apim_json" >/dev/null || {
     echo "ERROR [integration]: Stage 2 requires a validated Premium, internal APIM Stage 1 foundation." >&2
     exit 1
@@ -578,9 +600,9 @@ validate_integration_live() {
         (.roleDefinitionName == "Cognitive Services OpenAI User")
         or ((.roleDefinitionId // "") | ascii_downcase | endswith("/5e0bd9bd-7b93-4f28-af87-19fc36ad61bd"));
       ([.[] | select(is_openai_user and ((.scope // "") | ascii_downcase) == $scope)] | length) == 1
-      and ([.[] | select(is_openai_user and ((.scope // "") | ascii_downcase) != $scope)] | length) == 0
+      and ([.[] | select(((.scope // "") | ascii_downcase) != $scope)] | length) == 0
     ' <<<"$role_assignments_json" >/dev/null || {
-      echo "ERROR [integration]: APIM must have exactly one Cognitive Services OpenAI User assignment at the Foundry account and none inherited from broader scopes." >&2
+      echo "ERROR [integration]: APIM must have exactly one Cognitive Services OpenAI User assignment at the Foundry account and no inherited broader-scope assignments." >&2
       exit 1
     }
     az apim backend show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --backend-id "${APIM_FOUNDRY_BACKEND_NAME:-foundry-openai-backend}" \
@@ -596,6 +618,7 @@ validate_integration_live() {
     grep -q 'unsupported_model' <<<"$api_policy"
     grep -q 'Ocp-Apim-Subscription-Key' <<<"$api_policy"
     grep -q 'set-header name="Ocp-Apim-Subscription-Key" exists-action="delete"' <<<"$api_policy"
+    grep -q 'set-query-parameter name="subscription-key" exists-action="delete"' <<<"$api_policy"
 
     if [[ "${APIM_VALIDATE_INTEGRATION_REQUESTS:-false}" == "true" ]]; then
       local request_base_url subscription_key approved_model unsupported_model request_body

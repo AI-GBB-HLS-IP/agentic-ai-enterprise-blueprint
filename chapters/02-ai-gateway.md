@@ -64,7 +64,7 @@ Edit `infra/envs/poc/apim.bicepparam`. It contains only:
 - APIM name, publisher, Premium capacity, and approved public IP;
 - existing VNet, subnet, NSG, and route-table/exception evidence;
 - private DNS configuration;
-- public-network policy handoff;
+- public-network access fixed to `Enabled` until a separately validated private endpoint exists;
 - Application Insights, Log Analytics, diagnostics ownership, and capacity alert settings.
 
 It contains no Foundry account, model, backend, API, product, or token-policy input.
@@ -107,6 +107,10 @@ Record these outputs for the Stage 2 handoff:
 A successful Stage 1 checkpoint reports foundation readiness independently and integration
 readiness as `not-deployed`. No Foundry-backed API exists yet.
 
+When Azure Policy owns the APIM resource diagnostic setting, validate its destination and enabled
+AllLogs/AllMetrics categories first. Then set `APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE` to
+the real evidence reference and redeploy Stage 1 so `foundationReadiness` can report `deployed`.
+
 ### Private DNS and Optional Enterprise Custom Domains
 
 The default `azure-api.net` private zone and VNet link are sufficient for consumers in the
@@ -139,9 +143,11 @@ Custom domains are not required for the default VNet-local foundation.
 
 ### Configure Integration Parameters
 
-Edit `infra/envs/poc/apim-foundry-integration.bicepparam` with the existing APIM resource group and
-service name, Foundry account identity, governance evidence, approved models, backend/API/product
-names, token limit, and Foundry API version.
+Export `APIM_STAGE1_SERVICE_ID` and `APIM_STAGE1_FOUNDATION_READINESS` from the validated Stage 1
+deployment outputs. Then use `infra/envs/poc/apim-foundry-integration.bicepparam` to supply the
+existing APIM resource group and service name, Foundry account identity, governance evidence,
+explicitly approved regions, approved models, backend/API/product names, token limit, and Foundry
+API version.
 
 ### Validate, Preview, and Deploy
 
