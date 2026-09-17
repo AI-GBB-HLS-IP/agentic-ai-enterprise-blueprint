@@ -29,10 +29,9 @@ param apimSkuName string = 'Premium'
 @minValue(1)
 param apimSkuCapacity int = 1
 
-@description('Public network access state. Internal VNet injection keeps service endpoints private; disabling this flag requires an approved APIM private endpoint.')
+@description('Public network access state. Classic internal VNet-injected APIM requires Enabled until an approved APIM private-endpoint handoff is implemented.')
 @allowed([
   'Enabled'
-  'Disabled'
 ])
 param publicNetworkAccess string = 'Enabled'
 
