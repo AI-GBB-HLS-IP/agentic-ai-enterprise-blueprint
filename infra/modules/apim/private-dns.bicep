@@ -77,5 +77,5 @@ output dnsReadiness object = {
   record: !deployPrivateDns ? 'external-handoff-required' : (length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending')
   additionalEndpointRecords: !deployPrivateDns ? 'external-handoff-required' : (length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending')
   privateIpCount: length(apimPrivateIpAddresses)
-  status: deployPrivateDns && length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending'
+  status: length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending'
 }
