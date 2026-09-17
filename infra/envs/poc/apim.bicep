@@ -90,6 +90,9 @@ param privateDnsDeploymentMode string = 'blueprint'
 @description('A-record name inside azure-api.net for the APIM gateway.')
 param privateDnsRecordName string = apimServiceName
 
+@description('Non-secret evidence reference recorded only after customer-managed APIM DNS resolution and reachability are validated.')
+param externalDnsValidationReference string = ''
+
 @description('Application Insights component name.')
 param applicationInsightsName string = 'appi-apim-agent-factory-poc'
 
@@ -228,6 +231,7 @@ module privateDns '../../modules/apim/private-dns.bicep' = {
     vnetName: vnetName
     apimGatewayRecordName: privateDnsContractValidated ? privateDnsRecordName : ''
     apimPrivateIpAddresses: apimMain.outputs.privateIpAddresses
+    externalDnsValidationReference: externalDnsValidationReference
   }
 }
 
@@ -271,6 +275,8 @@ output privateDnsHandoff object = {
   hostnames: concat([
     privateDns.outputs.apimGatewayFqdn
   ], privateDns.outputs.additionalEndpointFqdns)
+  validation: privateDns.outputs.dnsReadiness.externalDnsValidation
+  validationReference: privateDns.outputs.dnsReadiness.externalDnsValidationReference
 }
 output appInsightsId string = observability.outputs.applicationInsightsId
 output logAnalyticsWorkspaceId string = observability.outputs.logAnalyticsWorkspaceId

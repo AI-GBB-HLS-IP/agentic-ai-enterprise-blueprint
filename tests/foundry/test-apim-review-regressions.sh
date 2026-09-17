@@ -84,7 +84,8 @@ if [[ "$HAVE_AZ" == "true" ]]; then
     and $readiness.link == "[if(parameters('\''deployPrivateDns'\''), '\''deployed'\'', '\''external'\'')]"
     and ($readiness.record | contains("external-handoff-required"))
     and ($readiness.additionalEndpointRecords | contains("external-handoff-required"))
-    and $readiness.status == "[if(and(parameters('\''deployPrivateDns'\''), greater(length(parameters('\''apimPrivateIpAddresses'\'')), 0)), '\''deployed'\'', '\''pending'\'')]"
+    and $readiness.externalDnsValidation == "[if(variables('\''externalDnsValidated'\''), '\''validated'\'', if(not(parameters('\''deployPrivateDns'\'')), '\''required'\'', '\''not-required'\''))]"
+    and $readiness.status == "[if(or(and(parameters('\''deployPrivateDns'\''), greater(length(parameters('\''apimPrivateIpAddresses'\'')), 0)), and(variables('\''externalDnsValidated'\''), greater(length(parameters('\''apimPrivateIpAddresses'\'')), 0))), '\''deployed'\'', '\''pending'\'')]"
   ' "$workdir/private-dns.json" >/dev/null ||
     fail "compiled DNS handoff must stay pending for external mode until validation evidence exists"
 

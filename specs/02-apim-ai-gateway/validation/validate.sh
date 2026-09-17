@@ -175,6 +175,20 @@ require_governance_reference() {
   fi
 }
 
+require_evidence_reference() {
+  local name="$1"
+  local stage="$2"
+  local value="${!name:-}"
+  if [[ -z "$value" ]]; then
+    block "$stage" "Set $name to an approved validation evidence reference."
+    return 1
+  fi
+  if is_placeholder "$value"; then
+    echo "ERROR [$stage]: $name must not contain placeholder validation evidence." >&2
+    exit 1
+  fi
+}
+
 azure_session_available() {
   command -v az >/dev/null 2>&1 && az account show >/dev/null 2>&1
 }
@@ -565,6 +579,9 @@ validate_foundation_live() {
 
     if [[ "${APIM_VALIDATE_ENDPOINT_REACHABILITY:-false}" == "true" ]]; then
       validate_apim_endpoint_reachability "$apim_name" "$apim_json" || exit 1
+      if [[ "${APIM_PRIVATE_DNS_MODE:-external}" == "external" ]]; then
+        require_evidence_reference APIM_EXTERNAL_DNS_VALIDATION_REFERENCE foundation || return 0
+      fi
     elif [[ "${APIM_PRIVATE_DNS_MODE:-external}" == "external" ]]; then
       block foundation "External DNS requires APIM_VALIDATE_ENDPOINT_REACHABILITY=true from an authorized network to validate customer-managed resolution and reachability."
     else

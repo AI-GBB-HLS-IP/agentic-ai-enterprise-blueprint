@@ -28,6 +28,7 @@ param apimSkuCapacity = int(readEnvironmentVariable('APIM_SKU_CAPACITY', '1'))
 param privateDnsZoneName = readEnvironmentVariable('APIM_PRIVATE_DNS_ZONE_NAME', 'azure-api.net')
 param privateDnsDeploymentMode = readEnvironmentVariable('APIM_PRIVATE_DNS_MODE', 'external')
 param privateDnsRecordName = readEnvironmentVariable('APIM_DNS_RECORD_NAME', '<same-value-as-apimServiceName>')
+param externalDnsValidationReference = readEnvironmentVariable('APIM_EXTERNAL_DNS_VALIDATION_REFERENCE', '')
 
 param applicationInsightsName = readEnvironmentVariable('APIM_APP_INSIGHTS_NAME', '<application-insights-name>')
 param logAnalyticsWorkspaceId = readEnvironmentVariable('APIM_LOG_ANALYTICS_WORKSPACE_ID', '')

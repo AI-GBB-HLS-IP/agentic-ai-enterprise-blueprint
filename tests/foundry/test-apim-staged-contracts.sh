@@ -42,10 +42,16 @@ assert_present 'policyOwnedDiagnosticSettingsValidationReference' "$foundation_p
   "default Stage 1 parameters must wire the policy validation reference"
 assert_present 'policyOwnedDiagnosticSettingsValidationReference' "$customer_params" \
   "customer Stage 1 parameters must wire the policy validation reference"
+assert_present 'externalDnsValidationReference' "$foundation_params" \
+  "default Stage 1 parameters must wire the external DNS validation reference"
+assert_present 'externalDnsValidationReference' "$customer_params" \
+  "customer Stage 1 parameters must wire the external DNS validation reference"
 assert_present "observabilityStatus = policyOwnedDiagnosticSettingsValidated" "$foundation" \
   "Stage 1 readiness must account for completed policy validation"
 assert_present 'policyValidationReferenceIsPlaceholder' "$foundation" \
   "Stage 1 must reject placeholder policy diagnostic evidence"
+assert_present 'externalDnsValidationReferenceIsPlaceholder' "${REPO_ROOT}/infra/modules/apim/private-dns.bicep" \
+  "APIM private DNS readiness must reject placeholder external DNS evidence"
 
 echo "==> Stage 2 requires the validated Stage 1 handoff"
 assert_present 'param stage1ApimServiceId' "$integration" \
@@ -78,6 +84,8 @@ assert_present 'APIM_STAGE1_FOUNDATION_READINESS' "$validator" \
   "validator must verify the Stage 1 readiness handoff"
 assert_present 'require_governance_reference APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE foundation' "$validator" \
   "validator must require real policy diagnostic evidence after live validation"
+assert_present 'require_evidence_reference APIM_EXTERNAL_DNS_VALIDATION_REFERENCE foundation' "$validator" \
+  "validator must require external DNS validation evidence after live validation"
 assert_present 'set-query-parameter name="subscription-key" exists-action="delete"' "$api_module" \
   "APIM policy must remove query-string subscription credentials"
 

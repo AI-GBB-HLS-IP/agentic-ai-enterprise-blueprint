@@ -18,6 +18,9 @@ param apimGatewayRecordName string
 @description('APIM internal private IP addresses. Records are created when at least one IP is present.')
 param apimPrivateIpAddresses array = []
 
+@description('Non-secret evidence reference recorded only after external APIM DNS resolution and reachability are validated.')
+param externalDnsValidationReference string = ''
+
 @description('Additional internal-mode APIM endpoint subdomains that need their own A record alongside the gateway (developer portal, legacy portal, management API, SCM). Internal VNet-injected APIM exposes each of these as a distinct hostname under the same zone, all resolving to the same private IP(s).')
 param additionalEndpointSubdomains array = [
   'developer'
@@ -65,6 +68,16 @@ resource apimAdditionalEndpointRecords 'Microsoft.Network/privateDnsZones/A@2020
   }
 }]
 
+var normalizedExternalDnsValidationReference = toLower(trim(externalDnsValidationReference))
+var externalDnsValidationReferenceIsPlaceholder = contains(externalDnsValidationReference, '<') || contains(externalDnsValidationReference, '>') || contains(normalizedExternalDnsValidationReference, 'placeholder') || contains(normalizedExternalDnsValidationReference, 'replace-me') || normalizedExternalDnsValidationReference == 'todo' || normalizedExternalDnsValidationReference == 'tbd'
+var externalDnsValidated = !deployPrivateDns
+  ? (empty(normalizedExternalDnsValidationReference)
+      ? false
+      : (!externalDnsValidationReferenceIsPlaceholder
+          ? true
+          : fail('externalDnsValidationReference must contain real, non-placeholder external DNS validation evidence.')))
+  : false
+
 output privateDnsZoneId string = deployPrivateDns ? privateDnsZone.id : ''
 output privateDnsLinkId string = deployPrivateDns ? privateDnsVnetLink.id : ''
 output apimGatewayFqdn string = '${apimGatewayRecordName}.${privateDnsZoneName}'
@@ -74,8 +87,10 @@ output dnsReadiness object = {
   mode: deployPrivateDns ? 'blueprint' : 'external'
   zone: deployPrivateDns ? 'deployed' : 'external'
   link: deployPrivateDns ? 'deployed' : 'external'
-  record: !deployPrivateDns ? 'external-handoff-required' : (length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending')
-  additionalEndpointRecords: !deployPrivateDns ? 'external-handoff-required' : (length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending')
+  record: !deployPrivateDns ? (externalDnsValidated ? 'validated' : 'external-handoff-required') : (length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending')
+  additionalEndpointRecords: !deployPrivateDns ? (externalDnsValidated ? 'validated' : 'external-handoff-required') : (length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending')
   privateIpCount: length(apimPrivateIpAddresses)
-  status: deployPrivateDns && length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending'
+  externalDnsValidation: externalDnsValidated ? 'validated' : (!deployPrivateDns ? 'required' : 'not-required')
+  externalDnsValidationReference: externalDnsValidated ? externalDnsValidationReference : ''
+  status: (deployPrivateDns && length(apimPrivateIpAddresses) > 0) || (externalDnsValidated && length(apimPrivateIpAddresses) > 0) ? 'deployed' : 'pending'
 }

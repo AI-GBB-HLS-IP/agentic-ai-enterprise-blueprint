@@ -26,7 +26,9 @@ validator. The legacy `FOUNDATION_PARAMETERS` alias remains supported.
 The customer example defaults `APIM_PRIVATE_DNS_MODE` to `external`. This matches the observed
 production pattern: custom corporate hostnames and certificates resolve through corporate DNS
 servers reached through the hub. The deployment outputs `privateDnsHandoff` with the private IP
-and required APIM hostnames for the DNS team.
+and required APIM hostnames for the DNS team. After live validation confirms those hostnames resolve
+to the APIM private IPs and are reachable from the approved network, set
+`APIM_EXTERNAL_DNS_VALIDATION_REFERENCE` to the non-secret evidence reference and redeploy Stage 1.
 
 Run the three standard Azure checks:
 
@@ -256,8 +258,9 @@ APIM provisioning can take 30–60 minutes. Expected deployment outputs:
 - `privateIpAddresses` contains at least one address;
 - `apimPublicIpPurpose` is `classic-internal-platform-management`;
 - `integrationReadiness` is `not-deployed`;
-- `foundationReadiness.status` is `deployed` for blueprint-owned diagnostics, or remains
-  `pending` until the policy-owned diagnostic setting is verified.
+- `foundationReadiness.status` is `deployed` when blueprint-owned DNS and diagnostics are ready, or
+  remains `pending` until the required external DNS and policy-owned diagnostic validation
+  references are supplied.
 
 For policy-owned diagnostics, first run the runtime checks below and retain the redacted evidence
 in the customer-approved evidence location. Then set
