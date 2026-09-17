@@ -12,7 +12,7 @@ param foundryAccountId = readEnvironmentVariable('FOUNDRY_ACCOUNT_ID', '')
 param genAiApprovalReference = readEnvironmentVariable('GENAI_APPROVAL_REFERENCE', '')
 param foundryEnablementReference = readEnvironmentVariable('FOUNDRY_ENABLEMENT_REFERENCE', '')
 param customerPolicySource = readEnvironmentVariable('FOUNDRY_CUSTOMER_POLICY_SOURCE', '')
-param approvedFoundryRegions = json(readEnvironmentVariable('FOUNDRY_APPROVED_REGIONS', '["eastus","eastus2","westeurope"]'))
+param approvedFoundryRegions = json(readEnvironmentVariable('FOUNDRY_APPROVED_REGIONS'))
 param requirePrivateFoundryAccess = bool(readEnvironmentVariable('FOUNDRY_REQUIRE_PRIVATE_ACCESS', 'true'))
 
 param approvedModels = json(readEnvironmentVariable('FOUNDRY_APPROVED_MODELS', '[]'))
