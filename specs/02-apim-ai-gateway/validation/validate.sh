@@ -11,7 +11,7 @@ VALIDATION_PHASE="${VALIDATION_PHASE:-all}"
 FOUNDATION_TEMPLATE="infra/envs/poc/apim.bicep"
 FOUNDATION_PARAMETERS="${APIM_FOUNDATION_PARAMETERS_FILE:-${FOUNDATION_PARAMETERS:-infra/envs/poc/apim.bicepparam}}"
 INTEGRATION_TEMPLATE="infra/envs/poc/apim-foundry-integration.bicep"
-INTEGRATION_PARAMETERS="infra/envs/poc/apim-foundry-integration.bicepparam"
+INTEGRATION_PARAMETERS="${APIM_INTEGRATION_PARAMETERS_FILE:-${INTEGRATION_PARAMETERS:-infra/envs/poc/apim-foundry-integration.bicepparam}}"
 
 case "$MODE" in
   foundation|integration|all) ;;
@@ -37,7 +37,9 @@ block() {
 }
 
 require_file() {
-  [[ -f "$REPO_ROOT/$1" ]] || {
+  local path
+  path="$(parameter_file_path "$1")"
+  [[ -f "$path" ]] || {
     echo "ERROR: missing required file: $1" >&2
     exit 1
   }
@@ -104,13 +106,59 @@ lowercase() {
 
 is_placeholder() {
   local value normalized
-  value="$1"
+  value="$(printf '%s' "$1" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
   normalized="$(lowercase "$value")"
-  [[ "$value" == \<*\> ]] ||
+  [[ -z "$value" ]] ||
+    [[ "$value" == \<*\> ]] ||
     [[ "$normalized" == *placeholder* ]] ||
     [[ "$normalized" == *replace-me* ]] ||
     [[ "$normalized" == "todo" ]] ||
     [[ "$normalized" == "tbd" ]]
+}
+
+parameter_file_path() {
+  local file="$1"
+  if [[ "$file" = /* ]]; then
+    printf '%s\n' "$file"
+  else
+    printf '%s/%s\n' "$REPO_ROOT" "$file"
+  fi
+}
+
+load_selected_parameter_values() {
+  local file="$1" parameter_path env_name default_value
+  parameter_path="$(parameter_file_path "$file")"
+  [[ -f "$parameter_path" ]] || {
+    echo "ERROR: missing required file: $file" >&2
+    exit 1
+  }
+  while IFS=$'\t' read -r env_name default_value; do
+    [[ -n "$env_name" ]] || continue
+    if [[ -z "${!env_name+x}" ]]; then
+      printf -v "$env_name" '%s' "$default_value"
+      export "$env_name"
+    fi
+  done < <(
+    sed -nE \
+      "s/^[[:space:]]*param[[:space:]]+[[:alnum:]_]+[[:space:]]*=[^#]*readEnvironmentVariable\\('([^']*)'([[:space:]]*,[[:space:]]*'([^']*)')?.*$/\1\\t\3/p" \
+      "$parameter_path"
+  )
+}
+
+validate_optional_evidence_reference() {
+  local name="$1" stage="$2" value="${!1:-}"
+  if [[ -n "$value" ]] && is_placeholder "$value"; then
+    echo "ERROR [$stage]: $name must not contain placeholder evidence." >&2
+    exit 1
+  fi
+}
+
+validate_non_placeholder_value() {
+  local name="$1" stage="$2" value="${!1:-}"
+  if [[ -n "$value" ]] && is_placeholder "$value"; then
+    echo "ERROR [$stage]: $name must not use a placeholder value." >&2
+    exit 1
+  fi
 }
 
 require_governance_reference() {
@@ -186,10 +234,10 @@ diagnostics_match_expected_workspace() {
     --arg workspace_id "$(lowercase "$expected_workspace_id")" '
       [.value[]
         | select(
-            ((.workspaceId // "") | ascii_downcase) == $workspace_id
-            and ([.logs[]? | select(.enabled == true and .categoryGroup == "AllLogs")] | length) > 0
-            and ([.metrics[]? | select(.enabled == true and .category == "AllMetrics")] | length) > 0
-            and ($owner != "blueprint" or .name == $name)
+            ((.properties.workspaceId // "") | ascii_downcase) == $workspace_id
+            and ([.properties.logs[]? | select(.enabled == true and .categoryGroup == "AllLogs")] | length) > 0
+            and ([.properties.metrics[]? | select(.enabled == true and .category == "AllMetrics")] | length) > 0
+            and ($owner != "blueprint" or .name == $name or .properties.name == $name)
           )
       ]
       | length == 1
@@ -388,12 +436,18 @@ validate_foundation_live() {
     block foundation "An authenticated Azure CLI session is required."
     return
   fi
+  load_selected_parameter_values "$FOUNDATION_PARAMETERS"
 
   local missing=false
   for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_PUBLISHER_EMAIL; do
     require_env_value "$name" foundation || missing=true
   done
+  for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID APIM_PUBLIC_IP_NAME APIM_PUBLISHER_EMAIL; do
+    validate_non_placeholder_value "$name" foundation
+  done
   validate_foundation_workspace_selection || missing=true
+  validate_optional_evidence_reference APIM_SUBNET_NAMING_EXCEPTION_REFERENCE foundation
+  validate_optional_evidence_reference APIM_ROUTE_TABLE_EXCEPTION_REFERENCE foundation
   if [[ -z "${APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID:-}" && -z "${APIM_ROUTE_TABLE_EXCEPTION_REFERENCE:-}" ]]; then
     block foundation "Set APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID or APIM_ROUTE_TABLE_EXCEPTION_REFERENCE."
     missing=true
@@ -411,7 +465,7 @@ validate_foundation_live() {
   subnet_nsg="$(jq -r '.networkSecurityGroup.id // ""' <<<"$subnet_json")"
   subnet_route="$(jq -r '.routeTable.id // ""' <<<"$subnet_json")"
 
-  if [[ "$subnet_name" != apimsubnet-* && -z "${APIM_SUBNET_NAMING_EXCEPTION_REFERENCE:-}" ]]; then
+  if [[ "$(lowercase "$subnet_name")" != apimsubnet-* && -z "${APIM_SUBNET_NAMING_EXCEPTION_REFERENCE:-}" ]]; then
     echo "ERROR [foundation]: APIM subnet naming is unapproved and no exception reference was supplied." >&2
     exit 1
   fi
@@ -433,7 +487,9 @@ validate_foundation_live() {
     jq -e --arg endpoint "$endpoint" '[.serviceEndpoints[]?.service] | index($endpoint) != null' <<<"$subnet_json" >/dev/null
   done
 
-  if [[ "$APIM_PUBLISHER_EMAIL" == *@example.com || "$APIM_PUBLISHER_EMAIL" == *@contoso.com ]]; then
+  local publisher_email_normalized
+  publisher_email_normalized="$(lowercase "$APIM_PUBLISHER_EMAIL")"
+  if [[ "$publisher_email_normalized" == *@example.com || "$publisher_email_normalized" == *@contoso.com ]]; then
     echo "ERROR [foundation]: APIM_PUBLISHER_EMAIL must be a corporate address." >&2
     exit 1
   fi
@@ -452,12 +508,12 @@ validate_foundation_live() {
     return
   fi
 
-  if az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}" >/dev/null 2>&1; then
-    local apim_json apim_id apim_name expected_sku expected_capacity
-    apim_name="${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}"
+  if az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" >/dev/null 2>&1; then
+    local apim_json apim_id apim_name expected_sku expected_capacity expected_public_ip_id
+    apim_name="$APIM_SERVICE_NAME"
     expected_sku="${APIM_SKU_NAME:-Premium}"
     expected_capacity="${APIM_SKU_CAPACITY:-1}"
-    apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}" -o json)"
+    apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" -o json)"
     jq -e --arg sku "$expected_sku" --argjson capacity "$expected_capacity" '
       .sku.name == $sku and
       .sku.capacity == $capacity and
@@ -480,10 +536,24 @@ validate_foundation_live() {
       echo "ERROR [foundation]: APIM has no associated platform public IP resource ID." >&2
       exit 1
     }
-    az resource show --ids "$apim_public_ip_id" --api-version 2023-11-01 \
-      --query "sku.name=='Standard' && properties.publicIPAllocationMethod=='Static'" -o tsv | grep -qx true
+    expected_public_ip_id="$(az network public-ip show \
+      --resource-group "$APIM_RESOURCE_GROUP" \
+      --name "$APIM_PUBLIC_IP_NAME" \
+      --query id -o tsv)" || {
+      echo "ERROR [foundation]: selected APIM public IP $APIM_PUBLIC_IP_NAME could not be resolved." >&2
+      exit 1
+    }
+    [[ "$(lowercase "$apim_public_ip_id")" == "$(lowercase "$expected_public_ip_id")" ]] || {
+      echo "ERROR [foundation]: APIM publicIpAddressId does not match the selected APIM_PUBLIC_IP_NAME resource." >&2
+      exit 1
+    }
+    az resource show --ids "$expected_public_ip_id" --api-version 2023-11-01 -o json |
+      jq -e '.sku.name == "Standard" and .properties.publicIPAllocationMethod == "Static"' >/dev/null || {
+      echo "ERROR [foundation]: selected APIM public IP must use Standard SKU and Static allocation." >&2
+      exit 1
+    }
 
-    if [[ "${APIM_PRIVATE_DNS_MODE:-blueprint}" == "blueprint" ]]; then
+    if [[ "${APIM_PRIVATE_DNS_MODE:-external}" == "blueprint" ]]; then
       for record in "$apim_name" "$apim_name.developer" "$apim_name.portal" "$apim_name.management" "$apim_name.scm"; do
         az network private-dns record-set a show \
           --resource-group "$APIM_RESOURCE_GROUP" \
@@ -495,7 +565,7 @@ validate_foundation_live() {
 
     if [[ "${APIM_VALIDATE_ENDPOINT_REACHABILITY:-false}" == "true" ]]; then
       validate_apim_endpoint_reachability "$apim_name" "$apim_json" || exit 1
-    elif [[ "${APIM_PRIVATE_DNS_MODE:-blueprint}" == "external" ]]; then
+    elif [[ "${APIM_PRIVATE_DNS_MODE:-external}" == "external" ]]; then
       block foundation "External DNS requires APIM_VALIDATE_ENDPOINT_REACHABILITY=true from an authorized network to validate customer-managed resolution and reachability."
     else
       block foundation "Set APIM_VALIDATE_ENDPOINT_REACHABILITY=true from an authorized network to verify internal gateway, portal, management, and SCM reachability."
@@ -540,7 +610,7 @@ validate_foundation_live() {
     az monitor metrics alert show \
       --resource-group "$APIM_RESOURCE_GROUP" \
       --name "${APIM_CAPACITY_ALERT_NAME:-alert-apim-capacity-over-60}" \
-      --query "criteria.allOf[?metricName=='Capacity' && timeAggregation=='Average' && threshold>=\`60\`] | length(@)" -o tsv | grep -qx 1
+      --query "criteria.allOf[?metricName=='Capacity' && operator=='GreaterThan' && timeAggregation=='Average' && threshold>=\`${APIM_CAPACITY_ALERT_THRESHOLD:-60}\`] | length(@)" -o tsv | grep -qx 1
 
   else
     block foundation "APIM is not deployed; runtime identity, DNS, diagnostics, alert, and internal endpoint checks remain pending."
@@ -557,6 +627,7 @@ validate_integration_live() {
     block integration "An authenticated Azure CLI session is required."
     return
   fi
+  load_selected_parameter_values "$INTEGRATION_PARAMETERS"
 
   local missing=false
   for name in APIM_RESOURCE_GROUP APIM_SERVICE_NAME APIM_STAGE1_SERVICE_ID APIM_STAGE1_FOUNDATION_READINESS FOUNDRY_RESOURCE_GROUP FOUNDRY_ACCOUNT_NAME FOUNDRY_ACCOUNT_ID FOUNDRY_APPROVED_REGIONS FOUNDRY_APPROVED_MODELS; do
@@ -587,6 +658,17 @@ validate_integration_live() {
   }
   jq -e '[.[] | select(.enabled == true)] | length > 0' <<<"$approved_models_json" >/dev/null || {
     echo "ERROR [integration]: FOUNDRY_APPROVED_MODELS must enable at least one model." >&2
+    exit 1
+  }
+  jq -e '
+    [.[]
+      | select(.enabled == true)
+      | .publicName
+      | ascii_downcase
+    ] as $aliases
+    | ($aliases | length) == ($aliases | unique | length)
+  ' <<<"$approved_models_json" >/dev/null || {
+    echo "ERROR [integration]: FOUNDRY_APPROVED_MODELS must not contain duplicate enabled model aliases." >&2
     exit 1
   }
   jq -e '
@@ -682,12 +764,13 @@ validate_integration_live() {
     }
     az apim backend show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --backend-id "${APIM_FOUNDRY_BACKEND_NAME:-foundry-openai-backend}" \
       --query "starts_with(url, 'https://')" -o tsv | grep -qx true
-    az apim api show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --api-id "${APIM_API_NAME:-enterprise-llm-api}" \
+    local governed_api_name="${APIM_GOVERNED_API_NAME:-enterprise-llm-api}"
+    az apim api show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --api-id "$governed_api_name" \
       --query "subscriptionRequired" -o tsv | grep -qx true
     az apim nv show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --named-value-id approved-models \
       --query "secret==\`false\`" -o tsv | grep -qx true
     local api_policy
-    api_policy="$(az apim api policy show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --api-id "${APIM_API_NAME:-enterprise-llm-api}" --query value -o tsv)"
+    api_policy="$(az apim api policy show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --api-id "$governed_api_name" --query value -o tsv)"
     grep -q 'authentication-managed-identity' <<<"$api_policy"
     grep -q 'llm-token-limit' <<<"$api_policy"
     grep -q 'unsupported_model' <<<"$api_policy"

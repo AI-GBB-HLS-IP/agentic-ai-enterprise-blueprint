@@ -4,33 +4,41 @@
 
 Stage 1 requires Azure networking and APIM approvals only. Foundry may be unavailable.
 
-Use one untracked customer parameter file; no duplicate environment-variable setup is required:
+Use one untracked customer parameter file for Stage 1 parameter resolution:
 
 ```bash
 cp infra/envs/poc/apim.customer.example.bicepparam \
   infra/envs/poc/apim.customer.bicepparam
 ```
 
-Populate the fallback values or export the corresponding `APIM_*` environment variables, then use
-the standard Azure deployment sequence:
+Replace the example fallback values in that file, or export the corresponding environment
+variables. The Bicep parameter file resolves its `readEnvironmentVariable` values when Azure CLI
+runs; the validator also loads the selected file's defaults for live checks, while already-exported
+values take precedence. This is file-driven, not entirely file-only: the deployment subscription
+and resource group remain Azure CLI inputs, and runtime validation still requires values that are
+not parameters in the file, including `APIM_RESOURCE_GROUP`. For the complete Stage 1 runtime
+value list, use [`validation/README.md`](validation/README.md).
+
+Select the same file for deployment and validation:
 
 ```bash
 export APIM_FOUNDATION_PARAMETERS_FILE='infra/envs/poc/apim.customer.bicepparam'
+export APIM_RESOURCE_GROUP='<apim-resource-group>'
 
 az deployment group validate \
-  --resource-group <apim-resource-group> \
+  --resource-group "$APIM_RESOURCE_GROUP" \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
   --parameters "$APIM_FOUNDATION_PARAMETERS_FILE"
 
 az deployment group what-if \
-  --resource-group <apim-resource-group> \
+  --resource-group "$APIM_RESOURCE_GROUP" \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
   --parameters "$APIM_FOUNDATION_PARAMETERS_FILE"
 
 az deployment group create \
-  --resource-group <apim-resource-group> \
+  --resource-group "$APIM_RESOURCE_GROUP" \
   --name apim-foundation \
   --template-file infra/envs/poc/apim.bicep \
   --parameters "$APIM_FOUNDATION_PARAMETERS_FILE"
@@ -54,10 +62,18 @@ APIM_VALIDATE_ENDPOINT_REACHABILITY=true \
 For evidence capture and the unchanged-preview procedure, see
 [`validation/stage1-smoke-test.md`](validation/stage1-smoke-test.md).
 
-The expected checkpoint is `foundationReadiness=deployed` and
-`integrationReadiness=not-deployed`. The approved classic-tier public IP may exist for platform
-management; validate that APIM service endpoints remain internal instead of treating the public
-IP resource itself as exposure.
+With the customer example's default `APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP=policy`, the initial
+checkpoint is `foundationReadiness.status=pending` and `integrationReadiness=not-deployed`.
+Readiness remains pending until the policy-created diagnostic setting is verified with enabled
+`AllLogs` and `AllMetrics` sent to the selected workspace. Store the redacted runtime evidence,
+set `APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE` to its real non-placeholder reference, and
+redeploy the unchanged Stage 1 template; only that redeployment records the evidence and can
+produce `foundationReadiness.status=deployed`. Do not claim deployed readiness before those
+steps. If the customer explicitly selects `blueprint` diagnostics ownership, the template owns
+the setting instead, but runtime checks and the other Stage 1 gates still apply.
+
+The approved classic-tier public IP may exist for platform management; validate that APIM service
+endpoints remain internal instead of treating the public IP resource itself as exposure.
 
 ## Optional Enterprise DNS Extension
 
@@ -71,9 +87,12 @@ private VIP.
 Begin only after Stage 1 is ready and customer Foundry governance is complete.
 
 1. Export the validated Stage 1 outputs as `APIM_STAGE1_SERVICE_ID` and the JSON
-   `APIM_STAGE1_FOUNDATION_READINESS`, then populate
-   `infra/envs/poc/apim-foundry-integration.bicepparam` with the Foundry account, governance
-   evidence, explicitly approved regions, approved model mappings, and API policy settings.
+   `APIM_STAGE1_FOUNDATION_READINESS`, set
+   `APIM_INTEGRATION_PARAMETERS_FILE='infra/envs/poc/apim-foundry-integration.bicepparam'`, and
+   populate the selected parameter file's environment-backed values for the Foundry account,
+   governance evidence, explicitly approved regions, approved model mappings, and API policy
+   settings. Values with empty defaults, including the Stage 1 handoff and governance evidence,
+   must be exported; they cannot be inferred from the parameter file name.
 2. Run integration preflight:
 
    ```bash
@@ -84,10 +103,10 @@ Begin only after Stage 1 is ready and customer Foundry governance is complete.
 
    ```bash
    az deployment group what-if \
-     --resource-group <apim-resource-group> \
+     --resource-group "$APIM_RESOURCE_GROUP" \
      --name apim-foundry-integration-preview \
      --template-file infra/envs/poc/apim-foundry-integration.bicep \
-     --parameters infra/envs/poc/apim-foundry-integration.bicepparam \
+     --parameters "$APIM_INTEGRATION_PARAMETERS_FILE" \
      --result-format ResourceIdOnly
    ```
 
@@ -98,10 +117,10 @@ Begin only after Stage 1 is ready and customer Foundry governance is complete.
 
    ```bash
    az deployment group create \
-     --resource-group <apim-resource-group> \
+     --resource-group "$APIM_RESOURCE_GROUP" \
      --name apim-foundry-integration \
      --template-file infra/envs/poc/apim-foundry-integration.bicep \
-     --parameters infra/envs/poc/apim-foundry-integration.bicepparam
+     --parameters "$APIM_INTEGRATION_PARAMETERS_FILE"
 
    specs/02-apim-ai-gateway/validation/validate.sh integration
    ```

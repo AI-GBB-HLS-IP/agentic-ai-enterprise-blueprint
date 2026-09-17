@@ -97,13 +97,19 @@ var apimInternalNetworkValidated = toLower(apimService.properties.?virtualNetwor
 var apimIdentityValidated = !empty(apimService.identity.?principalId ?? '')
   ? true
   : fail('Stage 2 requires the existing Stage 1 APIM service to have a provisioned managed identity.')
-var genAiApprovalReferenceValidated = !empty(trim(genAiApprovalReference)) && !contains(genAiApprovalReference, '<') && !contains(genAiApprovalReference, '>')
+var normalizedGenAiApprovalReference = toLower(trim(genAiApprovalReference))
+var genAiApprovalReferenceIsPlaceholder = contains(normalizedGenAiApprovalReference, '<') || contains(normalizedGenAiApprovalReference, '>') || contains(normalizedGenAiApprovalReference, 'placeholder') || contains(normalizedGenAiApprovalReference, 'replace-me') || normalizedGenAiApprovalReference == 'todo' || normalizedGenAiApprovalReference == 'tbd'
+var genAiApprovalReferenceValidated = !empty(normalizedGenAiApprovalReference) && !genAiApprovalReferenceIsPlaceholder
   ? true
   : fail('genAiApprovalReference must contain non-placeholder customer governance evidence.')
-var foundryEnablementReferenceValidated = !empty(trim(foundryEnablementReference)) && !contains(foundryEnablementReference, '<') && !contains(foundryEnablementReference, '>')
+var normalizedFoundryEnablementReference = toLower(trim(foundryEnablementReference))
+var foundryEnablementReferenceIsPlaceholder = contains(normalizedFoundryEnablementReference, '<') || contains(normalizedFoundryEnablementReference, '>') || contains(normalizedFoundryEnablementReference, 'placeholder') || contains(normalizedFoundryEnablementReference, 'replace-me') || normalizedFoundryEnablementReference == 'todo' || normalizedFoundryEnablementReference == 'tbd'
+var foundryEnablementReferenceValidated = !empty(normalizedFoundryEnablementReference) && !foundryEnablementReferenceIsPlaceholder
   ? true
   : fail('foundryEnablementReference must contain non-placeholder customer governance evidence.')
-var customerPolicySourceValidated = !empty(trim(customerPolicySource)) && !contains(customerPolicySource, '<') && !contains(customerPolicySource, '>')
+var normalizedCustomerPolicySource = toLower(trim(customerPolicySource))
+var customerPolicySourceIsPlaceholder = contains(normalizedCustomerPolicySource, '<') || contains(normalizedCustomerPolicySource, '>') || contains(normalizedCustomerPolicySource, 'placeholder') || contains(normalizedCustomerPolicySource, 'replace-me') || normalizedCustomerPolicySource == 'todo' || normalizedCustomerPolicySource == 'tbd'
+var customerPolicySourceValidated = !empty(normalizedCustomerPolicySource) && !customerPolicySourceIsPlaceholder
   ? true
   : fail('customerPolicySource must identify a maintained non-placeholder customer policy source.')
 var governanceEvidencePresent = genAiApprovalReferenceValidated && foundryEnablementReferenceValidated && customerPolicySourceValidated
@@ -116,11 +122,16 @@ var foundryPrivatePostureApproved = toLower(foundryAccount.properties.?publicNet
   : fail('The existing Foundry account must disable public network access before integration.')
 var enabledApprovedModels = filter(approvedModels, model => model.?enabled ?? false)
 var validEnabledApprovedModels = filter(enabledApprovedModels, model => !empty(model.?publicName ?? '') && !empty(model.?deploymentName ?? ''))
+var normalizedEnabledPublicNames = map(enabledApprovedModels, model => toLower(trim(model.?publicName ?? '')))
+var duplicateEnabledPublicNames = length(normalizedEnabledPublicNames) != length(union([], normalizedEnabledPublicNames))
+var enabledApprovedModelAliasesValidated = !duplicateEnabledPublicNames
+  ? true
+  : fail('Stage 2 requires unique case-insensitive publicName aliases across enabled approved model mappings.')
 var modelAllowlistPresent = length(enabledApprovedModels) > 0 && length(validEnabledApprovedModels) == length(enabledApprovedModels)
   ? true
   : fail('Stage 2 requires at least one enabled approved model mapping with non-empty publicName and deploymentName values.')
 var stage1FoundationValidated = apimIdMatchesStage1Handoff && stage1ReadinessValidated && apimClassicSkuValidated && apimInternalNetworkValidated && apimIdentityValidated
-var integrationPrerequisitesValidated = stage1FoundationValidated && foundryIdMatches && governanceEvidencePresent && foundryRegionApproved && foundryPrivatePostureApproved && modelAllowlistPresent
+var integrationPrerequisitesValidated = stage1FoundationValidated && foundryIdMatches && governanceEvidencePresent && foundryRegionApproved && foundryPrivatePostureApproved && modelAllowlistPresent && enabledApprovedModelAliasesValidated
 
 module foundryRoleAssignment '../../modules/apim/foundry-role-assignment.bicep' = {
   name: 'apim-foundry-role-assignment'

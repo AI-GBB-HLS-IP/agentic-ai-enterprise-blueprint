@@ -137,10 +137,19 @@ resource apimSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' exist
   name: apimSubnetName
 }
 
+var effectiveApimPublicIpTags = union(apimPublicIpTags, {
+  ProjectCode: 'APIM'
+})
+var normalizedSubnetNamingExceptionReference = toLower(trim(subnetNamingExceptionReference))
+var subnetNamingExceptionReferenceIsPlaceholder = empty(normalizedSubnetNamingExceptionReference) || contains(normalizedSubnetNamingExceptionReference, '<') || contains(normalizedSubnetNamingExceptionReference, '>') || contains(normalizedSubnetNamingExceptionReference, 'placeholder') || contains(normalizedSubnetNamingExceptionReference, 'replace-me') || normalizedSubnetNamingExceptionReference == 'todo' || normalizedSubnetNamingExceptionReference == 'tbd'
+var normalizedRouteTableExceptionReference = toLower(trim(routeTableExceptionReference))
+var routeTableExceptionReferenceIsPlaceholder = empty(normalizedRouteTableExceptionReference) || contains(normalizedRouteTableExceptionReference, '<') || contains(normalizedRouteTableExceptionReference, '>') || contains(normalizedRouteTableExceptionReference, 'placeholder') || contains(normalizedRouteTableExceptionReference, 'replace-me') || normalizedRouteTableExceptionReference == 'todo' || normalizedRouteTableExceptionReference == 'tbd'
+var privateDnsContractValidated = (toLower(trim(privateDnsZoneName)) == 'azure-api.net' && toLower(trim(privateDnsRecordName)) == toLower(trim(apimServiceName))) ? true : fail('Private DNS must use the APIM built-in hostname contract: <service>.azure-api.net.')
+
 resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   name: apimPublicIpAddressName
   location: location
-  tags: apimPublicIpTags
+  tags: effectiveApimPublicIpTags
   sku: {
     name: 'Standard'
     tier: 'Regional'
@@ -156,9 +165,7 @@ resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   }
 }
 
-var subnetNameApproved = startsWith(toLower(apimSubnetName), 'apimsubnet-') || !empty(subnetNamingExceptionReference)
-  ? true
-  : fail('The APIM subnet name must match apimsubnet-* or subnetNamingExceptionReference must identify a tenant-approved exception.')
+var subnetNameApproved = (startsWith(toLower(trim(apimSubnetName)), 'apimsubnet-') || (!subnetNamingExceptionReferenceIsPlaceholder && !empty(normalizedSubnetNamingExceptionReference))) ? true : fail('The APIM subnet name must match apimsubnet-* or subnetNamingExceptionReference must identify a tenant-approved exception.')
 var subnetNsgId = apimSubnet.properties.networkSecurityGroup.?id ?? ''
 var subnetNsgApproved = !empty(approvedApimNsgResourceId) && toLower(subnetNsgId) == toLower(approvedApimNsgResourceId)
   ? true
@@ -168,7 +175,7 @@ var subnetRouteApproved = !empty(approvedApimRouteTableResourceId)
   ? (toLower(subnetRouteTableId) == toLower(approvedApimRouteTableResourceId)
       ? true
       : fail('The APIM subnet route table does not match approvedApimRouteTableResourceId.'))
-  : (empty(subnetRouteTableId) && !empty(routeTableExceptionReference)
+  : (empty(subnetRouteTableId) && !routeTableExceptionReferenceIsPlaceholder && !empty(normalizedRouteTableExceptionReference)
       ? true
       : fail('Supply the approved APIM route table, or leave the subnet route table empty and provide routeTableExceptionReference.'))
 var subnetHasNoDelegation = length(apimSubnet.properties.delegations ?? []) == 0
@@ -195,7 +202,7 @@ var publisherEmailApproved = contains(publisherEmailNormalized, '@') && !endsWit
 var skuCapacityApproved = apimSkuName == 'Developer' && apimSkuCapacity != 1
   ? fail('Developer APIM requires apimSkuCapacity to be 1.')
   : true
-var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && skuCapacityApproved
+var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && skuCapacityApproved && privateDnsContractValidated
 
 module apimMain '../../modules/apim/main.bicep' = {
   name: 'apim-foundation-service'
@@ -215,11 +222,11 @@ module apimMain '../../modules/apim/main.bicep' = {
 module privateDns '../../modules/apim/private-dns.bicep' = {
   name: 'apim-foundation-private-dns'
   params: {
-    privateDnsZoneName: privateDnsZoneName
+    privateDnsZoneName: privateDnsContractValidated ? privateDnsZoneName : ''
     deployPrivateDns: privateDnsDeploymentMode == 'blueprint'
     vnetId: vnet.id
     vnetName: vnetName
-    apimGatewayRecordName: privateDnsRecordName
+    apimGatewayRecordName: privateDnsContractValidated ? privateDnsRecordName : ''
     apimPrivateIpAddresses: apimMain.outputs.privateIpAddresses
   }
 }

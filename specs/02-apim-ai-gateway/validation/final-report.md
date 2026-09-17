@@ -14,7 +14,7 @@
 - Customer subnet assertions, APIM public IP association, Premium/internal/TLS settings,
   AllLogs/AllMetrics handling, and capacity alert are present.
 - Static ownership checks pass and their seeded-regression self-tests fail as expected.
-- `OFFLINE_ONLY=true validation/validate.sh all` passes.
+- `OFFLINE_ONLY=true specs/02-apim-ai-gateway/validation/validate.sh all` passes.
 
 ## Stage 1 Live Evidence
 

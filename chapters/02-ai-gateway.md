@@ -32,9 +32,9 @@ Existing APIM service  -> HTTPS backend using managed identity
                        -> subscription-protected governed API
 ```
 
-The classic Premium APIM tier uses a customer-approved Standard static public IP for Azure
-platform management. That resource does **not** make the gateway public: gateway, portal,
-management, and SCM endpoints remain internal and must resolve to the APIM private VIP.
+The classic APIM tiers use a customer-approved Standard static public IP for Azure platform
+management. That resource does **not** make the gateway public: gateway, portal, management, and
+SCM endpoints remain internal and must resolve to the APIM private VIP.
 
 ## Stage 1 — APIM Foundation
 
@@ -42,6 +42,9 @@ management, and SCM endpoints remain internal and must resolve to the APIM priva
 
 - Azure CLI and Bicep CLI support through `az bicep`.
 - Permission to read the existing VNet/subnet and deploy APIM, DNS, and monitoring resources.
+- A supported classic APIM tier:
+  - **Developer, capacity 1** for smoke testing and acceptance validation;
+  - **Premium** for production deployments.
 - An approved APIM subnet:
   - name matches `apimsubnet-*`, or a documented tenant-approved naming exception is supplied;
   - approved NSG is attached;
@@ -61,7 +64,7 @@ exception evidence instead of silently omitting the route table.
 
 Edit `infra/envs/poc/apim.bicepparam`. It contains only:
 
-- APIM name, publisher, Premium capacity, and approved public IP;
+- APIM name, publisher, supported tier and capacity, and approved public IP;
 - existing VNet, subnet, NSG, and route-table/exception evidence;
 - private DNS configuration;
 - public-network access fixed to `Enabled` until a separately validated private endpoint exists;
