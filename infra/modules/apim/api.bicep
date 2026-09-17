@@ -115,6 +115,7 @@ var apiPolicyXml = concat(
   '    <base />\n',
   '    <check-header name="Ocp-Apim-Subscription-Key" failed-check-httpcode="401" failed-check-error-message="A valid subscription key is required." ignore-case="true" />\n',
   '    <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />\n',
+  '    <set-query-parameter name="subscription-key" exists-action="delete" />\n',
   '    <set-variable name="requestedModel" value="@{\n',
   '      try {\n',
   '        var requestBody = context.Request.Body.As<JObject>(preserveContent: true);\n',
