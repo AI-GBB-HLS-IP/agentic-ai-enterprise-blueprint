@@ -142,6 +142,23 @@ require_env_value() {
   fi
 }
 
+validate_foundation_workspace_selection() {
+  local workspace_name="${APIM_LOG_ANALYTICS_WORKSPACE_NAME:-}"
+  if [[ -n "${APIM_LOG_ANALYTICS_WORKSPACE_ID:-}" ]]; then
+    return
+  fi
+  if [[ -z "$workspace_name" ]]; then
+    block foundation "Set APIM_LOG_ANALYTICS_WORKSPACE_ID for an existing workspace or APIM_LOG_ANALYTICS_WORKSPACE_NAME to create one."
+    return 1
+  fi
+  if is_placeholder "$workspace_name" ||
+    [[ ${#workspace_name} -lt 4 || ${#workspace_name} -gt 63 ]] ||
+    [[ ! "$workspace_name" =~ ^[[:alnum:]][[:alnum:]-]*[[:alnum:]]$ ]]; then
+    echo "ERROR [foundation]: APIM_LOG_ANALYTICS_WORKSPACE_NAME must be a valid 4-63 character Azure workspace name using letters, numbers, and hyphens." >&2
+    exit 1
+  fi
+}
+
 validate_static_ownership() {
   local temp_dir
   temp_dir="$(mktemp -d)"
@@ -303,9 +320,10 @@ validate_foundation_live() {
   fi
 
   local missing=false
-  for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_PUBLISHER_EMAIL APIM_LOG_ANALYTICS_WORKSPACE_ID; do
+  for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_PUBLISHER_EMAIL; do
     require_env_value "$name" foundation || missing=true
   done
+  validate_foundation_workspace_selection || missing=true
   if [[ -z "${APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID:-}" && -z "${APIM_ROUTE_TABLE_EXCEPTION_REFERENCE:-}" ]]; then
     block foundation "Set APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID or APIM_ROUTE_TABLE_EXCEPTION_REFERENCE."
     missing=true
@@ -433,9 +451,22 @@ validate_foundation_live() {
       block foundation "Set APIM_VALIDATE_ENDPOINT_REACHABILITY=true from an authorized network to verify internal gateway, portal, management, and SCM reachability."
     fi
 
-    local diagnostic_settings_json expected_workspace_id diagnostics_owner
+    local diagnostic_settings_json expected_workspace_id expected_workspace_label diagnostics_owner
     diagnostic_settings_json="$(az monitor diagnostic-settings list --resource "$apim_id" -o json)"
-    expected_workspace_id="$(lowercase "$APIM_LOG_ANALYTICS_WORKSPACE_ID")"
+    if [[ -n "${APIM_LOG_ANALYTICS_WORKSPACE_ID:-}" ]]; then
+      expected_workspace_id="$APIM_LOG_ANALYTICS_WORKSPACE_ID"
+      expected_workspace_label="$APIM_LOG_ANALYTICS_WORKSPACE_ID"
+    else
+      if ! expected_workspace_id="$(az monitor log-analytics workspace show \
+        --resource-group "$APIM_RESOURCE_GROUP" \
+        --workspace-name "$APIM_LOG_ANALYTICS_WORKSPACE_NAME" \
+        --query id -o tsv)" || [[ -z "$expected_workspace_id" ]]; then
+        block foundation "Log Analytics workspace $APIM_LOG_ANALYTICS_WORKSPACE_NAME was not found in resource group $APIM_RESOURCE_GROUP; runtime diagnostics validation cannot resolve its resource ID."
+        return 0
+      fi
+      expected_workspace_label="$APIM_LOG_ANALYTICS_WORKSPACE_NAME ($expected_workspace_id)"
+    fi
+    expected_workspace_id="$(lowercase "$expected_workspace_id")"
     diagnostics_owner="${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}"
     case "$diagnostics_owner" in
       blueprint|policy) ;;
@@ -458,13 +489,13 @@ validate_foundation_live() {
         ]
         | length == 1
       ' <<<"$diagnostic_settings_json" >/dev/null || {
-      echo "ERROR [foundation]: $diagnostics_owner diagnostics must send AllLogs and AllMetrics to APIM_LOG_ANALYTICS_WORKSPACE_ID." >&2
+      echo "ERROR [foundation]: $diagnostics_owner diagnostics must send AllLogs and AllMetrics to the resolved Log Analytics workspace." >&2
       exit 1
     }
     if [[ "$diagnostics_owner" == "policy" ]]; then
       require_governance_reference APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE foundation || return 0
     fi
-    echo "Validated $diagnostics_owner APIM diagnostics to workspace $APIM_LOG_ANALYTICS_WORKSPACE_ID."
+    echo "Validated $diagnostics_owner APIM diagnostics to workspace $expected_workspace_label."
 
     az monitor metrics alert show \
       --resource-group "$APIM_RESOURCE_GROUP" \
@@ -536,8 +567,11 @@ validate_integration_live() {
     echo "ERROR [integration]: APIM_STAGE1_SERVICE_ID does not match the selected Stage 1 APIM service." >&2
     exit 1
   }
-  jq -e '.sku.name == "Premium" and .virtualNetworkType == "Internal"' <<<"$apim_json" >/dev/null || {
-    echo "ERROR [integration]: Stage 2 requires a validated Premium, internal APIM Stage 1 foundation." >&2
+  jq -e '
+    ((.sku.name == "Developer" and .sku.capacity == 1) or .sku.name == "Premium")
+    and .virtualNetworkType == "Internal"
+  ' <<<"$apim_json" >/dev/null || {
+    echo "ERROR [integration]: Stage 2 requires a validated internal APIM Stage 1 foundation using Developer capacity 1 or Premium." >&2
     exit 1
   }
   apim_principal="$(jq -r '.identity.principalId // ""' <<<"$apim_json")"
