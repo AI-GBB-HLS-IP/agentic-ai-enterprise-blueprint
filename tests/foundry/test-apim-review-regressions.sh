@@ -84,9 +84,9 @@ if [[ "$HAVE_AZ" == "true" ]]; then
     and $readiness.link == "[if(parameters('\''deployPrivateDns'\''), '\''deployed'\'', '\''external'\'')]"
     and ($readiness.record | contains("external-handoff-required"))
     and ($readiness.additionalEndpointRecords | contains("external-handoff-required"))
-    and $readiness.status == "[if(greater(length(parameters('\''apimPrivateIpAddresses'\'')), 0), '\''deployed'\'', '\''pending'\'')]"
+    and $readiness.status == "[if(and(parameters('\''deployPrivateDns'\''), greater(length(parameters('\''apimPrivateIpAddresses'\'')), 0)), '\''deployed'\'', '\''pending'\'')]"
   ' "$workdir/private-dns.json" >/dev/null ||
-    fail "compiled DNS handoff must become ready from private IP data without claiming external resources"
+    fail "compiled DNS handoff must stay pending for external mode until validation evidence exists"
 
   echo "==> Compiled required ProjectCode=APIM tag precedence (Stage 1)"
   public_ip_resource="$(jq -e '.resources[] | select(.type == "Microsoft.Network/publicIPAddresses")' "$workdir/foundation.json")"
