@@ -33,7 +33,7 @@ param subnetNamingExceptionReference string = ''
 @description('Non-secret evidence reference for an active tenant-approved route-table exception.')
 param routeTableExceptionReference string = ''
 
-@description('Required APIM subnet service endpoints.')
+@description('Additional APIM subnet service endpoints to validate beyond the immutable platform requirements.')
 param requiredServiceEndpoints array = [
   'Microsoft.AzureActiveDirectory'
   'Microsoft.KeyVault'
@@ -114,6 +114,9 @@ param diagnosticSettingName string = 'diag-apim-gateway'
 ])
 param diagnosticSettingsOwnership string = 'blueprint'
 
+@description('Non-secret evidence reference recorded only after live validation confirms policy-owned APIM diagnostics.')
+param policyOwnedDiagnosticSettingsValidationReference string = ''
+
 @description('APIM average-capacity alert name.')
 param capacityAlertName string = 'alert-apim-capacity-over-60'
 
@@ -172,8 +175,16 @@ var subnetRouteApproved = !empty(approvedApimRouteTableResourceId)
 var subnetHasNoDelegation = length(apimSubnet.properties.delegations ?? []) == 0
   ? true
   : fail('Classic Developer and Premium APIM require an undelegated subnet.')
+var mandatoryServiceEndpoints = [
+  'Microsoft.AzureActiveDirectory'
+  'Microsoft.KeyVault'
+  'Microsoft.Sql'
+  'Microsoft.Storage'
+]
 var configuredServiceEndpoints = map(apimSubnet.properties.serviceEndpoints ?? [], endpoint => toLower(endpoint.service))
-var normalizedRequiredServiceEndpoints = map(requiredServiceEndpoints, endpoint => toLower(endpoint))
+var normalizedMandatoryServiceEndpoints = map(mandatoryServiceEndpoints, endpoint => toLower(endpoint))
+var normalizedCallerServiceEndpoints = map(requiredServiceEndpoints, endpoint => toLower(endpoint))
+var normalizedRequiredServiceEndpoints = union(normalizedMandatoryServiceEndpoints, normalizedCallerServiceEndpoints)
 var requiredServiceEndpointsPresent = length(intersection(configuredServiceEndpoints, normalizedRequiredServiceEndpoints)) == length(normalizedRequiredServiceEndpoints)
   ? true
   : fail('The APIM subnet is missing one or more required service endpoints: Microsoft.AzureActiveDirectory, Microsoft.KeyVault, Microsoft.Sql, Microsoft.Storage.')
@@ -259,13 +270,24 @@ output appInsightsId string = observability.outputs.applicationInsightsId
 output logAnalyticsWorkspaceId string = observability.outputs.logAnalyticsWorkspaceId
 output diagnosticSettingId string = observability.outputs.diagnosticSettingId
 output capacityAlertId string = observability.outputs.capacityAlertId
+var policyOwnedDiagnosticSettingsValidated = diagnosticSettingsOwnership == 'policy' && !empty(policyOwnedDiagnosticSettingsValidationReference)
+var observabilityReady = observability.outputs.observabilityReadiness.status == 'deployed' || policyOwnedDiagnosticSettingsValidated
+var observabilityStatus = policyOwnedDiagnosticSettingsValidated
+  ? 'validated'
+  : observability.outputs.observabilityReadiness.status
 output foundationReadiness object = {
   network: foundationPolicyValidated ? 'validated' : 'failed'
   apim: apimMain.outputs.readiness.status
   identity: apimMain.outputs.readiness.identity
   dns: privateDns.outputs.dnsReadiness.status
-  observability: observability.outputs.observabilityReadiness.status
-  status: apimMain.outputs.readiness.status == 'deployed' && privateDns.outputs.dnsReadiness.status == 'deployed' && observability.outputs.observabilityReadiness.status == 'deployed'
+  observability: observabilityStatus
+  policyOwnedDiagnosticSettingsValidation: diagnosticSettingsOwnership == 'policy'
+    ? (policyOwnedDiagnosticSettingsValidated ? 'validated' : 'required')
+    : 'not-required'
+  policyOwnedDiagnosticSettingsValidationReference: policyOwnedDiagnosticSettingsValidated
+    ? policyOwnedDiagnosticSettingsValidationReference
+    : ''
+  status: apimMain.outputs.readiness.status == 'deployed' && privateDns.outputs.dnsReadiness.status == 'deployed' && observabilityReady
     ? 'deployed'
     : 'pending'
 }
