@@ -88,9 +88,9 @@ var stage1OverallReady = (stage1FoundationReadiness.?status ?? '') == 'deployed'
 var stage1ReadinessValidated = stage1NetworkReady && stage1ApimReady && stage1IdentityReady && stage1DnsReady && stage1ObservabilityReady && stage1OverallReady
   ? true
   : fail('Stage 2 requires the Stage 1 foundationReadiness handoff with network validated and APIM, identity, DNS, observability, and overall status deployed.')
-var apimPremiumSkuValidated = toLower(apimService.sku.name) == 'premium'
+var apimClassicSkuValidated = (toLower(apimService.sku.name) == 'developer' && apimService.sku.capacity == 1) || toLower(apimService.sku.name) == 'premium'
   ? true
-  : fail('Stage 2 requires the existing Stage 1 APIM service to use the Premium SKU.')
+  : fail('Stage 2 requires the existing Stage 1 APIM service to use a supported classic SKU: Developer with capacity exactly 1, or Premium.')
 var apimInternalNetworkValidated = toLower(apimService.properties.?virtualNetworkType ?? '') == 'internal'
   ? true
   : fail('Stage 2 requires the existing Stage 1 APIM service to use Internal virtual network mode.')
@@ -119,7 +119,7 @@ var validEnabledApprovedModels = filter(enabledApprovedModels, model => !empty(m
 var modelAllowlistPresent = length(enabledApprovedModels) > 0 && length(validEnabledApprovedModels) == length(enabledApprovedModels)
   ? true
   : fail('Stage 2 requires at least one enabled approved model mapping with non-empty publicName and deploymentName values.')
-var stage1FoundationValidated = apimIdMatchesStage1Handoff && stage1ReadinessValidated && apimPremiumSkuValidated && apimInternalNetworkValidated && apimIdentityValidated
+var stage1FoundationValidated = apimIdMatchesStage1Handoff && stage1ReadinessValidated && apimClassicSkuValidated && apimInternalNetworkValidated && apimIdentityValidated
 var integrationPrerequisitesValidated = stage1FoundationValidated && foundryIdMatches && governanceEvidencePresent && foundryRegionApproved && foundryPrivatePostureApproved && modelAllowlistPresent
 
 module foundryRoleAssignment '../../modules/apim/foundry-role-assignment.bicep' = {
