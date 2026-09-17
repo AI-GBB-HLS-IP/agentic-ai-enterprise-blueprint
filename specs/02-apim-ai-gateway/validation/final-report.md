@@ -1,40 +1,37 @@
-# Chapter 02 APIM gateway final validation report (T039)
+# Chapter 02 Staged Validation Report
 
-Status date: 2026-08-27
+| Stage | Offline status | Live status | Readiness |
+|---|---|---|---|
+| APIM foundation | PASS | PASS: accepted 2026-09-16 | Deployment and private-path runtime validated |
+| Foundry integration | PASS | BLOCKED: customer Foundry approval and an approved private model deployment | Pending live what-if, deployment, request, and telemetry evidence |
 
-## Offline deterministic checks
+## Offline Evidence
 
-- APIM module family created under `infra/modules/apim/`
-- POC composition + parameters created:
-  - `infra/envs/poc/apim.bicep`
-  - `infra/envs/poc/apim.bicepparam`
-- Validation runner created:
-  - `specs/02-apim-ai-gateway/validation/validate.sh`
-- Scope-boundary documentation/evidence files created in this directory
-- `./specs/02-apim-ai-gateway/validation/validate.sh` executed successfully
-- `az bicep build` succeeded for every APIM module and composition file
+- Every APIM module and both environment entry points compile.
+- Foundation parameters and compiled resources contain no Foundry/model/backend/API/product/token
+  dependency.
+- Integration references existing APIM and declares no foundation-owned resource.
+- Customer subnet assertions, APIM public IP association, Premium/internal/TLS settings,
+  AllLogs/AllMetrics handling, and capacity alert are present.
+- Static ownership checks pass and their seeded-regression self-tests fail as expected.
+- `OFFLINE_ONLY=true specs/02-apim-ai-gateway/validation/validate.sh all` passes.
 
-## Live Azure gates
+## Stage 1 Live Evidence
 
-Executed and recorded:
+Issue #71 records the authoritative redacted acceptance evidence from an authorized customer Azure
+environment on 2026-09-16:
 
-- Provider/API version inspection (`Microsoft.ApiManagement/service` API versions include `2024-05-01`).
-- Prerequisite inspection for RG/VNet/subnets/Foundry/model deployment (T008-T010).
-- APIM what-if preview for US1/US3 (T017, T031).
+- Deployment validation passed.
+- The what-if was reviewed as non-disruptive, with no resource replacement or deletion.
+- The unchanged-input preview and idempotency check passed.
+- The deployment succeeded.
+- APIM ran at Developer capacity one in internal VNet mode.
+- The private-path Echo API smoke test returned HTTP 200.
 
-Outstanding blockers:
+Customer identifiers, subscription keys, and other secrets are intentionally omitted.
 
-- T006: authoritative live confirmation of current `llm-token-limit` and
-  `llm-emit-token-metric` schema source remains manual.
-- T032: request behavior passed, but Foundry telemetry correlation for the rejected request is
-  still required.
-- T033: token-metric attribution and secret-safe telemetry inspection remain required.
-- T038: post-deployment unchanged-parameter idempotency validation remains required.
+## Stage 2 Blocker
 
-Completed live gates:
-
-- T018: classic Premium internal VNet posture, subnet placement, NSG preservation, and absence
-  of public gateway IP addresses passed.
-- T024: account-scoped managed identity, private DNS link, and private hostname resolution passed.
-- T032 request subset: private approved-model requests passed 10/10; missing-key and unsupported
-  model requests were rejected by APIM.
+Foundry integration remains blocked pending customer Foundry approval and an approved private model
+deployment. Its live what-if, unchanged-input/idempotency check, deployment, authorized model
+request, and telemetry acceptance remain pending.

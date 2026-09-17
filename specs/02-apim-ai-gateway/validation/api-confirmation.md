@@ -1,4 +1,7 @@
-# APIM provider and policy confirmation (T005-T007)
+# Historical Combined API Confirmation Evidence (T005-T007)
+
+> This predates the staged templates and includes an unresolved policy-schema gate. It is not
+> current foundation or integration readiness evidence.
 
 Status date: 2026-08-23
 

@@ -1,4 +1,7 @@
-# US1 what-if evidence (T017)
+# Historical Combined Deployment Evidence — US1 What-If (T017)
+
+> This predates the staged entry points and is not current Stage 1 evidence. See
+> `foundation-preview.md`.
 
 Status: **PASS (what-if executed)**
 

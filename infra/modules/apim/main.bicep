@@ -12,11 +12,15 @@ param publisherEmail string
 @description('APIM publisher display name.')
 param publisherName string
 
-@description('Existing APIM subnet resource ID for classic Premium VNet injection.')
+@description('Existing APIM subnet resource ID for classic Developer or Premium VNet injection.')
 param apimSubnetId string
 
-@description('APIM classic Premium SKU name. Premium v2 remains the preferred future tier.')
+@description('Existing customer-approved Standard static public IP resource ID used by classic internal APIM for platform management.')
+param apimPublicIpAddressId string
+
+@description('APIM classic SKU name. Developer is for smoke tests only; Premium remains the production-like default.')
 @allowed([
+  'Developer'
   'Premium'
 ])
 param apimSkuName string = 'Premium'
@@ -25,25 +29,21 @@ param apimSkuName string = 'Premium'
 @minValue(1)
 param apimSkuCapacity int = 1
 
-@description('Existing Foundry account name.')
-param foundryAccountName string
-
-@description('Resource group containing the Foundry account. Defaults to this resource group for single-RG deployments.')
-param foundryResourceGroupName string = resourceGroup().name
-
-@description('Existing Foundry account resource ID.')
-param foundryAccountId string
-
-@description('Public network access state. APIM requires Enabled during initial activation and can be disabled after provisioning.')
+@description('Public network access state. Classic internal VNet-injected APIM requires Enabled until an approved APIM private-endpoint handoff is implemented.')
 @allowed([
   'Enabled'
-  'Disabled'
 ])
-param publicNetworkAccess string = 'Disabled'
+param publicNetworkAccess string = 'Enabled'
 
-resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' existing = {
-  scope: resourceGroup(foundryResourceGroupName)
-  name: foundryAccountName
+var tlsSecurityProperties = {
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2': 'False'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Ssl30': 'false'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10': 'false'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11': 'false'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Ssl30': 'false'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls10': 'false'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11': 'false'
+  'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168': 'false'
 }
 
 resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
@@ -59,48 +59,42 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
   properties: {
     publisherEmail: publisherEmail
     publisherName: publisherName
+    publicIpAddressId: apimPublicIpAddressId
     publicNetworkAccess: publicNetworkAccess
+    legacyPortalStatus: 'Disabled'
     virtualNetworkType: 'Internal'
     virtualNetworkConfiguration: {
       subnetResourceId: apimSubnetId
     }
+    customProperties: tlsSecurityProperties
   }
 }
 
-// Extension resources (role assignments) must be deployed via a nested module scoped to the
-// Foundry account's own resource group when it differs from this file's resource group.
-module foundryRoleAssignmentModule 'foundry-role-assignment.bicep' = {
-  name: 'apim-foundry-role-assignment'
-  scope: resourceGroup(foundryResourceGroupName)
-  params: {
-    foundryAccountName: foundryAccountName
-    apimPrincipalId: apimService.identity.principalId
-    apimServiceId: apimService.id
-  }
-}
-
-var publicIpAddresses = !empty(apimService.properties.publicIPAddresses) ? apimService.properties.publicIPAddresses : []
-var privateIpAddresses = !empty(apimService.properties.privateIPAddresses) ? apimService.properties.privateIPAddresses : []
-var hasPublicGatewayEndpoint = length(publicIpAddresses) > 0
-var gatewayHostname = '${apimServiceName}.azure-api.net'
-var foundryScopeInputMatches = toLower(foundryAccountId) == toLower(foundryAccount.id)
+var privateIpAddresses = !empty(apimService.properties.privateIPAddresses)
+  ? apimService.properties.privateIPAddresses
+  : []
 
 output apimServiceId string = apimService.id
-output apimGatewayHostname string = gatewayHostname
+output apimServiceName string = apimService.name
+output apimGatewayHostname string = '${apimServiceName}.azure-api.net'
 output apimPrincipalId string = apimService.identity.principalId
 output subnetId string = apimSubnetId
-output subnetDelegationStatus string = 'not-required'
 output virtualNetworkType string = apimService.properties.virtualNetworkType
-output hasPublicGatewayEndpoint bool = hasPublicGatewayEndpoint
+output publicIpAddressId string = apimPublicIpAddressId
+output publicIpPurpose string = 'classic-internal-platform-management'
 output privateIpAddresses array = privateIpAddresses
-output foundryRoleAssignmentId string = foundryRoleAssignmentModule.outputs.foundryRoleAssignmentId
+output securityBaseline object = {
+  sku: apimSkuName
+  internalVnet: apimService.properties.virtualNetworkType == 'Internal'
+  systemAssignedIdentity: !empty(apimService.identity.principalId)
+  minimumTlsVersion: '1.2'
+  httpsBackendsRequired: true
+  weakProtocolsAndCiphersDisabled: true
+}
 output readiness object = {
-  prerequisites: 'existing'
-  subnetDelegation: 'not-required'
-  apimGateway: hasPublicGatewayEndpoint ? 'failed' : 'deployed'
-  identityRole: !empty(apimService.identity.principalId) ? 'deployed' : 'pending'
-  foundryScope: foundryAccount.id
-  foundryScopeInputMatches: foundryScopeInputMatches
-  mcpA2aComponents: 'absent'
-  status: !hasPublicGatewayEndpoint && foundryScopeInputMatches ? 'deployed' : 'failed'
+  apim: 'deployed'
+  identity: !empty(apimService.identity.principalId) ? 'deployed' : 'pending'
+  networkMode: apimService.properties.virtualNetworkType
+  publicIpPurpose: 'classic-internal-platform-management'
+  status: !empty(apimService.identity.principalId) ? 'deployed' : 'pending'
 }

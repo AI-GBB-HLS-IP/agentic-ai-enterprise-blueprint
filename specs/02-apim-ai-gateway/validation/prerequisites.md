@@ -1,4 +1,7 @@
-# Prerequisite and scope checks (T008-T011)
+# Historical Combined Prerequisite Evidence (T008-T011)
+
+> Foundry was previously treated as a chapter-wide prerequisite. Current staged prerequisites are
+> defined in `README.md`, `foundation-preview.md`, and `integration-preview.md`.
 
 Status date: 2026-08-23
 

@@ -1,4 +1,7 @@
-# US1 gateway posture evidence (T018)
+# Historical Combined Deployment Evidence — US1 Gateway (T018)
+
+> This predates the customer-approved classic APIM public-IP requirement and is not current Stage
+> 1 evidence. See `foundation-runtime.md`.
 
 Status: **PASS**
 
