@@ -18,7 +18,8 @@ one service block the other, so the entry points and readiness gates are split.
 
 ### Customer APIM network controls are fail-closed
 
-The reviewed VPCx Azure 2.0 profile requires:
+The reviewed customer-approved APIM network profile, whose source revision is retained in the
+controlled external evidence location, requires:
 
 - `apimsubnet-*` naming or approved exception;
 - approved hybrid NSG;
@@ -26,9 +27,9 @@ The reviewed VPCx Azure 2.0 profile requires:
 - no delegation;
 - Azure Active Directory, Key Vault, SQL, and Storage service endpoints.
 
-The observed tenant policy denies a route table on a subnet using the shared hybrid NSG. The
-implementation therefore requires a non-empty exception reference when the expected route table
-ID is empty; it does not silently pick one policy over the other.
+Approved external policy evidence may prohibit a route table on a subnet that uses the shared
+hybrid NSG. The implementation therefore requires a non-empty exception reference when the
+expected route table ID is empty; it does not silently pick one policy over the other.
 
 ### Security settings are explicit
 

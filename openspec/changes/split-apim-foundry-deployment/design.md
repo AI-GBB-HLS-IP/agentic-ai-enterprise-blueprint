@@ -11,14 +11,13 @@ API, and Foundry role assignment are separate modules. The principal coupling is
 `infra/modules/apim/main.bicep` references Foundry and deploys the role assignment, while the
 environment entry point and validator treat every module as one readiness unit.
 
-The customer VPCx Azure 2.0 guidance independently defines APIM and Foundry. APIM requires
-internal VNet mode, an approved subnet with customer network controls, a public IP for classic
+The approved external guidance independently defines APIM and Foundry. APIM requires internal
+VNet mode, an approved subnet with customer network controls, a public IP for classic
 internal-mode platform operation, TLS restrictions, diagnostics, and capacity monitoring.
-Foundry has its own GenAI approval and account-enablement workflow, approved regions and models,
-private endpoints, and policy enforcement; its guidance contains no APIM prerequisite.
-The customer baseline reviewed for this change is the `cloudx-patterns` snapshot at commit
-`a23fe3be99e`, under `docs/azure_2_0/services/azure-api-management-v2/` and
-`docs/azure_2_0/services/azure-aifoundry-2.0/`.
+Foundry has its own generative AI approval and account-enablement workflow, approved regions and
+models, private endpoints, and policy enforcement; its guidance contains no APIM prerequisite.
+Source revisions for the reviewed APIM and Foundry policy evidence are retained in the controlled
+external evidence location.
 
 ## Goals / Non-Goals
 
@@ -113,10 +112,10 @@ governed AI API as the final integrated outcome.
 
 Foundation preflight will validate the customer policy profile before provisioning:
 
-- `apimsubnet-*` naming from the customer guidance, or a documented tenant-approved naming
+- `apimsubnet-*` naming from the customer guidance, or a documented customer-policy naming
   exception;
 - the approved hybrid NSG;
-- the APIM route table or a documented tenant-specific exception;
+- the APIM route table or a documented customer-policy exception;
 - no subnet delegation;
 - the four required service endpoints;
 - customer-approved public IP naming, DNS label, and tags for the Standard/static resource
@@ -127,10 +126,10 @@ Foundation preflight will validate the customer policy profile before provisioni
 
 The existing brownfield network templates already support an NSG resource ID, route-table
 resource ID, and service endpoints. The generic customer document requires
-`apim-routetable-<location>`, while the repository records an observed landing-zone policy that
-denies a route table when the shared hybrid NSG is attached. The implementation will not silently
-choose between these conflicting controls: validation must require either the documented customer
-profile or explicit evidence of the active tenant-approved exception.
+`apim-routetable-<location>`, while approved external policy evidence may prohibit a route table
+when the shared hybrid NSG is attached. The implementation will not silently choose between
+these conflicting controls: validation must require either the documented customer profile or
+explicit evidence of the active customer-policy exception.
 
 The POC foundation creates the required Standard/static public IP so a smoke test does not depend
 on a separate manual prerequisite. Its name, DNS label, and tags remain customer inputs. The
@@ -157,18 +156,18 @@ approved CA certificates, and internal DNS A records to the private VIP as an op
 when consumers require broader internal reachability. This does not gate foundation validation
 for VNet-local consumers.
 
-VPCx workload subscriptions may deny private DNS zones entirely and use corporate DNS servers
-through a hub VNet, as observed in the production APIM environment. The foundation therefore
-supports `blueprint` DNS mode where zone creation is allowed and `external` mode where it emits
-the required hostnames and private IPs for customer DNS fulfillment without attempting
-cross-subscription or corporate DNS writes.
+Workload-subscription policy may prohibit workload-owned private DNS zones and require
+centrally managed DNS resolution through shared network infrastructure. The foundation therefore
+supports `blueprint` DNS mode where customer policy allows zone creation and `external` mode
+where it emits the required hostnames and private IPs for customer DNS fulfillment without
+attempting cross-subscription or centrally managed DNS writes.
 
 ### 10. Make customer Foundry governance a Stage 2 gate
 
-Integration validation will require evidence that the GenAI Review Board case and Foundry account
-enablement are complete, that the existing Foundry deployment is in an approved region with
-private access, and that every mapped model is on the customer-approved model list. These checks
-belong only to Stage 2 and must never run during foundation preview or deployment.
+Integration validation will require evidence that generative AI governance approval and Foundry
+account enablement are complete, that the existing Foundry deployment is in an approved region
+with private access, and that every mapped model is on the customer-approved model list. These
+checks belong only to Stage 2 and must never run during foundation preview or deployment.
 The referenced customer guidance currently identifies East US, East US 2, and West Europe as the
 allowed Foundry regions; validation should consume the maintained customer policy source rather
 than permanently duplicating a list that can change.
@@ -188,7 +187,7 @@ than permanently duplicating a list that can change.
 - **[Two entry points increase operator steps]** -> Provide an `all` validation mode and a concise
   handoff showing exactly which foundation outputs become Stage 2 inputs, without recombining the
   deployments.
-- **[Generic APIM guidance and active tenant policy disagree on route-table attachment]** ->
+- **[Generic APIM guidance and active customer policy disagree on route-table attachment]** ->
   Validate the active policy assignment and require documented exception evidence rather than
   hardcoding a configuration that Azure Policy will deny.
 - **[A required public IP is mistaken for public gateway exposure]** -> Document its

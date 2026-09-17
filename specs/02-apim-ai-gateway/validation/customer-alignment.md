@@ -1,13 +1,14 @@
-# Customer Alignment Matrix
+# External Policy Alignment Matrix
 
-Baseline: VPCx Azure 2.0 `cloudx-patterns` snapshot `a23fe3be99e`.
+Baseline: approved external APIM and Foundry policy evidence. Source revisions are retained in the
+controlled evidence location rather than embedded in repository documentation.
 
-| Customer control | Stage | Implementation or evidence |
+| External policy control | Stage | Implementation or evidence |
 |---|---|---|
-| APIM subnet name `apimsubnet-*` | Foundation | `apimSubnetName`; `subnetNamingExceptionReference` is required for the existing `hybridsubnet-apim` exception |
+| APIM subnet name `apimsubnet-*` | Foundation | `apimSubnetName`; `subnetNamingExceptionReference` is required when the approved subnet differs from the convention |
 | Approved hybrid NSG | Foundation | `approvedApimNsgResourceId`; live validator compares the subnet association |
-| `apim-routetable-<location>` | Foundation | `approvedApimRouteTableResourceId`; when empty, `routeTableExceptionReference` must identify the active tenant exception |
-| Tenant policy denying route table with shared hybrid NSG | Foundation | Existing `brownfield-network.bicepparam` records the observed denial; foundation uses an explicit exception reference and validates no conflicting route table |
+| `apim-routetable-<location>` | Foundation | `approvedApimRouteTableResourceId`; when empty, `routeTableExceptionReference` must identify the active approved exception |
+| Approved policy exception for a route-table and shared-NSG conflict | Foundation | Controlled external evidence records the exception; foundation requires an explicit reference and validates that no conflicting route table is attached |
 | No subnet delegation | Foundation | Deployment-time assertion and live subnet check |
 | Azure AD, Key Vault, SQL, Storage service endpoints | Foundation | `requiredServiceEndpoints`; deployment-time assertion and live subnet check |
 | Developer or Premium APIM | Foundation | `apimSkuName`; Developer is allowed for smoke tests with capacity one and Premium remains the default |
@@ -20,7 +21,7 @@ Baseline: VPCx Azure 2.0 `cloudx-patterns` snapshot `a23fe3be99e`.
 | Average capacity alert above 60% | Foundation | Metric alert with `Capacity`, `Average`, threshold `60` |
 | Default VNet-local private DNS | Foundation | `azure-api.net` zone, VNet link, gateway/portal/management/SCM A records |
 | Enterprise custom domains and CA certificates | Conditional foundation extension | Documented in chapter/quickstart; requires enterprise DNS A records to private VIP |
-| GenAI Review Board approval | Integration | `genAiApprovalReference`; required non-placeholder preflight input |
+| Generative AI governance approval | Integration | `genAiApprovalReference`; required non-placeholder preflight input |
 | Foundry account enablement | Integration | `foundryEnablementReference`; required non-placeholder preflight input |
 | Approved Foundry region | Integration | `approvedFoundryRegions`; live validator checks account location |
 | Private Foundry access | Integration | `requirePrivateFoundryAccess`; live validator requires disabled public network access |
