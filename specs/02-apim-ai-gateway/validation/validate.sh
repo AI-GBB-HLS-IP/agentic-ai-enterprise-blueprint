@@ -9,7 +9,7 @@ RUN_WHAT_IF="${RUN_WHAT_IF:-true}"
 VALIDATION_PHASE="${VALIDATION_PHASE:-all}"
 
 FOUNDATION_TEMPLATE="infra/envs/poc/apim.bicep"
-FOUNDATION_PARAMETERS="infra/envs/poc/apim.bicepparam"
+FOUNDATION_PARAMETERS="${APIM_FOUNDATION_PARAMETERS_FILE:-${FOUNDATION_PARAMETERS:-infra/envs/poc/apim.bicepparam}}"
 INTEGRATION_TEMPLATE="infra/envs/poc/apim-foundry-integration.bicep"
 INTEGRATION_PARAMETERS="infra/envs/poc/apim-foundry-integration.bicepparam"
 
@@ -94,6 +94,35 @@ assert_present() {
   fi
 }
 
+lowercase() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+is_placeholder() {
+  local value normalized
+  value="$1"
+  normalized="$(lowercase "$value")"
+  [[ "$value" == \<*\> ]] ||
+    [[ "$normalized" == *placeholder* ]] ||
+    [[ "$normalized" == *replace-me* ]] ||
+    [[ "$normalized" == "todo" ]] ||
+    [[ "$normalized" == "tbd" ]]
+}
+
+require_governance_reference() {
+  local name="$1"
+  local stage="$2"
+  local value="${!name:-}"
+  if [[ -z "$value" ]]; then
+    block "$stage" "Set $name to an approved governance evidence reference."
+    return 1
+  fi
+  if is_placeholder "$value"; then
+    echo "ERROR [$stage]: $name must not contain placeholder governance evidence." >&2
+    exit 1
+  fi
+}
+
 azure_session_available() {
   command -v az >/dev/null 2>&1 && az account show >/dev/null 2>&1
 }
@@ -118,44 +147,50 @@ validate_static_ownership() {
   temp_dir="$(mktemp -d)"
   trap 'rm -rf "$temp_dir"' RETURN
 
-  compile_to "$FOUNDATION_TEMPLATE" "$temp_dir/foundation.json"
-  compile_to "$INTEGRATION_TEMPLATE" "$temp_dir/integration.json"
+  if [[ "$MODE" == "foundation" || "$MODE" == "all" ]]; then
+    compile_to "$FOUNDATION_TEMPLATE" "$temp_dir/foundation.json"
+    assert_absent 'Microsoft\.CognitiveServices|foundry-openai-backend|approved-models|enterprise-llm-api' \
+      "$temp_dir/foundation.json" \
+      "foundation compiled template contains an integration-owned reference"
+    assert_present '"type": "Microsoft\.ApiManagement/service"' \
+      "$temp_dir/foundation.json" \
+      "foundation compiled template does not deploy APIM"
+    assert_present 'Microsoft\.Network/privateDnsZones' \
+      "$temp_dir/foundation.json" \
+      "foundation compiled template does not deploy private DNS"
+    assert_present 'Microsoft\.Insights/metricAlerts' \
+      "$temp_dir/foundation.json" \
+      "foundation compiled template does not deploy the capacity alert"
 
-  assert_absent 'Microsoft\.CognitiveServices|foundry-openai-backend|approved-models|enterprise-llm-api' \
-    "$temp_dir/foundation.json" \
-    "foundation compiled template contains an integration-owned reference"
-  assert_present '"type": "Microsoft\.ApiManagement/service"' \
-    "$temp_dir/foundation.json" \
-    "foundation compiled template does not deploy APIM"
-  assert_present 'Microsoft\.Network/privateDnsZones' \
-    "$temp_dir/foundation.json" \
-    "foundation compiled template does not deploy private DNS"
-  assert_present 'Microsoft\.Insights/metricAlerts' \
-    "$temp_dir/foundation.json" \
-    "foundation compiled template does not deploy the capacity alert"
-
-  assert_absent '"type": "Microsoft\.ApiManagement/service"|Microsoft\.Network/privateDnsZones|Microsoft\.Insights/components|Microsoft\.OperationalInsights/workspaces|Microsoft\.Insights/metricAlerts' \
-    "$temp_dir/integration.json" \
-    "integration compiled template declares a foundation-owned resource"
-  assert_present 'Microsoft\.Authorization/roleAssignments' \
-    "$temp_dir/integration.json" \
-    "integration compiled template lacks the Foundry role assignment"
-  assert_present 'Microsoft\.ApiManagement/service/backends' \
-    "$temp_dir/integration.json" \
-    "integration compiled template lacks the APIM backend"
-  assert_present 'Microsoft\.ApiManagement/service/apis' \
-    "$temp_dir/integration.json" \
-    "integration compiled template lacks the governed API"
-
-  printf '%s\n' 'Microsoft.CognitiveServices/accounts' >"$temp_dir/seed-foundation"
-  if ! grep -Eq 'Microsoft\.CognitiveServices|foundry-openai-backend|approved-models|enterprise-llm-api' "$temp_dir/seed-foundation"; then
-    echo "ERROR: foundation ownership regression self-test did not detect a seeded reference" >&2
-    exit 1
+    printf '%s\n' 'Microsoft.CognitiveServices/accounts' >"$temp_dir/seed-foundation"
+    if (assert_absent 'Microsoft\.CognitiveServices|foundry-openai-backend|approved-models|enterprise-llm-api' \
+      "$temp_dir/seed-foundation" "seeded foundation ownership violation") >/dev/null 2>&1; then
+      echo "ERROR: foundation ownership regression self-test did not exercise assert_absent" >&2
+      exit 1
+    fi
   fi
-  printf '%s\n' '"type": "Microsoft.ApiManagement/service"' >"$temp_dir/seed-integration"
-  if ! grep -Eq '"type": "Microsoft\.ApiManagement/service"|Microsoft\.Network/privateDnsZones|Microsoft\.Insights/components|Microsoft\.OperationalInsights/workspaces|Microsoft\.Insights/metricAlerts' "$temp_dir/seed-integration"; then
-    echo "ERROR: integration ownership regression self-test did not detect a seeded resource" >&2
-    exit 1
+
+  if [[ "$MODE" == "integration" || "$MODE" == "all" ]]; then
+    compile_to "$INTEGRATION_TEMPLATE" "$temp_dir/integration.json"
+    assert_absent '"type": "Microsoft\.ApiManagement/service"|Microsoft\.Network/privateDnsZones|Microsoft\.Insights/components|Microsoft\.OperationalInsights/workspaces|Microsoft\.Insights/metricAlerts' \
+      "$temp_dir/integration.json" \
+      "integration compiled template declares a foundation-owned resource"
+    assert_present 'Microsoft\.Authorization/roleAssignments' \
+      "$temp_dir/integration.json" \
+      "integration compiled template lacks the Foundry role assignment"
+    assert_present 'Microsoft\.ApiManagement/service/backends' \
+      "$temp_dir/integration.json" \
+      "integration compiled template lacks the APIM backend"
+    assert_present 'Microsoft\.ApiManagement/service/apis' \
+      "$temp_dir/integration.json" \
+      "integration compiled template lacks the governed API"
+
+    printf '%s\n' '"type": "Microsoft.ApiManagement/service"' >"$temp_dir/seed-integration"
+    if (assert_absent '"type": "Microsoft\.ApiManagement/service"|Microsoft\.Network/privateDnsZones|Microsoft\.Insights/components|Microsoft\.OperationalInsights/workspaces|Microsoft\.Insights/metricAlerts' \
+      "$temp_dir/seed-integration" "seeded integration ownership violation") >/dev/null 2>&1; then
+      echo "ERROR: integration ownership regression self-test did not exercise assert_absent" >&2
+      exit 1
+    fi
   fi
 }
 
@@ -176,7 +211,9 @@ validate_foundation_offline() {
   compile_bicep "infra/modules/apim/observability.bicep"
   compile_bicep "$FOUNDATION_TEMPLATE"
   compile_params "$FOUNDATION_PARAMETERS"
-  compile_params "infra/envs/poc/apim.customer.example.bicepparam"
+  if [[ "$FOUNDATION_PARAMETERS" != "infra/envs/poc/apim.customer.example.bicepparam" ]]; then
+    compile_params "infra/envs/poc/apim.customer.example.bicepparam"
+  fi
 
   local observability_template
   observability_template="$(mktemp)"
@@ -263,7 +300,7 @@ validate_foundation_live() {
   fi
 
   local missing=false
-  for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_PUBLISHER_EMAIL; do
+  for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_PUBLISHER_EMAIL APIM_LOG_ANALYTICS_WORKSPACE_ID; do
     require_env_value "$name" foundation || missing=true
   done
   if [[ -z "${APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID:-}" && -z "${APIM_ROUTE_TABLE_EXCEPTION_REFERENCE:-}" ]]; then
@@ -287,12 +324,12 @@ validate_foundation_live() {
     echo "ERROR [foundation]: APIM subnet naming is unapproved and no exception reference was supplied." >&2
     exit 1
   fi
-  [[ "${subnet_nsg,,}" == "${APIM_APPROVED_NSG_RESOURCE_ID,,}" ]] || {
+  [[ "$(lowercase "$subnet_nsg")" == "$(lowercase "$APIM_APPROVED_NSG_RESOURCE_ID")" ]] || {
     echo "ERROR [foundation]: APIM subnet NSG does not match the approved NSG." >&2
     exit 1
   }
   if [[ -n "${APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID:-}" ]]; then
-    [[ "${subnet_route,,}" == "${APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID,,}" ]] || {
+    [[ "$(lowercase "$subnet_route")" == "$(lowercase "$APIM_APPROVED_ROUTE_TABLE_RESOURCE_ID")" ]] || {
       echo "ERROR [foundation]: APIM subnet route table does not match approval." >&2
       exit 1
     }
@@ -325,7 +362,7 @@ validate_foundation_live() {
   fi
 
   if az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}" >/dev/null 2>&1; then
-    local apim_json apim_id workspace_id apim_name expected_sku expected_capacity
+    local apim_json apim_id apim_name expected_sku expected_capacity
     apim_name="${APIM_SERVICE_NAME:-apim-agent-factory-private-poc}"
     expected_sku="${APIM_SKU_NAME:-Premium}"
     expected_capacity="${APIM_SKU_CAPACITY:-1}"
@@ -337,7 +374,7 @@ validate_foundation_live() {
       .identity.type == "SystemAssigned" and
       (.identity.principalId | length > 0)
     ' <<<"$apim_json" >/dev/null
-    jq -e '(.privateIpAddresses // [] | length) > 0' <<<"$apim_json" >/dev/null
+    jq -e '(.privateIPAddresses // [] | length) > 0' <<<"$apim_json" >/dev/null
     jq -e '
       .customProperties["Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10"] == "false" and
       .customProperties["Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11"] == "false" and
@@ -363,8 +400,6 @@ validate_foundation_live() {
           --name "$record" \
           --query "aRecords | length(@)" -o tsv | grep -Eq '^[1-9][0-9]*$'
       done
-    else
-      block foundation "External DNS mode requires customer confirmation that the APIM hostnames resolve to the reported private IP."
     fi
 
     if [[ "${APIM_VALIDATE_ENDPOINT_REACHABILITY:-false}" == "true" ]]; then
@@ -376,8 +411,12 @@ validate_foundation_live() {
         "$apim_name.management.azure-api.net" \
         "$apim_name.scm.azure-api.net"; do
         ip="$(getent ahostsv4 "$endpoint" | awk 'NR == 1 { print $1 }')"
-        [[ -n "$ip" ]] && is_private_ipv4 "$ip" || {
+        if [[ -z "$ip" ]] || ! is_private_ipv4 "$ip"; then
           echo "ERROR [foundation]: $endpoint did not resolve to a private IPv4 address." >&2
+          exit 1
+        fi
+        jq -e --arg ip "$ip" '(.privateIPAddresses // []) | index($ip) != null' <<<"$apim_json" >/dev/null || {
+          echo "ERROR [foundation]: $endpoint resolved to $ip instead of an APIM-reported private IP." >&2
           exit 1
         }
         if ! curl --silent --show-error --connect-timeout 5 --max-time 10 "https://$endpoint" -o /dev/null; then
@@ -385,30 +424,47 @@ validate_foundation_live() {
           exit 1
         fi
       done
+    elif [[ "${APIM_PRIVATE_DNS_MODE:-blueprint}" == "external" ]]; then
+      block foundation "External DNS requires APIM_VALIDATE_ENDPOINT_REACHABILITY=true from an authorized network to validate customer-managed resolution and reachability."
     else
       block foundation "Set APIM_VALIDATE_ENDPOINT_REACHABILITY=true from an authorized network to verify internal gateway, portal, management, and SCM reachability."
     fi
 
-    local diagnostic_settings_json
+    local diagnostic_settings_json expected_workspace_id diagnostics_owner
     diagnostic_settings_json="$(az monitor diagnostic-settings list --resource "$apim_id" -o json)"
-    jq -e '[.value[] | select((([.logs[]? | select(.enabled == true and (.categoryGroup == "AllLogs" or .category != null))] | length) > 0) and (([.metrics[]? | select(.enabled == true and .category == "AllMetrics")] | length) > 0))] | length > 0' \
-      <<<"$diagnostic_settings_json" >/dev/null
-    if [[ "${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}" == "blueprint" ]]; then
-      jq -e --arg name "${APIM_DIAGNOSTIC_SETTING_NAME:-diag-apim-gateway}" \
-        '[.value[] | select(.name == $name)] | length == 1' <<<"$diagnostic_settings_json" >/dev/null
-    fi
+    expected_workspace_id="$(lowercase "$APIM_LOG_ANALYTICS_WORKSPACE_ID")"
+    diagnostics_owner="${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}"
+    case "$diagnostics_owner" in
+      blueprint|policy) ;;
+      *)
+        echo "ERROR [foundation]: APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP must be blueprint or policy." >&2
+        exit 1
+        ;;
+    esac
+    jq -e \
+      --arg owner "$diagnostics_owner" \
+      --arg name "${APIM_DIAGNOSTIC_SETTING_NAME:-diag-apim-gateway}" \
+      --arg workspace_id "$expected_workspace_id" '
+        [.value[]
+          | select(
+              ((.workspaceId // "") | ascii_downcase) == $workspace_id
+              and ([.logs[]? | select(.enabled == true and .categoryGroup == "AllLogs")] | length) > 0
+              and ([.metrics[]? | select(.enabled == true and .category == "AllMetrics")] | length) > 0
+              and ($owner != "blueprint" or .name == $name)
+            )
+        ]
+        | length == 1
+      ' <<<"$diagnostic_settings_json" >/dev/null || {
+      echo "ERROR [foundation]: $diagnostics_owner diagnostics must send AllLogs and AllMetrics to APIM_LOG_ANALYTICS_WORKSPACE_ID." >&2
+      exit 1
+    }
+    echo "Validated $diagnostics_owner APIM diagnostics to workspace $APIM_LOG_ANALYTICS_WORKSPACE_ID."
 
     az monitor metrics alert show \
       --resource-group "$APIM_RESOURCE_GROUP" \
       --name "${APIM_CAPACITY_ALERT_NAME:-alert-apim-capacity-over-60}" \
       --query "criteria.allOf[?metricName=='Capacity' && timeAggregation=='Average' && threshold>=\`60\`] | length(@)" -o tsv | grep -qx 1
 
-    workspace_id="${APIM_LOG_ANALYTICS_WORKSPACE_ID:-}"
-    if [[ -n "$workspace_id" && "${APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP:-policy}" == "policy" ]]; then
-      jq -e --arg workspace_id "${workspace_id,,}" \
-        '[.value[] | select(((.workspaceId // "") | ascii_downcase) == $workspace_id)] | length > 0' \
-        <<<"$diagnostic_settings_json" >/dev/null
-    fi
   else
     block foundation "APIM is not deployed; runtime identity, DNS, diagnostics, alert, and internal endpoint checks remain pending."
   fi
@@ -426,16 +482,24 @@ validate_integration_live() {
   fi
 
   local missing=false
-  for name in APIM_RESOURCE_GROUP APIM_SERVICE_NAME FOUNDRY_RESOURCE_GROUP FOUNDRY_ACCOUNT_NAME FOUNDRY_ACCOUNT_ID FOUNDRY_APPROVED_MODELS GENAI_APPROVAL_REFERENCE FOUNDRY_ENABLEMENT_REFERENCE FOUNDRY_CUSTOMER_POLICY_SOURCE; do
+  for name in APIM_RESOURCE_GROUP APIM_SERVICE_NAME FOUNDRY_RESOURCE_GROUP FOUNDRY_ACCOUNT_NAME FOUNDRY_ACCOUNT_ID FOUNDRY_APPROVED_REGIONS FOUNDRY_APPROVED_MODELS; do
     require_env_value "$name" integration || missing=true
+  done
+  for name in GENAI_APPROVAL_REFERENCE FOUNDRY_ENABLEMENT_REFERENCE FOUNDRY_CUSTOMER_POLICY_SOURCE; do
+    require_governance_reference "$name" integration || missing=true
   done
   if [[ "$missing" == true ]]; then
     return 0
   fi
 
   local apim_json foundry_json apim_principal foundry_id foundry_location approved_regions_json approved_models_json model_deployment
-  approved_regions_json="${FOUNDRY_APPROVED_REGIONS:-[\"eastus\",\"eastus2\",\"westeurope\"]}"
+  approved_regions_json="$FOUNDRY_APPROVED_REGIONS"
   approved_models_json="$FOUNDRY_APPROVED_MODELS"
+  jq -e 'type == "array" and length > 0 and all(.[]; type == "string" and length > 0)' \
+    <<<"$approved_regions_json" >/dev/null || {
+    echo "ERROR [integration]: FOUNDRY_APPROVED_REGIONS must be a non-empty JSON array of region names." >&2
+    exit 1
+  }
   jq -e 'type == "array" and length > 0 and all(.[];
     (.publicName | type == "string" and length > 0) and
     (.deploymentName | type == "string" and length > 0) and
@@ -450,6 +514,10 @@ validate_integration_live() {
   }
 
   apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" -o json)"
+  jq -e '.sku.name == "Premium" and .virtualNetworkType == "Internal"' <<<"$apim_json" >/dev/null || {
+    echo "ERROR [integration]: Stage 2 requires a validated Premium, internal APIM Stage 1 foundation." >&2
+    exit 1
+  }
   apim_principal="$(jq -r '.identity.principalId // ""' <<<"$apim_json")"
   [[ -n "$apim_principal" ]] || {
     echo "ERROR [integration]: existing APIM has no system-assigned principal." >&2
@@ -459,7 +527,7 @@ validate_integration_live() {
   foundry_json="$(az cognitiveservices account show --resource-group "$FOUNDRY_RESOURCE_GROUP" --name "$FOUNDRY_ACCOUNT_NAME" -o json)"
   foundry_id="$(jq -r '.id' <<<"$foundry_json")"
   foundry_location="$(jq -r '.location | ascii_downcase' <<<"$foundry_json")"
-  [[ "${foundry_id,,}" == "${FOUNDRY_ACCOUNT_ID,,}" ]] || {
+  [[ "$(lowercase "$foundry_id")" == "$(lowercase "$FOUNDRY_ACCOUNT_ID")" ]] || {
     echo "ERROR [integration]: FOUNDRY_ACCOUNT_ID does not match the selected account." >&2
     exit 1
   }
@@ -467,7 +535,7 @@ validate_integration_live() {
     echo "ERROR [integration]: Foundry public network access must be Disabled." >&2
     exit 1
   }
-  jq -e --arg location "$foundry_location" 'index($location) != null' <<<"$approved_regions_json" >/dev/null || {
+  jq -e --arg location "$foundry_location" 'map(ascii_downcase) | index($location) != null' <<<"$approved_regions_json" >/dev/null || {
     echo "ERROR [integration]: Foundry region is not in FOUNDRY_APPROVED_REGIONS." >&2
     exit 1
   }
@@ -496,10 +564,26 @@ validate_integration_live() {
     return
   fi
 
-  if az apim backend show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --backend-id "${APIM_BACKEND_NAME:-foundry-openai-backend}" >/dev/null 2>&1; then
-    az role assignment list --assignee "$apim_principal" --scope "$foundry_id" \
-      --query "[?roleDefinitionName=='Cognitive Services OpenAI User'] | length(@)" -o tsv | grep -qx 1
-    az apim backend show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --backend-id "${APIM_BACKEND_NAME:-foundry-openai-backend}" \
+  if az apim backend show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --backend-id "${APIM_FOUNDRY_BACKEND_NAME:-foundry-openai-backend}" >/dev/null 2>&1; then
+    local role_assignments_json normalized_foundry_id
+    normalized_foundry_id="$(lowercase "$foundry_id")"
+    role_assignments_json="$(az role assignment list \
+      --assignee "$apim_principal" \
+      --scope "$foundry_id" \
+      --include-inherited \
+      --all \
+      -o json)"
+    jq -e --arg scope "$normalized_foundry_id" '
+      def is_openai_user:
+        (.roleDefinitionName == "Cognitive Services OpenAI User")
+        or ((.roleDefinitionId // "") | ascii_downcase | endswith("/5e0bd9bd-7b93-4f28-af87-19fc36ad61bd"));
+      ([.[] | select(is_openai_user and ((.scope // "") | ascii_downcase) == $scope)] | length) == 1
+      and ([.[] | select(is_openai_user and ((.scope // "") | ascii_downcase) != $scope)] | length) == 0
+    ' <<<"$role_assignments_json" >/dev/null || {
+      echo "ERROR [integration]: APIM must have exactly one Cognitive Services OpenAI User assignment at the Foundry account and none inherited from broader scopes." >&2
+      exit 1
+    }
+    az apim backend show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --backend-id "${APIM_FOUNDRY_BACKEND_NAME:-foundry-openai-backend}" \
       --query "starts_with(url, 'https://')" -o tsv | grep -qx true
     az apim api show --resource-group "$APIM_RESOURCE_GROUP" --service-name "$APIM_SERVICE_NAME" --api-id "${APIM_API_NAME:-enterprise-llm-api}" \
       --query "subscriptionRequired" -o tsv | grep -qx true
@@ -513,7 +597,80 @@ validate_integration_live() {
     grep -q 'Ocp-Apim-Subscription-Key' <<<"$api_policy"
     grep -q 'set-header name="Ocp-Apim-Subscription-Key" exists-action="delete"' <<<"$api_policy"
 
-    if [[ "${APIM_VALIDATE_INTEGRATION_REQUESTS:-false}" != "true" ]]; then
+    if [[ "${APIM_VALIDATE_INTEGRATION_REQUESTS:-false}" == "true" ]]; then
+      local request_base_url subscription_key approved_model unsupported_model request_body
+      local response_file status_code success_count telemetry_workspace_id
+      for name in APIM_INTEGRATION_SUBSCRIPTION_KEY APIM_INTEGRATION_TELEMETRY_WORKSPACE_ID APIM_ALLOWED_REQUEST_TELEMETRY_QUERY APIM_REJECTED_REQUEST_BACKEND_QUERY APIM_UNSAFE_TELEMETRY_QUERY; do
+        require_env_value "$name" integration || missing=true
+      done
+      if [[ "$missing" == true ]]; then
+        block integration "Authorized request validation requires a subscription key, telemetry workspace, and allowed/rejected/unsafe telemetry queries."
+        return 0
+      fi
+
+      request_base_url="${APIM_INTEGRATION_REQUEST_URL:-https://${APIM_SERVICE_NAME}.azure-api.net/${APIM_GOVERNED_API_PATH:-llm/v1}/chat/completions}"
+      subscription_key="$APIM_INTEGRATION_SUBSCRIPTION_KEY"
+      approved_model="$(jq -r '.[] | select(.enabled == true) | .publicName' <<<"$approved_models_json" | head -n 1)"
+      unsupported_model="validator-unapproved-model"
+      if jq -e --arg model "$unsupported_model" '[.[].publicName] | index($model) != null' <<<"$approved_models_json" >/dev/null; then
+        unsupported_model="validator-unapproved-model-2"
+      fi
+      response_file="$(mktemp)"
+      trap 'rm -f "$response_file"' RETURN
+      success_count=0
+      for _ in 1 2 3 4 5 6 7 8 9 10; do
+        request_body="$(jq -cn --arg model "$approved_model" \
+          '{model:$model,messages:[{role:"user",content:"validation probe"}],stream:false}')"
+        status_code="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+          --connect-timeout 10 --max-time 120 \
+          --header 'Content-Type: application/json' \
+          --header "Ocp-Apim-Subscription-Key: $subscription_key" \
+          --data "$request_body" \
+          "$request_base_url")"
+        [[ "$status_code" == 2* ]] && success_count=$((success_count + 1))
+      done
+      [[ "$success_count" -ge 9 ]] || {
+        echo "ERROR [integration]: approved request reliability was $success_count/10; at least 9/10 must succeed." >&2
+        exit 1
+      }
+
+      request_body="$(jq -cn --arg model "$approved_model" \
+        '{model:$model,messages:[{role:"user",content:"validation unauthenticated probe"}],stream:false}')"
+      status_code="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+        --connect-timeout 10 --max-time 120 \
+        --header 'Content-Type: application/json' \
+        --data "$request_body" \
+        "$request_base_url")"
+      [[ "$status_code" == "401" || "$status_code" == "403" ]] || {
+        echo "ERROR [integration]: unauthenticated request returned HTTP $status_code instead of 401/403." >&2
+        exit 1
+      }
+
+      request_body="$(jq -cn --arg model "$unsupported_model" \
+        '{model:$model,messages:[{role:"user",content:"validation unsupported-model probe"}],stream:false}')"
+      status_code="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+        --connect-timeout 10 --max-time 120 \
+        --header 'Content-Type: application/json' \
+        --header "Ocp-Apim-Subscription-Key: $subscription_key" \
+        --data "$request_body" \
+        "$request_base_url")"
+      if [[ "$status_code" != "400" ]] || ! jq -e '.error.code == "unsupported_model"' "$response_file" >/dev/null; then
+        echo "ERROR [integration]: unsupported model request was not rejected with HTTP 400 and unsupported_model." >&2
+        exit 1
+      fi
+
+      telemetry_workspace_id="$APIM_INTEGRATION_TELEMETRY_WORKSPACE_ID"
+      az monitor log-analytics query --workspace "$telemetry_workspace_id" \
+        --analytics-query "$APIM_ALLOWED_REQUEST_TELEMETRY_QUERY" \
+        --query 'tables[0].rows[0][0]' -o tsv | grep -Eq '^[1-9][0-9]*$'
+      az monitor log-analytics query --workspace "$telemetry_workspace_id" \
+        --analytics-query "$APIM_REJECTED_REQUEST_BACKEND_QUERY" \
+        --query 'tables[0].rows[0][0]' -o tsv | grep -qx 0
+      az monitor log-analytics query --workspace "$telemetry_workspace_id" \
+        --analytics-query "$APIM_UNSAFE_TELEMETRY_QUERY" \
+        --query 'tables[0].rows[0][0]' -o tsv | grep -qx 0
+      echo "Integration request and telemetry validation passed."
+    else
       block integration "Set APIM_VALIDATE_INTEGRATION_REQUESTS=true with authorized client inputs to verify allowed, unsupported, unauthenticated, and secret-safe telemetry behavior."
     fi
   else
