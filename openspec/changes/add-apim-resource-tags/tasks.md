@@ -24,4 +24,4 @@
 ## 5. End-to-End Verification
 
 - [x] 5.1 Compile the APIM foundation and parameter artifacts, run the APIM validation and regression suites, and run `openspec validate add-apim-resource-tags --strict`; verify all commands complete successfully.
-- [ ] 5.2 Review a deployment preview using distinct tag values for each supported resource and verify the what-if output changes only the intended blueprint-owned resources without modifying external workspace or DNS resources.
+- [x] 5.2 Review a deployment preview using distinct tag values for each supported resource and verify the what-if output changes only the intended blueprint-owned resources without modifying external workspace or DNS resources.
