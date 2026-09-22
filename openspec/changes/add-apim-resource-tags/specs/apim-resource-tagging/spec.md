@@ -53,7 +53,7 @@ The APIM deployment contract SHALL identify which created resources accept indep
 
 #### Scenario: Operator reviews the deployment interface
 - **WHEN** an operator reads the APIM parameter contract or deployment guidance
-- **THEN** the supported per-resource tag inputs and the non-taggable APIM child, DNS record, and diagnostic resources are explicitly documented
+- **THEN** the contract explicitly lists the supported tag parameters and the created resources without independent Azure resource tags: APIM logger and diagnostic children, Azure Monitor diagnostic settings, and private DNS A records.
 
 ### Requirement: Caller tag values remain opaque and confidential
 The deployment SHALL preserve caller-supplied Azure tag keys and values without blueprint-specific normalization, and committed specifications, documentation, tests, and examples SHALL use generic sanitized tag data rather than live customer values.
