@@ -149,6 +149,17 @@ if [[ "$HAVE_AZ" == "true" ]]; then
 
   jq '
     .resources |= map(
+      if .type == "Microsoft.Resources/deployments" and .name == "apim-foundation-service"
+      then .properties.parameters.apimServiceTags.value = "[parameters('\''applicationInsightsTags'\'')]"
+      else .
+      end
+    )
+  ' "$workdir/foundation.json" >"$workdir/miswired-foundation.json"
+  assert_fails "module forwarding assertion must reject a deliberately miswired APIM service tag parameter" \
+    module_forwards_tag_parameter "$workdir/miswired-foundation.json" "apim-foundation-service" "apimServiceTags"
+
+  jq '
+    .resources |= map(
       if .type == "Microsoft.ApiManagement/service"
       then .tags = "[parameters('\''applicationInsightsTags'\'')]"
       else .
