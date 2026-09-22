@@ -9,11 +9,17 @@ param apimServiceName string
 @description('Application Insights component name.')
 param applicationInsightsName string
 
+@description('Tags applied to the Application Insights component.')
+param applicationInsightsTags object = {}
+
 @description('Optional existing Log Analytics workspace ID. Leave empty to create a workspace.')
 param logAnalyticsWorkspaceId string = ''
 
 @description('Workspace name used when a new workspace is created.')
 param logAnalyticsWorkspaceName string = 'law-agent-factory-poc'
+
+@description('Tags applied only when this module creates the Log Analytics workspace.')
+param logAnalyticsWorkspaceTags object = {}
 
 @description('Log Analytics retention in days.')
 @minValue(30)
@@ -38,6 +44,9 @@ param diagnosticSettingsOwnership string = 'blueprint'
 @description('Azure Monitor metric alert name for APIM average capacity.')
 param capacityAlertName string = 'alert-apim-capacity-over-60'
 
+@description('Tags applied to the APIM capacity alert.')
+param capacityAlertTags object = {}
+
 @description('Average APIM capacity percentage threshold.')
 @minValue(60)
 @maxValue(100)
@@ -53,6 +62,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' existing = {
 resource createdWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (empty(logAnalyticsWorkspaceId)) {
   name: logAnalyticsWorkspaceName
   location: location
+  tags: logAnalyticsWorkspaceTags
   properties: {
     sku: {
       name: 'PerGB2018'
@@ -70,6 +80,7 @@ var effectiveWorkspaceId = empty(logAnalyticsWorkspaceId) ? createdWorkspace.id 
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: applicationInsightsName
   location: location
+  tags: applicationInsightsTags
   kind: 'web'
   properties: {
     Application_Type: 'web'
@@ -167,6 +178,7 @@ resource apimDiagnosticSetting 'Microsoft.Insights/diagnosticSettings@2021-05-01
 resource capacityAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: capacityAlertName
   location: 'global'
+  tags: capacityAlertTags
   properties: {
     description: 'APIM average capacity is above the customer threshold.'
     severity: 2

@@ -46,6 +46,11 @@ Foundation:
   the diagnostic setting
 - optionally `APIM_FOUNDATION_PARAMETERS_FILE` (preferred) or `FOUNDATION_PARAMETERS` to select
   a non-default Stage 1 parameter file
+- optional independent JSON tag objects: `APIM_SERVICE_TAGS`, `APIM_PUBLIC_IP_TAGS`,
+  `APIM_LOG_ANALYTICS_WORKSPACE_TAGS`, `APIM_APP_INSIGHTS_TAGS`,
+  `APIM_CAPACITY_ALERT_TAGS`, `APIM_PRIVATE_DNS_ZONE_TAGS`, and
+  `APIM_PRIVATE_DNS_VNET_LINK_TAGS`; new inputs default to `{}`, while the public IP always
+  enforces `ProjectCode: APIM`
 
 Integration:
 

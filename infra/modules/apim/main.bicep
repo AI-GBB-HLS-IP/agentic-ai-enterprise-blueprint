@@ -12,6 +12,9 @@ param publisherEmail string
 @description('APIM publisher display name.')
 param publisherName string
 
+@description('Tags applied to the APIM service.')
+param apimServiceTags object = {}
+
 @description('Existing APIM subnet resource ID for classic Developer or Premium VNet injection.')
 param apimSubnetId string
 
@@ -49,6 +52,7 @@ var tlsSecurityProperties = {
 resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
   name: apimServiceName
   location: location
+  tags: apimServiceTags
   sku: {
     name: apimSkuName
     capacity: apimSkuCapacity
