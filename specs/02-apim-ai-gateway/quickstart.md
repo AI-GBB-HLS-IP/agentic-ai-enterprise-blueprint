@@ -22,6 +22,25 @@ value list, use [`validation/README.md`](validation/README.md).
 Select the same file for deployment and validation:
 
 ```bash
+export APIM_SERVICE_TAGS='{"Environment":"Example","Owner":"ApiPlatform"}'
+export APIM_PUBLIC_IP_TAGS='{"Environment":"Example","Owner":"NetworkPlatform"}'
+export APIM_LOG_ANALYTICS_WORKSPACE_TAGS='{"Environment":"Example","Owner":"ObservabilityPlatform"}'
+export APIM_APP_INSIGHTS_TAGS='{"Environment":"Example","Owner":"ApplicationPlatform"}'
+export APIM_CAPACITY_ALERT_TAGS='{"Environment":"Example","Owner":"OperationsPlatform"}'
+export APIM_PRIVATE_DNS_ZONE_TAGS='{"Environment":"Example","Owner":"DnsPlatform"}'
+export APIM_PRIVATE_DNS_VNET_LINK_TAGS='{"Environment":"Example","Owner":"DnsPlatform"}'
+```
+
+These sanitized examples demonstrate independent tag objects; replace them with approved
+deployment-time values and do not commit live customer tag data. Omitted new tag variables
+default to `{}`. `APIM_PUBLIC_IP_TAGS` retains the mandatory `ProjectCode=APIM` override.
+Workspace tags apply only when the template creates the workspace, and private DNS tags apply
+only in `blueprint` DNS mode. Existing workspaces and customer-managed DNS resources are never
+retagged.
+
+Then validate, preview, and deploy:
+
+```bash
 export APIM_FOUNDATION_PARAMETERS_FILE='infra/envs/poc/apim.customer.bicepparam'
 export APIM_RESOURCE_GROUP='<apim-resource-group>'
 
@@ -45,10 +64,12 @@ az deployment group create \
 ```
 
 The template creates the customer-named Standard/static APIM platform public IP, DNS label, and
-`ProjectCode=APIM` tag. The customer example defaults `APIM_PRIVATE_DNS_MODE` to `external`
-for customer-managed corporate DNS through the hub. Verify the preview contains
-only APIM foundation, public IP, monitoring, and alert resources and no Foundry resources or
-workload-owned private DNS zone.
+`ProjectCode=APIM` tag. It applies each other supplied tag object only to its corresponding
+taggable resource. APIM logger and diagnostic children, the Azure Monitor diagnostic setting,
+and private DNS A records do not support independent tag inputs. The customer example defaults
+`APIM_PRIVATE_DNS_MODE` to `external` for customer-managed corporate DNS through the hub. Verify
+the preview contains only APIM foundation, public IP, monitoring, and alert resources and no
+Foundry resources or workload-owned private DNS zone.
 
 After deployment, use the advanced validator only for runtime evidence:
 

@@ -18,6 +18,12 @@ param apimGatewayRecordName string
 @description('APIM internal private IP addresses. Records are created when at least one IP is present.')
 param apimPrivateIpAddresses array = []
 
+@description('Tags applied to the blueprint-owned APIM private DNS zone.')
+param privateDnsZoneTags object = {}
+
+@description('Tags applied to the blueprint-owned APIM private DNS virtual network link.')
+param privateDnsVnetLinkTags object = {}
+
 @description('Non-secret evidence reference recorded only after external APIM DNS resolution and reachability are validated.')
 param externalDnsValidationReference string = ''
 
@@ -32,12 +38,14 @@ param additionalEndpointSubdomains array = [
 resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (deployPrivateDns) {
   name: privateDnsZoneName
   location: 'global'
+  tags: privateDnsZoneTags
 }
 
 resource privateDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (deployPrivateDns) {
   parent: privateDnsZone
   name: '${vnetName}-link'
   location: 'global'
+  tags: privateDnsVnetLinkTags
   properties: {
     registrationEnabled: false
     virtualNetwork: {

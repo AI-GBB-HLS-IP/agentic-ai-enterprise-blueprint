@@ -7,7 +7,7 @@
 ### Inputs
 
 - Deployment: `location`, `apimServiceName`, `publisherEmail`, `publisherName`,
-  `apimSkuName`, `apimSkuCapacity`.
+  `apimServiceTags`, `apimSkuName`, `apimSkuCapacity`.
 - Existing network: `networkResourceGroupName`, `vnetName`, `apimSubnetName`.
 - Customer policy: `approvedApimNsgResourceId`, `approvedApimRouteTableResourceId`,
   `routeTableExceptionReference`, `subnetNamingExceptionReference`,
@@ -16,10 +16,29 @@
   `apimPublicIpTags`.
 - Policy handoff: `publicNetworkAccess` (Stage 1 permits only `Enabled`),
   `diagnosticSettingsOwnership`, `policyOwnedDiagnosticSettingsValidationReference`.
-- DNS: `privateDnsZoneName`, `privateDnsRecordName`.
-- Monitoring: `applicationInsightsName`, `logAnalyticsWorkspaceId`,
-  `logAnalyticsWorkspaceName`, `diagnosticSettingName`, `capacityAlertName`,
+- DNS: `privateDnsZoneName`, `privateDnsRecordName`, `privateDnsZoneTags`,
+  `privateDnsVnetLinkTags`.
+- Monitoring: `applicationInsightsName`, `applicationInsightsTags`,
+  `logAnalyticsWorkspaceId`, `logAnalyticsWorkspaceName`, `logAnalyticsWorkspaceTags`,
+  `diagnosticSettingName`, `capacityAlertName`, `capacityAlertTags`,
   `capacityAlertActionGroupIds`.
+
+### Per-resource tag contract
+
+| Resource | Bicep parameter | Environment variable | Default and ownership |
+|---|---|---|---|
+| APIM platform public IP | `apimPublicIpTags` | `APIM_PUBLIC_IP_TAGS` | Existing default includes `ProjectCode: APIM`; the blueprint value wins on conflict |
+| APIM service | `apimServiceTags` | `APIM_SERVICE_TAGS` | `{}` |
+| Created Log Analytics workspace | `logAnalyticsWorkspaceTags` | `APIM_LOG_ANALYTICS_WORKSPACE_TAGS` | `{}`; ignored when an existing workspace ID is supplied |
+| Application Insights | `applicationInsightsTags` | `APIM_APP_INSIGHTS_TAGS` | `{}` |
+| Capacity alert | `capacityAlertTags` | `APIM_CAPACITY_ALERT_TAGS` | `{}` |
+| Blueprint-owned private DNS zone | `privateDnsZoneTags` | `APIM_PRIVATE_DNS_ZONE_TAGS` | `{}`; no resource is created in external DNS mode |
+| Blueprint-owned private DNS VNet link | `privateDnsVnetLinkTags` | `APIM_PRIVATE_DNS_VNET_LINK_TAGS` | `{}`; no resource is created in external DNS mode |
+
+Each tag object is independent and passes Azure-valid caller keys and values unchanged, except for
+the mandatory public-IP `ProjectCode: APIM` override. The APIM logger and diagnostic children,
+Azure Monitor diagnostic setting, and private DNS A records do not expose independent Azure
+resource tag inputs.
 
 No Stage 1 parameter name or value may reference Foundry, models, a backend, product, token limit,
 or governed API.
@@ -37,8 +56,8 @@ or governed API.
 **File:** `infra/modules/apim/main.bicep`
 
 Deploys only `Microsoft.ApiManagement/service` and its system identity. The environment entry
-point supplies the ID of its created APIM platform public IP; the module emits no Foundry
-parameter, reference, role assignment, or readiness field.
+point supplies the service tag object and the ID of its created APIM platform public IP; the
+module emits no Foundry parameter, reference, role assignment, or readiness field.
 
 ## Stage 2 Entry Point
 

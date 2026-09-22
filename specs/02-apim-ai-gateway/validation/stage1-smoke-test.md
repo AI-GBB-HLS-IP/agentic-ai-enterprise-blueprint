@@ -108,6 +108,7 @@ export APIM_LOCATION='<approved-region>'
 export APIM_SERVICE_NAME='<globally-unique-apim-name>'
 export APIM_PUBLISHER_EMAIL='<corporate-admin-email>'
 export APIM_PUBLISHER_NAME='<approved-publisher-name>'
+export APIM_SERVICE_TAGS='{"Environment":"Example","Owner":"ApiPlatform"}'
 
 export APIM_NETWORK_RESOURCE_GROUP='<network-resource-group>'
 export APIM_VNET_NAME='<existing-vnet-name>'
@@ -127,24 +128,35 @@ export APIM_SUBNET_NAMING_EXCEPTION_REFERENCE='<approved-naming-exception-refere
 
 export APIM_PUBLIC_IP_NAME='<customer-approved-public-ip-name>'
 export APIM_PUBLIC_IP_DNS_LABEL='<globally-unique-regional-dns-label>'
+export APIM_PUBLIC_IP_TAGS='{"Environment":"Example","Owner":"NetworkPlatform"}'
 export APIM_PUBLIC_NETWORK_ACCESS='Enabled'
 export APIM_PRIVATE_DNS_MODE='external'
 export APIM_DNS_RECORD_NAME="$APIM_SERVICE_NAME"
+export APIM_PRIVATE_DNS_ZONE_TAGS='{"Environment":"Example","Owner":"DnsPlatform"}'
+export APIM_PRIVATE_DNS_VNET_LINK_TAGS='{"Environment":"Example","Owner":"DnsPlatform"}'
 export APIM_EXTERNAL_DNS_VALIDATION_REFERENCE=''
 export APIM_SKU_NAME='Developer'
 export APIM_SKU_CAPACITY='1'
 
 export APIM_APP_INSIGHTS_NAME='<application-insights-name>'
+export APIM_APP_INSIGHTS_TAGS='{"Environment":"Example","Owner":"ApplicationPlatform"}'
 export APIM_LOG_ANALYTICS_WORKSPACE_ID='<existing-workspace-resource-id-or-empty>'
 export APIM_LOG_ANALYTICS_WORKSPACE_NAME='<workspace-name-if-created>'
+export APIM_LOG_ANALYTICS_WORKSPACE_TAGS='{"Environment":"Example","Owner":"ObservabilityPlatform"}'
 export APIM_DIAGNOSTIC_SETTING_NAME='<diagnostic-setting-name>'
 export APIM_DIAGNOSTIC_SETTINGS_OWNERSHIP='<blueprint-or-policy>'
 export APIM_CAPACITY_ALERT_NAME='<capacity-alert-name>'
+export APIM_CAPACITY_ALERT_TAGS='{"Environment":"Example","Owner":"OperationsPlatform"}'
 
 az account set --subscription "$AZURE_SUBSCRIPTION_ID"
 az account show --query '{subscription:id,name:name,tenant:tenantId}' -o table
 test -f "$APIM_FOUNDATION_PARAMETERS_FILE"
 ```
+
+The tag values above are sanitized examples. Replace them with approved deployment-time values,
+keep live customer metadata out of committed files, and leave any optional tag variable unset to
+use its `{}` default. Existing Log Analytics workspaces and customer-managed DNS resources are
+not retagged.
 
 For the observed shared-hybrid-NSG tenant profile, use the tenant-exception route configuration:
 the subnet must have no route table and the exception reference must identify the active policy

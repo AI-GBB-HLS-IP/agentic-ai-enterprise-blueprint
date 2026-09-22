@@ -6,6 +6,9 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 validator="$REPO_ROOT/specs/02-apim-ai-gateway/validation/validate.sh"
 integration="$REPO_ROOT/infra/envs/poc/apim-foundry-integration.bicep"
 foundation="$REPO_ROOT/infra/envs/poc/apim.bicep"
+foundation_params="$REPO_ROOT/infra/envs/poc/apim.bicepparam"
+apim_main="$REPO_ROOT/infra/modules/apim/main.bicep"
+observability="$REPO_ROOT/infra/modules/apim/observability.bicep"
 private_dns="$REPO_ROOT/infra/modules/apim/private-dns.bicep"
 foundation_example_params="$REPO_ROOT/infra/envs/poc/apim.customer.example.bicepparam"
 final_report="$REPO_ROOT/specs/02-apim-ai-gateway/validation/final-report.md"
@@ -33,6 +36,23 @@ assert_fails() {
 
 command -v jq >/dev/null 2>&1 || fail "jq is required to run these regression tests"
 
+resource_uses_tag_parameter() {
+  local template="$1" resource_type="$2" parameter_name="$3"
+  jq -e --arg type "$resource_type" --arg tags "[parameters('$parameter_name')]" '
+    [.resources[] | select(.type == $type and .tags == $tags)] | length == 1
+  ' "$template" >/dev/null
+}
+
+module_forwards_tag_parameter() {
+  local template="$1" module_name="$2" parameter_name="$3"
+  jq -e --arg module "$module_name" --arg parameter "$parameter_name" --arg value "[parameters('$parameter_name')]" '
+    [.resources[]
+      | select(.type == "Microsoft.Resources/deployments" and .name == $module)
+      | .properties.parameters[$parameter].value
+    ] == [$value]
+  ' "$template" >/dev/null
+}
+
 HAVE_AZ=false
 if command -v az >/dev/null 2>&1; then
   HAVE_AZ=true
@@ -42,6 +62,8 @@ if [[ "$HAVE_AZ" == "true" ]]; then
   echo "==> Azure CLI/Bicep detected: running compile-dependent regression checks"
 
   az bicep build --file "$integration" --outfile "$workdir/integration.json" >/dev/null
+  az bicep build --file "$apim_main" --outfile "$workdir/apim-main.json" >/dev/null
+  az bicep build --file "$observability" --outfile "$workdir/observability.json" >/dev/null
   az bicep build --file "$private_dns" --outfile "$workdir/private-dns.json" >/dev/null
   az bicep build --file "$foundation" --outfile "$workdir/foundation.json" >/dev/null
 
@@ -96,6 +118,106 @@ if [[ "$HAVE_AZ" == "true" ]]; then
   tags_expression="$(jq -r --arg name "$tags_variable_name" '.variables[$name]' "$workdir/foundation.json")"
   [[ "$tags_expression" == *"union(parameters('apimPublicIpTags'), createObject('ProjectCode', 'APIM'))"* ]] ||
     fail "compiled foundation template must merge caller tags with a required ProjectCode=APIM override that wins on conflict"
+
+  echo "==> Compiled independent resource tag mappings (Stage 1)"
+  assert_succeeds "APIM service must use only apimServiceTags" \
+    resource_uses_tag_parameter "$workdir/apim-main.json" "Microsoft.ApiManagement/service" "apimServiceTags"
+  assert_succeeds "created Log Analytics workspace must use only logAnalyticsWorkspaceTags" \
+    resource_uses_tag_parameter "$workdir/observability.json" "Microsoft.OperationalInsights/workspaces" "logAnalyticsWorkspaceTags"
+  assert_succeeds "Application Insights must use only applicationInsightsTags" \
+    resource_uses_tag_parameter "$workdir/observability.json" "Microsoft.Insights/components" "applicationInsightsTags"
+  assert_succeeds "capacity alert must use only capacityAlertTags" \
+    resource_uses_tag_parameter "$workdir/observability.json" "Microsoft.Insights/metricAlerts" "capacityAlertTags"
+  assert_succeeds "private DNS zone must use only privateDnsZoneTags" \
+    resource_uses_tag_parameter "$workdir/private-dns.json" "Microsoft.Network/privateDnsZones" "privateDnsZoneTags"
+  assert_succeeds "private DNS VNet link must use only privateDnsVnetLinkTags" \
+    resource_uses_tag_parameter "$workdir/private-dns.json" "Microsoft.Network/privateDnsZones/virtualNetworkLinks" "privateDnsVnetLinkTags"
+
+  echo "==> Compiled top-level tag forwarding (Stage 1)"
+  assert_succeeds "APIM service tags must be forwarded to the APIM service module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-service" "apimServiceTags"
+  assert_succeeds "Application Insights tags must be forwarded to the observability module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-observability" "applicationInsightsTags"
+  assert_succeeds "Log Analytics workspace tags must be forwarded to the observability module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-observability" "logAnalyticsWorkspaceTags"
+  assert_succeeds "capacity alert tags must be forwarded to the observability module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-observability" "capacityAlertTags"
+  assert_succeeds "private DNS zone tags must be forwarded to the private DNS module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-private-dns" "privateDnsZoneTags"
+  assert_succeeds "private DNS VNet link tags must be forwarded to the private DNS module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-private-dns" "privateDnsVnetLinkTags"
+
+  jq '
+    .resources |= map(
+      if .type == "Microsoft.Resources/deployments" and .name == "apim-foundation-service"
+      then .properties.parameters.apimServiceTags.value = "[parameters('\''applicationInsightsTags'\'')]"
+      else .
+      end
+    )
+  ' "$workdir/foundation.json" >"$workdir/miswired-foundation.json"
+  assert_fails "module forwarding assertion must reject a deliberately miswired APIM service tag parameter" \
+    module_forwards_tag_parameter "$workdir/miswired-foundation.json" "apim-foundation-service" "apimServiceTags"
+
+  jq '
+    .resources |= map(
+      if .type == "Microsoft.ApiManagement/service"
+      then .tags = "[parameters('\''applicationInsightsTags'\'')]"
+      else .
+      end
+    )
+  ' "$workdir/apim-main.json" >"$workdir/miswired-apim-main.json"
+  assert_fails "resource-specific tag assertion must reject a deliberately miswired APIM tag parameter" \
+    resource_uses_tag_parameter "$workdir/miswired-apim-main.json" "Microsoft.ApiManagement/service" "apimServiceTags"
+
+  jq -e '
+    [.resources[] | select(.type == "Microsoft.OperationalInsights/workspaces")]
+    | length == 1
+      and .[0].condition == "[empty(parameters('\''logAnalyticsWorkspaceId'\''))]"
+  ' "$workdir/observability.json" >/dev/null ||
+    fail "only the conditionally created workspace may receive logAnalyticsWorkspaceTags"
+
+  jq -e '
+    [.resources[]
+      | select(
+          .type == "Microsoft.Network/privateDnsZones"
+          or .type == "Microsoft.Network/privateDnsZones/virtualNetworkLinks"
+        )
+    ]
+    | length == 2
+      and all(.condition == "[parameters('\''deployPrivateDns'\'')]")
+  ' "$workdir/private-dns.json" >/dev/null ||
+    fail "private DNS zone and VNet link tags must apply only in blueprint DNS mode"
+
+  echo "==> Tag defaults and opaque custom-key passthrough (Stage 1)"
+  env \
+    -u APIM_SERVICE_TAGS \
+    -u APIM_LOG_ANALYTICS_WORKSPACE_TAGS \
+    -u APIM_APP_INSIGHTS_TAGS \
+    -u APIM_CAPACITY_ALERT_TAGS \
+    -u APIM_PRIVATE_DNS_ZONE_TAGS \
+    -u APIM_PRIVATE_DNS_VNET_LINK_TAGS \
+    az bicep build-params --file "$foundation_params" --stdout >"$workdir/default-params.json"
+  jq -e '
+    (.parametersJson | fromjson | .parameters) as $params
+    | [
+        $params.apimServiceTags.value,
+        $params.logAnalyticsWorkspaceTags.value,
+        $params.applicationInsightsTags.value,
+        $params.capacityAlertTags.value,
+        $params.privateDnsZoneTags.value,
+        $params.privateDnsVnetLinkTags.value
+      ]
+    | all(. == {})
+  ' "$workdir/default-params.json" >/dev/null ||
+    fail "new APIM resource tag inputs must default to empty objects"
+
+  APIM_SERVICE_TAGS='{"Owner::Group":"Example-Team"}' \
+    az bicep build-params --file "$foundation_params" --stdout >"$workdir/custom-tag-params.json"
+  jq -e '
+    (.parametersJson | fromjson | .parameters.apimServiceTags.value)
+      == {"Owner::Group":"Example-Team"}
+  ' "$workdir/custom-tag-params.json" >/dev/null ||
+    fail "Azure-valid custom tag keys and values must pass through unchanged"
 
   echo "==> Compiled placeholder network exception rejection (Stage 1)"
   jq -e '.. | strings | select(contains("The APIM subnet name must match apimsubnet-* or subnetNamingExceptionReference must identify a tenant-approved exception."))' \

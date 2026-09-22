@@ -12,6 +12,9 @@ param publisherEmail string
 @description('APIM publisher display name.')
 param publisherName string
 
+@description('Tags applied to the APIM service.')
+param apimServiceTags object = {}
+
 @description('Resource group containing the existing network foundation.')
 param networkResourceGroupName string = resourceGroup().name
 
@@ -90,17 +93,29 @@ param privateDnsDeploymentMode string = 'blueprint'
 @description('A-record name inside azure-api.net for the APIM gateway.')
 param privateDnsRecordName string = apimServiceName
 
+@description('Tags applied to the blueprint-owned APIM private DNS zone.')
+param privateDnsZoneTags object = {}
+
+@description('Tags applied to the blueprint-owned APIM private DNS virtual network link.')
+param privateDnsVnetLinkTags object = {}
+
 @description('Non-secret evidence reference recorded only after customer-managed APIM DNS resolution and reachability are validated.')
 param externalDnsValidationReference string = ''
 
 @description('Application Insights component name.')
 param applicationInsightsName string = 'appi-apim-agent-factory-poc'
 
+@description('Tags applied to the Application Insights component.')
+param applicationInsightsTags object = {}
+
 @description('Optional existing Log Analytics workspace ID. Leave empty to create one.')
 param logAnalyticsWorkspaceId string = ''
 
 @description('Workspace name used when creating a new Log Analytics workspace.')
 param logAnalyticsWorkspaceName string = 'law-agent-factory-poc'
+
+@description('Tags applied only when this deployment creates the Log Analytics workspace.')
+param logAnalyticsWorkspaceTags object = {}
 
 @description('Log Analytics retention in days.')
 @minValue(30)
@@ -121,6 +136,9 @@ param policyOwnedDiagnosticSettingsValidationReference string = ''
 
 @description('APIM average-capacity alert name.')
 param capacityAlertName string = 'alert-apim-capacity-over-60'
+
+@description('Tags applied to the APIM capacity alert.')
+param capacityAlertTags object = {}
 
 @description('APIM average capacity threshold.')
 @minValue(60)
@@ -214,6 +232,7 @@ module apimMain '../../modules/apim/main.bicep' = {
     apimServiceName: apimServiceName
     publisherEmail: publisherEmail
     publisherName: publisherName
+    apimServiceTags: apimServiceTags
     apimSubnetId: foundationPolicyValidated ? apimSubnet.id : ''
     apimPublicIpAddressId: apimPublicIp.id
     apimSkuName: apimSkuName
@@ -231,6 +250,8 @@ module privateDns '../../modules/apim/private-dns.bicep' = {
     vnetName: vnetName
     apimGatewayRecordName: privateDnsContractValidated ? privateDnsRecordName : ''
     apimPrivateIpAddresses: apimMain.outputs.privateIpAddresses
+    privateDnsZoneTags: privateDnsZoneTags
+    privateDnsVnetLinkTags: privateDnsVnetLinkTags
     externalDnsValidationReference: externalDnsValidationReference
   }
 }
@@ -241,12 +262,15 @@ module observability '../../modules/apim/observability.bicep' = {
     location: location
     apimServiceName: apimServiceName
     applicationInsightsName: applicationInsightsName
+    applicationInsightsTags: applicationInsightsTags
     logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
     logAnalyticsWorkspaceName: logAnalyticsWorkspaceName
+    logAnalyticsWorkspaceTags: logAnalyticsWorkspaceTags
     logAnalyticsRetentionInDays: logAnalyticsRetentionInDays
     diagnosticSettingName: diagnosticSettingName
     diagnosticSettingsOwnership: diagnosticSettingsOwnership
     capacityAlertName: capacityAlertName
+    capacityAlertTags: capacityAlertTags
     capacityAlertThreshold: capacityAlertThreshold
     capacityAlertActionGroupIds: capacityAlertActionGroupIds
   }
