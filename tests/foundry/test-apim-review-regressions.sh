@@ -43,6 +43,16 @@ resource_uses_tag_parameter() {
   ' "$template" >/dev/null
 }
 
+module_forwards_tag_parameter() {
+  local template="$1" module_name="$2" parameter_name="$3"
+  jq -e --arg module "$module_name" --arg parameter "$parameter_name" --arg value "[parameters('$parameter_name')]" '
+    [.resources[]
+      | select(.type == "Microsoft.Resources/deployments" and .name == $module)
+      | .properties.parameters[$parameter].value
+    ] == [$value]
+  ' "$template" >/dev/null
+}
+
 HAVE_AZ=false
 if command -v az >/dev/null 2>&1; then
   HAVE_AZ=true
@@ -122,6 +132,20 @@ if [[ "$HAVE_AZ" == "true" ]]; then
     resource_uses_tag_parameter "$workdir/private-dns.json" "Microsoft.Network/privateDnsZones" "privateDnsZoneTags"
   assert_succeeds "private DNS VNet link must use only privateDnsVnetLinkTags" \
     resource_uses_tag_parameter "$workdir/private-dns.json" "Microsoft.Network/privateDnsZones/virtualNetworkLinks" "privateDnsVnetLinkTags"
+
+  echo "==> Compiled top-level tag forwarding (Stage 1)"
+  assert_succeeds "APIM service tags must be forwarded to the APIM service module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-service" "apimServiceTags"
+  assert_succeeds "Application Insights tags must be forwarded to the observability module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-observability" "applicationInsightsTags"
+  assert_succeeds "Log Analytics workspace tags must be forwarded to the observability module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-observability" "logAnalyticsWorkspaceTags"
+  assert_succeeds "capacity alert tags must be forwarded to the observability module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-observability" "capacityAlertTags"
+  assert_succeeds "private DNS zone tags must be forwarded to the private DNS module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-private-dns" "privateDnsZoneTags"
+  assert_succeeds "private DNS VNet link tags must be forwarded to the private DNS module" \
+    module_forwards_tag_parameter "$workdir/foundation.json" "apim-foundation-private-dns" "privateDnsVnetLinkTags"
 
   jq '
     .resources |= map(
