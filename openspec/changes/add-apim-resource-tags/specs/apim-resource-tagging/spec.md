@@ -5,7 +5,7 @@ Defines how APIM foundation deployments accept and apply independent Azure resou
 ## ADDED Requirements
 
 ### Requirement: Independent tag inputs
-The APIM foundation deployment SHALL expose a separate tag object for the dedicated public IP, APIM service, created Log Analytics workspace, Application Insights component, capacity alert, and blueprint-owned private DNS zone.
+The APIM foundation deployment SHALL expose a separate tag object for the dedicated public IP, APIM service, created Log Analytics workspace, Application Insights component, capacity alert, blueprint-owned private DNS zone, and blueprint-owned private DNS virtual network link.
 
 #### Scenario: Distinct tags are supplied
 - **WHEN** a caller supplies different tag objects for two or more supported resources
@@ -42,10 +42,10 @@ The deployment SHALL apply tag inputs only to resources created by the APIM foun
 
 #### Scenario: Blueprint-owned private DNS is disabled
 - **WHEN** private DNS deployment mode is external
-- **THEN** the deployment does not create or tag a private DNS zone
+- **THEN** the deployment does not create or tag a private DNS zone or private DNS virtual network link
 
 #### Scenario: Blueprint creates conditional resources
-- **WHEN** the foundation creates a Log Analytics workspace or private DNS zone
+- **WHEN** the foundation creates a Log Analytics workspace, private DNS zone, or private DNS virtual network link
 - **THEN** the created resource receives its corresponding tag object
 
 ### Requirement: Supported tag surface is explicit

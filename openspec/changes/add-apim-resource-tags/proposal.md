@@ -6,7 +6,7 @@ The APIM foundation currently applies caller-defined Azure tags only to the dedi
 
 - Add a per-resource tagging contract for every taggable resource created by the APIM foundation deployment.
 - Preserve the existing `apimPublicIpTags` behavior, including the required `ProjectCode: APIM` override.
-- Add separate tag inputs for the APIM service, created Log Analytics workspace, Application Insights component, capacity alert, and blueprint-owned private DNS zone.
+- Add separate tag inputs for the APIM service, created Log Analytics workspace, Application Insights component, capacity alert, blueprint-owned private DNS zone, and blueprint-owned private DNS virtual network link.
 - Update APIM parameter files and environment-variable interfaces so deployment automation can provide each tag object independently.
 - Update validation scripts and regression tests to verify tag inputs, module propagation, conditional resource behavior, and compiled ARM output.
 - Document which APIM child resources and Azure diagnostic resources do not support independent Azure resource tags.

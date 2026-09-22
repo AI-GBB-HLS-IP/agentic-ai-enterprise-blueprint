@@ -32,6 +32,7 @@ The environment template will expose:
 - `applicationInsightsTags`
 - `capacityAlertTags`
 - `privateDnsZoneTags`
+- `privateDnsVnetLinkTags`
 
 Each corresponding `.bicepparam` input will read a distinct JSON environment variable. New inputs default to `{}`; the existing public IP input keeps its current default and mandatory merge behavior.
 
@@ -39,7 +40,7 @@ This explicit model is preferred over a single shared tag object because it allo
 
 ### Pass tags only through the module that owns the resource
 
-`apimServiceTags` will flow to the APIM service module. Observability tag objects will flow only to the observability module, and `privateDnsZoneTags` will flow only to the private DNS module. The environment template remains the composition boundary and does not construct a universal tag map.
+`apimServiceTags` will flow to the APIM service module. Observability tag objects will flow only to the observability module, and `privateDnsZoneTags` plus `privateDnsVnetLinkTags` will flow only to the private DNS module. The environment template remains the composition boundary and does not construct a universal tag map.
 
 This keeps module interfaces aligned with resource ownership and prevents unrelated modules from receiving tags they cannot use.
 
@@ -51,7 +52,7 @@ This avoids changing an established governance invariant while keeping all new t
 
 ### Apply tags only when the blueprint creates the resource
 
-The conditional Log Analytics workspace resource receives `logAnalyticsWorkspaceTags` only when no existing workspace ID is supplied. The private DNS zone receives `privateDnsZoneTags` only in blueprint ownership mode. The deployment does not issue tag updates against external resource IDs.
+The conditional Log Analytics workspace resource receives `logAnalyticsWorkspaceTags` only when no existing workspace ID is supplied. The private DNS zone receives `privateDnsZoneTags` and the private DNS virtual network link receives `privateDnsVnetLinkTags` only in blueprint ownership mode. The deployment does not issue tag updates against external resource IDs.
 
 This prevents an APIM deployment from unexpectedly changing metadata on shared or customer-managed infrastructure.
 
