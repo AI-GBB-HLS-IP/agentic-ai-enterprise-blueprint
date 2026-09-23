@@ -27,6 +27,8 @@
   `specs/00-network-foundation/tasks.md` are complete, add independent tag inputs for the Bastion
   public IP and Bastion host without implementing a second conditional-deployment contract here;
   verify enabled deployments emit the correct tags and disabled deployments emit neither resource.
+  If those dependencies remain incomplete, defer the Bastion tag inputs and their verification to
+  the network-foundation implementation and do not claim Bastion tagging complete in this change.
 - [ ] 2.4 Add independent tag inputs to brownfield network paths only for blueprint-created NSGs;
   verify existing VNets, route tables, shared NSGs, reusable per-purpose NSGs, and subnet children
   receive no tag update.

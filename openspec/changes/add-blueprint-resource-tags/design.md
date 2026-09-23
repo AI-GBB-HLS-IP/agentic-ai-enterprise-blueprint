@@ -75,6 +75,10 @@ Missing keys in a repeated-family map resolve to `{}`. Each map accepts only the
 | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
 | Foundry private endpoints | `foundry`, `storage`, `keyVault`, `cosmosDB`, `aiSearch` |
 
+The services.ai private DNS zone and virtual network link are not members of these maps; the
+Foundry DNS entry point exposes them through separate singular `servicesAiPrivateDnsZoneTags` and
+`servicesAiPrivateDnsVnetLinkTags` inputs.
+
 Every entry point validates its applicable map against the accepted family key set and rejects any
 unknown key with a logical-resource-specific error instead of silently dropping caller metadata.
 
@@ -94,7 +98,8 @@ services.ai private DNS zone and virtual network link created by `foundry-dns.bi
 `vnet-link` mode, the existing shared `tags` object is the base for both services.ai DNS resources
 and their separate resource-specific tag objects override duplicate keys. In `zone-group` mode,
 `foundry-dns.bicep` creates neither the services.ai zone nor its virtual network link, so neither
-resource-specific input applies and no tag update is emitted.
+resource-specific input applies and no tag update is emitted. Any documented mandatory blueprint
+tags are applied as the final merge layer described in the next decision.
 
 Removing or changing the meaning of `tags` was rejected as a breaking change. Applying the shared
 object after the resource-specific object was rejected because it would prevent explicit overrides.
