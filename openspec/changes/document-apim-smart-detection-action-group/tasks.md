@@ -6,7 +6,7 @@
 
 ## 2. Ownership Contract
 
-- [ ] 2.1 Update `specs/02-apim-ai-gateway/contracts/apim-bicep-interface.md` to state that the blueprint does not create, name, tag, reference, or lifecycle-manage the Azure-generated Smart Detection Action Group; verify it is excluded from the blueprint-owned resource and tag surfaces.
+- [ ] 2.1 Update `specs/02-apim-ai-gateway/contracts/apim-bicep-interface.md` to state that the blueprint does not create, name, tag, or lifecycle-manage the Azure-generated Smart Detection Action Group and does not automatically reference it; verify it is excluded from the blueprint-owned resource and tag surfaces.
 - [ ] 2.2 Record the standalone-deployment limitation that the blueprint references existing Action Groups but does not create one, without defining future receiver or ownership behavior; verify the text remains a documented limitation rather than a new infrastructure requirement.
 
 ## 3. Validation and Review
