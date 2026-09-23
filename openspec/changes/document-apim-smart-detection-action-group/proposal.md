@@ -1,6 +1,6 @@
 ## Why
 
-Azure may generate an untagged `Application Insights Smart Detection` Action Group when the APIM foundation creates Application Insights, even though the blueprint does not declare or reference that resource. Operators need explicit guidance because organizational cleanup may delete untagged resources, while the separately deployed APIM capacity alert has no notification actions unless customer-approved Action Group IDs are supplied.
+Azure may generate an untagged `Application Insights Smart Detection` Action Group when the APIM foundation creates Application Insights, even though the blueprint does not declare or automatically reference that resource. Operators need explicit guidance because organizational cleanup may delete untagged resources, while the separate APIM capacity alert has no notification actions unless customer-approved Action Group IDs are supplied.
 
 ## What Changes
 
