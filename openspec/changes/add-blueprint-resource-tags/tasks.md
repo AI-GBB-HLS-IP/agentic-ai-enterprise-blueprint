@@ -9,7 +9,8 @@
   expose Azure resource tags.
 - [ ] 1.3 Define consistent singular parameter names and purpose-keyed map keys for network, DNS,
   Bastion, Foundry, supporting-service, and private-endpoint resources; verify every
-  blueprint-created taggable inventory row maps to exactly one documented input.
+  blueprint-created taggable inventory row maps to exactly one documented input and every
+  repeated-family map rejects unknown keys with a resource-specific error.
 - [ ] 1.4 Define the compatibility and merge contract for the existing Foundry `tags` object,
   resource-specific overrides, and mandatory APIM tags; verify examples demonstrate
   base-to-specific-to-mandatory precedence with generic values.
@@ -21,18 +22,21 @@
   output maps each input only to its intended resource.
 - [ ] 2.2 Add purpose-keyed tag maps for blueprint-created private DNS zones and virtual network
   links; verify every supported zone and link can receive a distinct tag object and missing keys
-  resolve to `{}`.
-- [ ] 2.3 Add independent tag inputs for the optional Bastion public IP and Bastion host; verify
-  enabled deployments emit the correct tags and disabled deployments emit neither resource.
+  resolve to `{}`, while unknown keys are rejected.
+- [ ] 2.3 After the network-foundation change completes optional Bastion tasks T025 and T059-T063,
+  add independent tag inputs for the Bastion public IP and Bastion host without implementing a
+  second conditional-deployment contract here; verify enabled deployments emit the correct tags
+  and disabled deployments emit neither resource.
 - [ ] 2.4 Add independent tag inputs to brownfield network paths only for blueprint-created NSGs;
   verify existing VNets, route tables, shared NSGs, reusable per-purpose NSGs, and subnet children
   receive no tag update.
 - [ ] 2.5 Add tag inputs to brownfield DNS only for blueprint-created virtual network links and
   other confirmed taggable resources; verify existing zones, record sets, private endpoints, and
   DNS zone groups are not retagged.
-- [ ] 2.6 Update greenfield and brownfield network `.bicepparam` files, examples, and the brownfield
-  parameter generator with sanitized tag inputs and `{}` defaults; verify
-  `tests/network/test-generate-brownfield-params.sh` covers every generated tag contract.
+- [ ] 2.6 Update the greenfield `infra/envs/poc/network.parameters.json`, brownfield `.bicepparam`
+  examples and generated files, and the brownfield parameter generator with sanitized tag inputs
+  and `{}` defaults; verify `tests/network/test-generate-brownfield-params.sh` covers every
+  generated tag contract.
 
 ## 3. Foundry Resource Tagging
 
@@ -45,8 +49,10 @@
 - [ ] 3.3 Add purpose-keyed private-endpoint tag inputs for Foundry, Storage, Key Vault, Cosmos DB,
   and AI Search endpoints; verify each created endpoint can receive distinct tags and skipped or
   externally supplied endpoints are not updated.
-- [ ] 3.4 Add independent tags for confirmed taggable Foundry DNS resources created by
-  `foundry-dns.bicep`; verify zone-group association paths do not expose or apply unsupported tags.
+- [ ] 3.4 Add independent tags for the services.ai private DNS zone and virtual network link created
+  by `foundry-dns.bicep`, using the existing shared `tags` object as the compatibility base and
+  resource-specific values as overrides; verify `zone-group` mode creates neither resource and
+  applies no corresponding tags.
 - [ ] 3.5 Update Foundry `.bicepparam` files and customer examples with separate JSON
   environment-variable inputs while preserving the legacy shared input; verify omitted new inputs
   compile and sanitized custom keys pass through unchanged.
@@ -70,12 +76,12 @@
 
 - [ ] 5.1 Extend `tests/network/run-tests.sh` coverage with compiled-template assertions for
   greenfield and brownfield tag mappings, `{}` defaults, repeated-family keys, optional Bastion,
-  and external-resource immutability; verify the suite fails for a deliberately miswired assertion
-  and passes after restoration.
+  unknown-key rejection, and external-resource immutability; verify the suite fails for a
+  deliberately miswired assertion and passes after restoration.
 - [ ] 5.2 Extend `tests/foundry/run-tests.sh` coverage for Foundry shared-base compatibility,
   resource-specific precedence, conditional create-or-reference behavior, private-endpoint maps,
-  and unsupported child resources; verify the suite fails for a deliberately miswired assertion
-  and passes after restoration.
+  services.ai DNS mode behavior, unknown-key rejection, and unsupported child resources; verify the
+  suite fails for a deliberately miswired assertion and passes after restoration.
 - [ ] 5.3 Compile every affected Bicep entry point and parameter file, including greenfield network,
   brownfield network and DNS, Foundry and Foundry DNS, APIM foundation, and APIM Foundry
   integration; verify all builds succeed without introducing required tag parameters.

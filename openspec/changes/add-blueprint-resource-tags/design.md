@@ -67,9 +67,16 @@ object was rejected because it hides ownership and prevents resource-specific go
 flat list for every repeated instance was rejected because it duplicates the logical resource keys
 already used by the modules and parameter contracts.
 
-Missing keys in a repeated-family map resolve to `{}`. Unknown keys are ignored only if the
-repository's existing validation convention permits them; otherwise parameter validation will fail
-with a logical-resource-specific message.
+Missing keys in a repeated-family map resolve to `{}`. Each map accepts only these logical keys:
+
+| Repeated family | Accepted keys |
+|---|---|
+| Private DNS zones | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
+| Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
+| Foundry private endpoints | `foundry`, `storage`, `keyVault`, `cosmosDB`, `aiSearch` |
+
+Every entry point validates its applicable map against the accepted family key set and rejects any
+unknown key with a logical-resource-specific error instead of silently dropping caller metadata.
 
 ### Preserve the Foundry shared tag input as a compatibility base
 
@@ -82,7 +89,11 @@ effective tags = union(existing shared tags, resource-specific tags)
 
 The resource-specific value wins on duplicate keys. Existing callers therefore retain current
 tag behavior, while new callers can differentiate the account, project, Key Vault, Storage, AI
-Search, Cosmos DB, and each private endpoint.
+Search, Cosmos DB, each private endpoint, and the services.ai private DNS zone and virtual network
+link created by `foundry-dns.bicep`. In `vnet-link` mode, the existing shared `tags` object is the
+base for both services.ai DNS resources and their separate resource-specific tag objects override
+duplicate keys. In `zone-group` mode, `foundry-dns.bicep` creates neither the services.ai zone nor
+its virtual network link, so neither resource-specific input applies and no tag update is emitted.
 
 Removing or changing the meaning of `tags` was rejected as a breaking change. Applying the shared
 object after the resource-specific object was rejected because it would prevent explicit overrides.
