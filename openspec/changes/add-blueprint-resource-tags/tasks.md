@@ -23,10 +23,10 @@
 - [ ] 2.2 Add purpose-keyed tag maps for blueprint-created private DNS zones and virtual network
   links; verify every supported zone and link can receive a distinct tag object and missing keys
   resolve to `{}`, while unknown keys are rejected.
-- [ ] 2.3 After the network-foundation change completes optional Bastion tasks T025 and T059-T063,
-  add independent tag inputs for the Bastion public IP and Bastion host without implementing a
-  second conditional-deployment contract here; verify enabled deployments emit the correct tags
-  and disabled deployments emit neither resource.
+- [ ] 2.3 After optional Bastion tasks T025 and T059-T063 in
+  `specs/00-network-foundation/tasks.md` are complete, add independent tag inputs for the Bastion
+  public IP and Bastion host without implementing a second conditional-deployment contract here;
+  verify enabled deployments emit the correct tags and disabled deployments emit neither resource.
 - [ ] 2.4 Add independent tag inputs to brownfield network paths only for blueprint-created NSGs;
   verify existing VNets, route tables, shared NSGs, reusable per-purpose NSGs, and subnet children
   receive no tag update.

@@ -87,13 +87,14 @@ resource-specific Foundry tag object defaults to `{}` and is merged as:
 effective tags = union(existing shared tags, resource-specific tags)
 ```
 
-The resource-specific value wins on duplicate keys. Existing callers therefore retain current
-tag behavior, while new callers can differentiate the account, project, Key Vault, Storage, AI
-Search, Cosmos DB, each private endpoint, and the services.ai private DNS zone and virtual network
-link created by `foundry-dns.bicep`. In `vnet-link` mode, the existing shared `tags` object is the
-base for both services.ai DNS resources and their separate resource-specific tag objects override
-duplicate keys. In `zone-group` mode, `foundry-dns.bicep` creates neither the services.ai zone nor
-its virtual network link, so neither resource-specific input applies and no tag update is emitted.
+Bicep `union()` gives later arguments precedence, so the resource-specific value wins on duplicate
+keys. Existing callers therefore retain current tag behavior, while new callers can differentiate
+the account, project, Key Vault, Storage, AI Search, Cosmos DB, each private endpoint, and the
+services.ai private DNS zone and virtual network link created by `foundry-dns.bicep`. In
+`vnet-link` mode, the existing shared `tags` object is the base for both services.ai DNS resources
+and their separate resource-specific tag objects override duplicate keys. In `zone-group` mode,
+`foundry-dns.bicep` creates neither the services.ai zone nor its virtual network link, so neither
+resource-specific input applies and no tag update is emitted.
 
 Removing or changing the meaning of `tags` was rejected as a breaking change. Applying the shared
 object after the resource-specific object was rejected because it would prevent explicit overrides.
