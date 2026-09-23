@@ -79,8 +79,10 @@ The services.ai private DNS zone and virtual network link are not members of the
 Foundry DNS entry point exposes them through separate singular `servicesAiPrivateDnsZoneTags` and
 `servicesAiPrivateDnsVnetLinkTags` inputs.
 
-Every entry point validates its applicable map against the accepted family key set and rejects any
-unknown key with a logical-resource-specific error instead of silently dropping caller metadata.
+Every entry point derives the supplied keys from `items(map)`, filters out its accepted family key
+set, and calls `fail()` when any keys remain. The stable error format is
+`<parameterName> contains unsupported logical resource key(s): <keys>` so tests can assert both the
+affected map and rejected keys. Unknown keys are never silently dropped.
 
 ### Preserve the Foundry shared tag input as a compatibility base
 

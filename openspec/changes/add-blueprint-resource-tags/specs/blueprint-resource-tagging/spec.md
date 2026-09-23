@@ -20,6 +20,12 @@ endpoint, and APIM foundation resources.
   DNS zones, virtual network links, or private endpoints
 - **THEN** the caller can assign a distinct tag object to each logical resource in that family
 
+#### Scenario: Caller supplies an unknown repeated-family key
+- **WHEN** a caller supplies a key outside the documented accepted key set for a repeated-family
+  tag map
+- **THEN** deployment validation fails with an error that identifies the affected parameter and
+  rejected key rather than silently dropping its tags
+
 ### Requirement: New tag inputs are backward compatible
 Every newly introduced resource-specific tag input SHALL default to an empty object, and existing
 deployment inputs SHALL remain valid without supplying the new tag inputs.
@@ -116,4 +122,3 @@ resources for every supported tag input.
 - **WHEN** Foundry approval or an authorized customer environment is unavailable
 - **THEN** offline compilation and regression checks remain mandatory while approval-dependent live
   validation is recorded as `BLOCKED` rather than passed or failed
-
