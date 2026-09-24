@@ -75,8 +75,12 @@ logical resources its owning entry point actually creates:
 | Greenfield `infra/modules/network/private-dns.bicep` | Private DNS zones | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
 | Greenfield `infra/modules/network/private-dns.bicep` | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
 | Brownfield `infra/envs/poc/brownfield-dns.bicep` (`vnet-link` mode) | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `keyVault`, `storageBlob`, `cosmosDB`, `aiSearch` |
-| Brownfield `infra/envs/poc/brownfield-dns.bicep` (`zone-group` mode) | Private DNS virtual network links | none — this template creates no VNet links, so the tag input accepts no keys and every submitted key is rejected |
 | Foundry `infra/envs/poc/foundry-dns.bicep` | Foundry private endpoints | `foundry`, `storage`, `keyVault`, `cosmosDB`, `aiSearch` |
+
+`brownfield-dns.bicep` is a single template shared by both `dnsIntegrationMode` values, so its link
+tag map parameter is always declared. In `zone-group` mode the template creates no VNet link
+modules, so the parameter's accepted-key set is empty in that mode and any submitted key fails
+validation the same way an unsupported key would in `vnet-link` mode.
 
 Brownfield DNS never creates the `apim` or `sql` zone links (`brownfield-dns.bicep` links only the
 six Foundry-required zones), so those keys are valid only for the greenfield map and are rejected
