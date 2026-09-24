@@ -94,14 +94,16 @@
 - [ ] 5.5 Run `OFFLINE_ONLY=true specs/02-apim-ai-gateway/validation/validate.sh all` and all
   affected network and Foundry regression suites; verify offline checks pass while unavailable
   Foundry live gates remain explicitly `BLOCKED`.
-- [ ] 5.6 Add `scripts/tags/preflight-owned-names.sh` and invoke it from the existing deployment
-  preflight path: resolve every deterministic blueprint-owned name a tagged create declaration
-  would produce, query Azure for existence, pass only absent names or names listed in the
-  operator's `--accept-existing` re-deployment attestation that match the previous preflight
-  evidence artifact, and exit non-zero otherwise; verify the gate fails and emits no deployment for
-  an existing non-attested fixture, passes for absent and attested names, and that contradictory
-  caller ownership inputs (an existing-ID/reuse parameter resolving to a name another input still
-  forces the deployment to create) fail template validation.
+- [ ] 5.6 Add `scripts/tags/preflight-owned-names.sh` that resolves every deterministic
+  blueprint-owned name a tagged create declaration would produce, queries Azure for existence,
+  passes only absent names or names listed in the operator's `--accept-existing` re-deployment
+  attestation that match the previous preflight evidence artifact, and exits non-zero otherwise;
+  verify it fails for an existing non-attested fixture and passes for absent and attested names.
+- [ ] 5.7 Invoke the ownership preflight from the deployment preflight path so no tagged create
+  deployment runs without its evidence artifact; verify a failing preflight emits no deployment.
+- [ ] 5.8 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
+  a name another input still forces the same deployment to create; verify the contradictory-input
+  fixture fails template validation and the non-contradictory equivalents still compile.
 
 ## 6. Documentation and Completion
 

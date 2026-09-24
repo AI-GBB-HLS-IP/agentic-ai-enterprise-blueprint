@@ -169,8 +169,9 @@ places, neither of which pretends to detect collisions from inside the create br
 2. **Out-of-template ownership preflight (the proof of ownership).** Creation with tags is not
    permitted without evidence that each deterministic blueprint-owned name is either absent or
    already blueprint-owned. This change adds `scripts/tags/preflight-owned-names.sh`, executed
-   outside the templates before deployment and invoked by the existing `scripts/foundry/
-   preflight.sh` path, that resolves every deterministic name the deployment would create and
+   outside the templates before deployment and invoked by the existing
+   `scripts/foundry/preflight.sh` path, that resolves every deterministic name the deployment would
+   create and
    queries Azure for its existence. A name passes when it does not resolve to an existing resource,
    or when it resolves to a resource the operator has attested as blueprint-created by listing it
    in the deployment's `--accept-existing` re-deployment attestation, which must match the names
