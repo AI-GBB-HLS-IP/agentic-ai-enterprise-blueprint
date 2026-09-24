@@ -65,7 +65,11 @@ blueprint-controlled tags SHALL retain their documented highest precedence.
 
 ### Requirement: External resources are never retagged
 The blueprint SHALL apply tag inputs only to resources it creates and SHALL NOT issue tag updates
-against existing, customer-owned, policy-owned, or externally supplied resources.
+against existing, customer-owned, policy-owned, or externally supplied resources. For a
+conditional create-or-reference path with a deterministic blueprint-owned name, this protection is
+a partial mitigation: it prevents retagging when the caller declares existing ownership through the
+documented existing-ID/reuse parameters, but it does not perform a runtime existence lookup for an
+undeclared same-named resource the caller never flagged.
 
 #### Scenario: Brownfield network resources are supplied
 - **WHEN** a deployment references an existing VNet, route table, shared NSG, or reusable
@@ -89,6 +93,14 @@ against existing, customer-owned, policy-owned, or externally supplied resources
   to an existing, externally owned private DNS zone
 - **THEN** the created link receives its resource-specific link tag input, while the externally
   owned zone it links to receives no tag update
+
+#### Scenario: Deterministic name collides with an undeclared external resource
+- **WHEN** a create-or-reference path would create a resource whose deterministic blueprint-owned
+  name already exists in Azure and the caller did not declare that name as externally owned via the
+  documented existing-ID/reuse parameters
+- **THEN** this requirement's protection does not apply to that undeclared collision, and admin-
+  approved, out-of-band name coordination remains required until a runtime existence check is
+  added by separately tracked network-foundation preflight validation
 
 ### Requirement: Caller tag values remain opaque and confidential
 The blueprint SHALL preserve Azure-valid caller-provided tag keys and values without

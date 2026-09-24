@@ -82,7 +82,9 @@ table.
 `brownfield-dns.bicep` is a single template shared by both `dnsIntegrationMode` values, so its link
 tag map parameter is always declared. In `zone-group` mode the template creates no VNet link
 modules, so the parameter's accepted-key set is empty in that mode and any submitted key fails
-validation the same way an unsupported key would in `vnet-link` mode.
+validation the same way an unsupported key would in `vnet-link` mode. The parameter's `@description`
+will state this explicitly — that in `zone-group` mode the parameter must be omitted or left `{}` —
+so callers do not submit `vnet-link`-mode keys and hit a confusing failure.
 
 Brownfield DNS never creates the `apim` or `sql` zone links (`brownfield-dns.bicep` links only the
 six Foundry-required zones), so those keys are valid only for the greenfield map and are rejected
