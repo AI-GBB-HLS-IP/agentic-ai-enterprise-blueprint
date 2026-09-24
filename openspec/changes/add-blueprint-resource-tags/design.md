@@ -145,6 +145,13 @@ collision fixture — a create branch selected while the deterministic name coll
 caller-supplied existing-resource ID — and assert that no tag update reaches the externally owned
 resource.
 
+This guard only detects collisions the caller declares through those existing-ID/reuse parameters.
+Consistent with this entry point's existing fast-POC-pass scope (`infra/envs/poc/brownfield-network.bicep`'s
+documented lack of independent overlap/ownership validation), it does not perform a runtime
+existence lookup against Azure for an undeclared same-named resource the caller never flagged;
+admin-approved, out-of-band name coordination remains required until the deferred fail-closed
+preflight validator lands.
+
 This is preferred over deployment-level post-processing or generic tag-update resources, which
 could cross ownership boundaries and mutate customer-managed infrastructure.
 
