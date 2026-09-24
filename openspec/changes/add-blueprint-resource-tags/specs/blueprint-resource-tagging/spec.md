@@ -28,7 +28,10 @@ endpoint, and APIM foundation resources.
 
 ### Requirement: New tag inputs are backward compatible
 Every newly introduced resource-specific tag input SHALL default to an empty object, and existing
-deployment inputs SHALL remain valid without supplying the new tag inputs.
+deployment inputs SHALL remain valid without supplying the new tag inputs. Every archived Stage 1
+APIM tag input (`apimServiceTags`, `apimPublicIpTags`, `privateDnsZoneTags`,
+`privateDnsVnetLinkTags`, `applicationInsightsTags`, `logAnalyticsWorkspaceTags`, and
+`capacityAlertTags`) SHALL remain accepted with its documented resource mapping and default value.
 
 #### Scenario: Existing caller omits new tag inputs
 - **WHEN** an existing parameter file omits all newly introduced resource-specific tag inputs
@@ -38,6 +41,11 @@ deployment inputs SHALL remain valid without supplying the new tag inputs.
 - **WHEN** an existing Foundry deployment supplies only the previously supported shared tag object
 - **THEN** blueprint-created Foundry resources retain those tags unless a resource-specific tag
   input explicitly overrides a key
+
+#### Scenario: Archived APIM tag inputs remain available
+- **WHEN** a deployment supplies any archived Stage 1 APIM tag input
+- **THEN** the named input is still accepted and is still applied to its originally documented
+  resource with its originally documented default
 
 ### Requirement: Resource-specific tags have deterministic precedence
 When a legacy shared tag object and a resource-specific tag object both apply to a
@@ -70,9 +78,17 @@ against existing, customer-owned, policy-owned, or externally supplied resources
 - **THEN** the deployment does not apply the corresponding blueprint tag input to that existing
   resource
 
-#### Scenario: External DNS ownership mode is selected
-- **WHEN** private DNS zones or associations are managed outside the blueprint
-- **THEN** the deployment does not create a tag update for those external DNS resources
+#### Scenario: External DNS zone, record, or zone-group ownership mode is selected
+- **WHEN** a private DNS zone, record, or private endpoint DNS zone group is managed outside the
+  blueprint, such as brownfield `zone-group` mode
+- **THEN** the deployment does not create a tag update for that external zone, record, or zone
+  group
+
+#### Scenario: Brownfield creates a virtual network link to an externally owned zone
+- **WHEN** brownfield `vnet-link` mode creates a virtual network link from the caller-supplied VNet
+  to an existing, externally owned private DNS zone
+- **THEN** the created link receives its resource-specific link tag input, while the externally
+  owned zone it links to receives no tag update
 
 ### Requirement: Caller tag values remain opaque and confidential
 The blueprint SHALL preserve Azure-valid caller-provided tag keys and values without

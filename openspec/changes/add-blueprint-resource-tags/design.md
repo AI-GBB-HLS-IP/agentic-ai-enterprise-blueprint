@@ -67,16 +67,22 @@ object was rejected because it hides ownership and prevents resource-specific go
 flat list for every repeated instance was rejected because it duplicates the logical resource keys
 already used by the modules and parameter contracts.
 
-Missing keys in a repeated-family map resolve to `{}`. Each map accepts only these logical keys:
+Missing keys in a repeated-family map resolve to `{}`. Each map's accepted key set is scoped to the
+logical resources its owning entry point actually creates:
 
-| Repeated family | Accepted keys |
-|---|---|
-| Private DNS zones | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
-| Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
-| Foundry private endpoints | `foundry`, `storage`, `keyVault`, `cosmosDB`, `aiSearch` |
+| Entry point / DNS mode | Repeated family | Accepted keys |
+|---|---|---|
+| Greenfield `infra/modules/network/private-dns.bicep` | Private DNS zones | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
+| Greenfield `infra/modules/network/private-dns.bicep` | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
+| Brownfield `infra/envs/poc/brownfield-dns.bicep` (`vnet-link` mode) | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `keyVault`, `storageBlob`, `cosmosDB`, `aiSearch` |
+| Brownfield `infra/envs/poc/brownfield-dns.bicep` (`zone-group` mode) | Private DNS virtual network links | none — this template creates no VNet links, so the tag input accepts no keys and every submitted key is rejected |
+| Foundry `infra/envs/poc/foundry-dns.bicep` | Foundry private endpoints | `foundry`, `storage`, `keyVault`, `cosmosDB`, `aiSearch` |
 
-The services.ai private DNS zone and virtual network link are not members of these maps; the
-Foundry DNS entry point exposes them through separate singular `servicesAiPrivateDnsZoneTags` and
+Brownfield DNS never creates the `apim` or `sql` zone links (`brownfield-dns.bicep` links only the
+six Foundry-required zones), so those keys are valid only for the greenfield map and are rejected
+by the brownfield entry point's `fail()` check like any other unsupported key. The services.ai
+private DNS zone and virtual network link are not members of any repeated-family map; the Foundry
+DNS entry point exposes them through separate singular `servicesAiPrivateDnsZoneTags` and
 `servicesAiPrivateDnsVnetLinkTags` inputs.
 
 Every entry point derives the supplied keys from `items(map)`, filters out its accepted family key
@@ -122,6 +128,18 @@ introduced by this change.
 Tag expressions will appear only on declarations that create resources. Existing-resource
 declarations remain tag-free. Conditional create-or-reference paths for Storage, AI Search, Cosmos
 DB, NSGs, DNS, and private endpoints will pass tags only into the create branch.
+
+ARM deployments are create-or-update, so a non-`existing` declaration with a deterministic
+blueprint-owned name (for example brownfield's `hybrid-nsg-agent-blueprint-<region>-apim`) would
+silently retag a same-named resource a customer created outside the blueprint if that name already
+exists. The create branch of every conditional create-or-reference path will therefore add a
+fail-closed collision guard: it checks the deterministic blueprint-owned name against the caller's
+explicit ownership selection (`sharedHybridNsgId` / `reuseExistingNsgs` and equivalent existing-ID
+parameters for Storage, AI Search, Cosmos DB, and DNS) and only proceeds to create-with-tags when
+the caller has not designated that name as externally owned. Ownership regression tests will add a
+collision fixture — a create branch selected while the deterministic name collides with a
+caller-supplied existing-resource ID — and assert that no tag update reaches the externally owned
+resource.
 
 This is preferred over deployment-level post-processing or generic tag-update resources, which
 could cross ownership boundaries and mutate customer-managed infrastructure.
