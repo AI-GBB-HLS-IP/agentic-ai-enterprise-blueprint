@@ -49,7 +49,9 @@
   Cosmos DB resources; verify each create branch receives its effective tags and each existing/BYO
   branch remains tag-free.
 - [ ] 3.3 Add purpose-keyed private-endpoint tag inputs for Foundry, Storage, Key Vault, Cosmos DB,
-  and AI Search endpoints; verify each created endpoint can receive distinct tags and skipped or
+  and AI Search endpoints on the Foundry creation path (`infra/envs/poc/foundry.bicep` ->
+  `infra/modules/foundry/main.bicep` -> `infra/modules/foundry/private-endpoint.bicep`), not on
+  `foundry-dns.bicep`; verify each created endpoint can receive distinct tags and skipped or
   externally supplied endpoints are not updated.
 - [ ] 3.4 Add independent tags for the services.ai private DNS zone and virtual network link created
   by `foundry-dns.bicep`, using the existing shared `tags` object as the compatibility base and

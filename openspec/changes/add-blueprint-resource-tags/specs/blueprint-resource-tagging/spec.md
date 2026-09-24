@@ -64,12 +64,13 @@ blueprint-controlled tags SHALL retain their documented highest precedence.
 - **THEN** the deployed resource uses the documented blueprint-controlled value
 
 ### Requirement: External resources are never retagged
-The blueprint SHALL apply tag inputs only to resources it creates and SHALL NOT issue tag updates
-against existing, customer-owned, policy-owned, or externally supplied resources. For a
-conditional create-or-reference path with a deterministic blueprint-owned name, this protection is
-a partial mitigation: it prevents retagging when the caller declares existing ownership through the
-documented existing-ID/reuse parameters, but it does not perform a runtime existence lookup for an
-undeclared same-named resource the caller never flagged.
+The blueprint SHALL apply tag inputs only to resources it creates, and SHALL NOT issue tag updates
+against any resource that is referenced as existing or whose deterministic blueprint-owned name the
+caller has declared as customer-owned, policy-owned, or externally supplied through the documented
+existing-ID/reuse parameters. This guarantee is scoped to declared ownership: because template
+validation performs no runtime existence lookup, the requirement SHALL NOT be read as protecting a
+same-named resource that the caller never declared. Every create declaration with a deterministic
+blueprint-owned name SHALL document this residual and the out-of-band coordination it requires.
 
 #### Scenario: Brownfield network resources are supplied
 - **WHEN** a deployment references an existing VNet, route table, shared NSG, or reusable
@@ -101,6 +102,12 @@ undeclared same-named resource the caller never flagged.
 - **THEN** this requirement's protection does not apply to that undeclared collision, and admin-
   approved, out-of-band name coordination remains required until a runtime existence check is
   added by separately tracked network-foundation preflight validation
+
+#### Scenario: Create declaration documents the undeclared-collision residual
+- **WHEN** the deployment contract describes a create declaration that uses a deterministic
+  blueprint-owned name
+- **THEN** it states that the no-retagging guarantee covers only declared ownership and that
+  out-of-band name coordination is required until runtime existence checking is added
 
 ### Requirement: Caller tag values remain opaque and confidential
 The blueprint SHALL preserve Azure-valid caller-provided tag keys and values without

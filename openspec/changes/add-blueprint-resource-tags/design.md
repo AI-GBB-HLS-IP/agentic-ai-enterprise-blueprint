@@ -77,7 +77,7 @@ table.
 | Greenfield `infra/modules/network/private-dns.bicep` | Private DNS zones | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
 | Greenfield `infra/modules/network/private-dns.bicep` | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
 | Brownfield `infra/envs/poc/brownfield-dns.bicep` (`vnet-link` mode) | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `keyVault`, `storageBlob`, `cosmosDB`, `aiSearch` |
-| Foundry `infra/envs/poc/foundry-dns.bicep` | Foundry private endpoints | `foundry`, `storage`, `keyVault`, `cosmosDB`, `aiSearch` |
+| Foundry creation path `infra/envs/poc/foundry.bicep` -> `infra/modules/foundry/main.bicep` -> `infra/modules/foundry/private-endpoint.bicep` | Foundry private endpoints | `foundry`, `storage`, `keyVault`, `cosmosDB`, `aiSearch` |
 
 `brownfield-dns.bicep` is a single template shared by both `dnsIntegrationMode` values, so its link
 tag map parameter is always declared. In `zone-group` mode the template creates no VNet link
@@ -92,6 +92,14 @@ by the brownfield entry point's `fail()` check like any other unsupported key. T
 private DNS zone and virtual network link are not members of any repeated-family map; the Foundry
 DNS entry point exposes them through separate singular `servicesAiPrivateDnsZoneTags` and
 `servicesAiPrivateDnsVnetLinkTags` inputs.
+
+The Foundry private-endpoint map belongs exclusively to the Foundry creation path, because
+`foundry-dns.bicep` never creates private endpoints: it receives already-created endpoint IDs and
+creates only DNS zone-group children for them. `foundry-dns.bicep` therefore exposes no
+private-endpoint tag input at all; its tag surface is limited to the shared `tags` base plus the
+two services.ai zone/link inputs above. Endpoints are created by
+`infra/modules/foundry/private-endpoint.bicep` through `infra/modules/foundry/main.bicep`, so the
+map is declared on `infra/envs/poc/foundry.bicep` and threaded down that path only.
 
 Every entry point derives the supplied keys from `items(map)`, filters out its accepted family key
 set, and calls `fail()` when any keys remain. The stable error format is
@@ -109,8 +117,9 @@ effective tags = union(existing shared tags, resource-specific tags)
 
 Bicep `union()` gives later arguments precedence, so the resource-specific value wins on duplicate
 keys. Existing callers therefore retain current tag behavior, while new callers can differentiate
-the account, project, Key Vault, Storage, AI Search, Cosmos DB, each private endpoint, and the
-services.ai private DNS zone and virtual network link created by `foundry-dns.bicep`. In
+the account, project, Key Vault, Storage, AI Search, Cosmos DB, and each private endpoint created
+by the Foundry creation path, plus the services.ai private DNS zone and virtual network link
+created by `foundry-dns.bicep`. In
 `vnet-link` mode, the existing shared `tags` object is the base for both services.ai DNS resources
 and their separate resource-specific tag objects override duplicate keys. In `zone-group` mode,
 `foundry-dns.bicep` creates neither the services.ai zone nor its virtual network link, so neither
@@ -135,13 +144,16 @@ introduced by this change.
 
 Tag expressions will appear only on declarations that create resources. Existing-resource
 declarations remain tag-free. Conditional create-or-reference paths for Storage, AI Search, Cosmos
-DB, NSGs, DNS, and private endpoints will pass tags only into the create branch.
+DB, NSGs, DNS, and private endpoints will pass tags only into the create branch. For private
+endpoints this is the Foundry creation path; `foundry-dns.bicep`, which only associates existing
+endpoint IDs with DNS zone groups, passes no endpoint tags at all.
 
 ARM deployments are create-or-update, so a non-`existing` declaration with a deterministic
 blueprint-owned name (for example brownfield's `hybrid-nsg-agent-blueprint-<region>-apim`) would
 silently retag a same-named resource a customer created outside the blueprint if that name already
 exists. The create branch of every conditional create-or-reference path will therefore add a
-fail-closed collision guard: it checks the deterministic blueprint-owned name against the caller's
+declared-ownership collision guard: it checks the deterministic blueprint-owned name against the
+caller's
 explicit ownership selection (`sharedHybridNsgId` / `reuseExistingNsgs` and equivalent existing-ID
 parameters for Storage, AI Search, Cosmos DB, and DNS) and only proceeds to create-with-tags when
 the caller has not designated that name as externally owned. Ownership regression tests will add a
