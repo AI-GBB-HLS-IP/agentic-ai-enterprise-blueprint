@@ -204,10 +204,10 @@ separate Stage 1 evidence-file inconsistency is not modified by this change.
   values and include confidentiality checks in regression coverage.
 - **[Risk] The create-branch collision guard only checks caller-declared ownership parameters, so
   an undeclared same-named resource could still be silently retagged.** → Document this residual
-  risk and the required out-of-band name coordination in deployment guidance (task 6.2) alongside
-  the ownership boundary, so operators see it before deploying rather than only in this design
-  record; treat closing the gap with a runtime existence check as part of the already-tracked
-  deferred preflight validator, not this change.
+  risk and the required out-of-band name coordination in deployment guidance (task 6.2, this
+  change's own tasks.md) alongside the ownership boundary, so operators see it before deploying
+  rather than only in this design record; treat closing the gap with a runtime existence check as
+  part of the already-tracked deferred preflight validator, not this change.
 - **[Trade-off] Purpose-keyed maps are less discoverable than singular parameters.** → Publish the
   accepted logical keys and defaults in parameter contracts and customer examples.
 

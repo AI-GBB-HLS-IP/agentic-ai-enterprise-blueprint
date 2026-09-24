@@ -99,8 +99,10 @@
   resource, ownership mode, input name or map key, default, merge behavior, and unsupported reason;
   verify every reviewed inventory row appears exactly once.
 - [ ] 6.2 Update network, Foundry, APIM, and customer deployment guidance with sanitized examples,
-  ownership boundaries, legacy Foundry compatibility, and repeated-family map usage; verify all
-  documented names match the implemented `.bicepparam` interfaces.
+  ownership boundaries, legacy Foundry compatibility, repeated-family map usage, and the
+  create-branch collision guard's residual risk (undeclared same-named resources are not detected
+  and require out-of-band name coordination); verify all documented names match the implemented
+  `.bicepparam` interfaces.
 - [ ] 6.3 Record offline validation results and mark approval-dependent Foundry what-if/runtime
   evidence `BLOCKED` without changing the separate Stage 1 evidence-file reconciliation; verify no
   document claims unexecuted live validation passed.
