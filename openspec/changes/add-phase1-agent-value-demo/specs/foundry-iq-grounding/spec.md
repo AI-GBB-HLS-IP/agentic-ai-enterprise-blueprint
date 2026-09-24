@@ -43,8 +43,18 @@ test questions.
 
 ### Requirement: Shared knowledge contract for both agents
 The prompt agent and AKS-hosted agent SHALL use the same approved knowledge base and grounding
-test corpus for the Phase 1 comparison.
+test corpus for the Phase 1 comparison, and the solution SHALL publish an explicit retrieval
+interface contract that the independent AKS-hosted agent can implement without proxying the
+prompt agent and without bypassing Foundry IQ through direct Azure AI Search index access.
+
+#### Scenario: Publish the retrieval interface contract
+- **WHEN** the Foundry IQ knowledge base is declared ready for agent integration
+- **THEN** the contract records the retrieval endpoint and client SDK or API version, the managed-identity token audience and scope, the stable knowledge-base identifier, and the request and citation response shapes used by both agents
+
+#### Scenario: Block an undefined retrieval interface
+- **WHEN** the retrieval endpoint, token audience, knowledge-base identifier, or citation response shape is undefined or unapproved
+- **THEN** the AKS-hosted agent retrieval work reports a named BLOCKED gate instead of selecting direct Azure AI Search access or prompt-agent proxying as a substitute
 
 #### Scenario: Compare grounding behavior
 - **WHEN** the same grounding test is sent to both agents
-- **THEN** both agents invoke the approved knowledge base and return source-backed responses that satisfy the same expected-answer criteria
+- **THEN** both agents invoke the approved knowledge base through the published retrieval interface contract and return source-backed responses that satisfy the same expected-answer criteria

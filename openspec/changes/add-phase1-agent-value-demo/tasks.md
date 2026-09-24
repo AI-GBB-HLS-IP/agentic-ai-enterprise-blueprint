@@ -8,7 +8,7 @@
 ## 2. Build the Pre-Approval Shared Platform
 
 - [ ] 2.1 Add a parameterized Phase 1 environment composition entry point that deploys or reuses the shared Cosmos DB, Storage, and Azure AI Search resources, and verify Bicep compilation and resource-group what-if succeed
-- [ ] 2.2 Add a workspace-based agent Application Insights component that remains separate from the APIM component and reuses an approved Log Analytics workspace when supplied, and verify outputs identify both telemetry boundaries
+- [ ] 2.2 Add a workspace-based agent Application Insights component that remains separate from the APIM component and either reuses the supplied approved Log Analytics workspace or creates a dedicated Phase 1 workspace when none is supplied, and verify outputs identify both telemetry boundaries and that an unavailable or unapproved workspace produces a named BLOCKED gate instead of a component without workspace integration
 - [ ] 2.3 Add or reuse bare private endpoints for Cosmos DB, Storage, Azure AI Search, and agent observability dependencies without violating the existing staged DNS-association contract, and verify what-if introduces no duplicate endpoints or DNS zones
 - [ ] 2.4 Add the later DNS-association wiring for any new private endpoints, and verify each supplied full private-endpoint resource ID can be associated or independently skipped
 - [ ] 2.5 Add baseline operational identities and least-privilege management/data-plane role assignments that do not depend on a Foundry project, and verify no developer, validation, or runtime identity receives broad Owner, Contributor, or unnecessary data-owner access
@@ -53,6 +53,7 @@
 - [ ] 7.3 Run initial extraction, chunking, vectorization, and indexing from a VNet-connected execution location, and verify every expected sample document reports successful ingestion
 - [ ] 7.4 Add retrieval validation for keyword/vector/hybrid behavior as supported, expected citations, and insufficient-knowledge handling, and verify failed or incomplete ingestion keeps grounding readiness false
 - [ ] 7.5 Add an incremental refresh test by changing one generic sample document, and verify the indexed knowledge source reflects the new version without duplicating stale content
+- [ ] 7.6 Publish the shared Foundry IQ retrieval interface contract used by both agents, recording the retrieval endpoint and client SDK or API version, the managed-identity token audience and scope, the stable knowledge-base identifier, and the request and citation response shapes, and verify an undefined or unapproved element produces a named BLOCKED gate before task 9.2 starts
 
 ## 8. Implement the Foundry Prompt Agent
 
@@ -65,7 +66,7 @@
 ## 9. Implement the AKS-Hosted Agent
 
 - [ ] 9.1 Create the independent code-based agent under a dedicated source directory with health endpoints and configuration for Foundry IQ, APIM, Cosmos DB, and telemetry, and verify local unit tests run without live Azure credentials
-- [ ] 9.2 Implement Foundry IQ retrieval and citation handling against the same knowledge base contract used by the prompt agent, and verify grounding tests produce the expected source-backed behavior
+- [ ] 9.2 Implement Foundry IQ retrieval and citation handling against the published shared retrieval interface contract from task 7.6 without proxying the prompt agent or querying the Azure AI Search index directly, and verify grounding tests produce the expected source-backed behavior
 - [ ] 9.3 Implement APIM-only tool invocation with managed authentication, explicit timeout/error handling, and correlation propagation, and verify mocked success, unauthorized, throttled, timeout, and backend-error tests pass
 - [ ] 9.4 Implement application-owned Cosmos DB conversation persistence using the AKS workload identity and a namespace separate from Foundry-managed stores, and verify repository tests cover partitioning, resume, update, and isolation behavior
 - [ ] 9.5 Instrument agent requests, Foundry IQ dependencies, APIM calls, Cosmos DB operations, exceptions, and latency with OpenTelemetry/Application Insights correlation, and verify no credential or full message body is emitted by default

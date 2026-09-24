@@ -18,6 +18,10 @@ for the initial value demonstration.
 - **WHEN** the agent observability resources are deployed
 - **THEN** the existing APIM Application Insights component remains dedicated to APIM gateway telemetry and a separate Application Insights component is available for agent and application telemetry
 
+#### Scenario: Resolve the agent telemetry workspace
+- **WHEN** the agent Application Insights component is deployed
+- **THEN** it is bound to the supplied approved Log Analytics workspace or to a dedicated Phase 1 workspace created for the agent telemetry boundary, and when neither an approved nor a creatable workspace is available the agent observability readiness is reported as blocked
+
 ### Requirement: Approval-gated platform activation
 The deployment SHALL separate pre-approval platform preparation from operations that require an
 approved Foundry project.
