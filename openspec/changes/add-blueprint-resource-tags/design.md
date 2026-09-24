@@ -147,14 +147,18 @@ collision fixture — a create branch selected while the deterministic name coll
 caller-supplied existing-resource ID — and assert that no tag update reaches the externally owned
 resource.
 
-This guard only detects collisions the caller declares through those existing-ID/reuse parameters.
-Consistent with this entry point's existing fast-POC-pass scope (`infra/envs/poc/brownfield-network.bicep`'s
-documented lack of independent overlap/ownership validation), it does not perform a runtime
-existence lookup against Azure for an undeclared same-named resource the caller never flagged;
-admin-approved, out-of-band name coordination remains required until the deferred fail-closed
-preflight validator already tracked in `specs/00-network-foundation/tasks.md` (T030-T033,
-T035-T039) lands. That validator is out of scope for this tagging change and is not duplicated
-here.
+**Residual scope limitation of this guard:**
+
+- It only detects collisions the caller declares through those existing-ID/reuse parameters. It
+  does not perform a runtime existence lookup against Azure, so an undeclared same-named resource
+  the caller never flagged can still be silently retagged.
+- This matches this entry point's existing fast-POC-pass scope: `infra/envs/poc/brownfield-network.bicep`
+  documents that it performs no independent overlap or ownership validation of its own.
+- Closing that gap with a runtime existence check is out of scope here; it is the already-tracked
+  deferred fail-closed preflight validator in `specs/00-network-foundation/tasks.md`
+  (T030-T033, T035-T039), and this change does not duplicate it.
+- Until that validator lands, admin-approved, out-of-band name coordination remains required, and
+  task 6.2 in this change's own `tasks.md` documents this residual risk for operators.
 
 This is preferred over deployment-level post-processing or generic tag-update resources, which
 could cross ownership boundaries and mutate customer-managed infrastructure.
