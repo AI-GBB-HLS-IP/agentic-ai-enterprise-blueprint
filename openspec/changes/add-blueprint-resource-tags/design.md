@@ -68,7 +68,9 @@ flat list for every repeated instance was rejected because it duplicates the log
 already used by the modules and parameter contracts.
 
 Missing keys in a repeated-family map resolve to `{}`. Each map's accepted key set is scoped to the
-logical resources its owning entry point actually creates:
+logical resources its owning entry point actually creates. The Foundry services.ai zone and link
+are intentionally not a row in this table; they use separate singular inputs described below the
+table.
 
 | Entry point / DNS mode | Repeated family | Accepted keys |
 |---|---|---|
@@ -150,7 +152,9 @@ Consistent with this entry point's existing fast-POC-pass scope (`infra/envs/poc
 documented lack of independent overlap/ownership validation), it does not perform a runtime
 existence lookup against Azure for an undeclared same-named resource the caller never flagged;
 admin-approved, out-of-band name coordination remains required until the deferred fail-closed
-preflight validator lands.
+preflight validator already tracked in `specs/00-network-foundation/tasks.md` (T030-T033,
+T035-T039) lands. That validator is out of scope for this tagging change and is not duplicated
+here.
 
 This is preferred over deployment-level post-processing or generic tag-update resources, which
 could cross ownership boundaries and mutate customer-managed infrastructure.
