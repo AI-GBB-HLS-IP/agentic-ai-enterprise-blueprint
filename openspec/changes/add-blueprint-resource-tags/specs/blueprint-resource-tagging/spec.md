@@ -67,10 +67,11 @@ blueprint-controlled tags SHALL retain their documented highest precedence.
 The blueprint SHALL apply tag inputs only to resources it creates, and SHALL NOT issue tag updates
 against any resource that is referenced as existing or whose deterministic blueprint-owned name the
 caller has declared as customer-owned, policy-owned, or externally supplied through the documented
-existing-ID/reuse parameters. This guarantee is scoped to declared ownership: because template
-validation performs no runtime existence lookup, the requirement SHALL NOT be read as protecting a
-same-named resource that the caller never declared. Every create declaration with a deterministic
-blueprint-owned name SHALL document this residual and the out-of-band coordination it requires.
+existing-ID/reuse parameters. Because template evaluation cannot perform a runtime existence
+lookup, a deployment that creates resources with deterministic blueprint-owned names SHALL be
+gated on an ownership preflight executed outside the templates, which resolves each such name,
+fails when the name already exists and is not blueprint-owned, and produces the evidence required
+before the deployment runs.
 
 #### Scenario: Brownfield network resources are supplied
 - **WHEN** a deployment references an existing VNet, route table, shared NSG, or reusable
@@ -95,19 +96,22 @@ blueprint-owned name SHALL document this residual and the out-of-band coordinati
 - **THEN** the created link receives its resource-specific link tag input, while the externally
   owned zone it links to receives no tag update
 
-#### Scenario: Deterministic name collides with an undeclared external resource
-- **WHEN** a create-or-reference path would create a resource whose deterministic blueprint-owned
-  name already exists in Azure and the caller did not declare that name as externally owned via the
-  documented existing-ID/reuse parameters
-- **THEN** this requirement's protection does not apply to that undeclared collision, and admin-
-  approved, out-of-band name coordination remains required until a runtime existence check is
-  added by separately tracked network-foundation preflight validation
+#### Scenario: Deterministic name already exists and is not blueprint-owned
+- **WHEN** the ownership preflight resolves a deterministic blueprint-owned name that a create
+  declaration would produce and finds an existing resource that is not blueprint-owned
+- **THEN** the preflight fails and the tagging deployment is not executed, so no tag update reaches
+  that resource
 
-#### Scenario: Create declaration documents the undeclared-collision residual
+#### Scenario: Caller declares contradictory ownership inputs
+- **WHEN** a caller supplies an existing-resource ID or reuse flag that designates the same
+  deterministic name a create branch would produce
+- **THEN** template validation fails deterministically instead of creating and tagging that name
+
+#### Scenario: Create declaration documents the preflight prerequisite
 - **WHEN** the deployment contract describes a create declaration that uses a deterministic
   blueprint-owned name
-- **THEN** it states that the no-retagging guarantee covers only declared ownership and that
-  out-of-band name coordination is required until runtime existence checking is added
+- **THEN** it states that the ownership preflight is a prerequisite of that deployment, because
+  ARM create-or-update would otherwise retag a same-named resource
 
 ### Requirement: Caller tag values remain opaque and confidential
 The blueprint SHALL preserve Azure-valid caller-provided tag keys and values without

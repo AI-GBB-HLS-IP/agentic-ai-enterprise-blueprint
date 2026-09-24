@@ -151,28 +151,41 @@ endpoint IDs with DNS zone groups, passes no endpoint tags at all.
 ARM deployments are create-or-update, so a non-`existing` declaration with a deterministic
 blueprint-owned name (for example brownfield's `hybrid-nsg-agent-blueprint-<region>-apim`) would
 silently retag a same-named resource a customer created outside the blueprint if that name already
-exists. The create branch of every conditional create-or-reference path will therefore add a
-declared-ownership collision guard: it checks the deterministic blueprint-owned name against the
-caller's
-explicit ownership selection (`sharedHybridNsgId` / `reuseExistingNsgs` and equivalent existing-ID
-parameters for Storage, AI Search, Cosmos DB, and DNS) and only proceeds to create-with-tags when
-the caller has not designated that name as externally owned. Ownership regression tests will add a
-collision fixture — a create branch selected while the deterministic name collides with a
-caller-supplied existing-resource ID — and assert that no tag update reaches the externally owned
-resource.
+exists. A template-internal name comparison cannot close this gap: when no existing-resource ID is
+supplied Bicep has no way to discover a same-named customer resource, and when one is supplied the
+create branch is already disabled. The ownership boundary is therefore enforced in two distinct
+places, neither of which pretends to detect collisions from inside the create branch:
 
-**Residual scope limitation of this guard:**
+1. **In-template input consistency (not collision detection).** Each conditional create-or-reference
+   path keeps tags on the create branch only, and additionally calls `fail()` when the caller's
+   inputs are self-contradictory — an existing-resource ID or reuse flag (`sharedHybridNsgId` /
+   `reuseExistingNsgs` and the equivalent existing-ID parameters for Storage, AI Search, Cosmos DB,
+   and DNS) that designates the same deterministic name the create branch would produce. This
+   rejects contradictory ownership declarations deterministically; it makes no claim about
+   undeclared resources.
+2. **Out-of-template ownership preflight (the proof of ownership).** Creation with tags is not
+   permitted without evidence that each deterministic blueprint-owned name is either absent or
+   already blueprint-owned. This change adds an ownership preflight step, executed outside the
+   templates before deployment, that resolves every deterministic name the deployment would create
+   and queries Azure for its existence and tags. The preflight exits non-zero when a name already
+   exists and is not blueprint-owned, so the deployment never runs against a customer-owned
+   same-named resource. Its output is the required evidence artifact for the tagging deployment
+   gate.
 
-- It only detects collisions the caller declares through those existing-ID/reuse parameters. It
-  does not perform a runtime existence lookup against Azure, so an undeclared same-named resource
-  the caller never flagged can still be silently retagged.
-- This matches this entry point's existing fast-POC-pass scope: `infra/envs/poc/brownfield-network.bicep`
-  documents that it performs no independent overlap or ownership validation of its own.
-- Closing that gap with a runtime existence check is out of scope here; it is the already-tracked
-  deferred fail-closed preflight validator in `specs/00-network-foundation/tasks.md`
-  (T030-T033, T035-T039), and this change does not duplicate it.
-- Until that validator lands, admin-approved, out-of-band name coordination remains required, and
-  task 6.2 in this change's own `tasks.md` documents this residual risk for operators.
+Ownership regression tests will cover both halves: a contradictory-input fixture asserting the
+`fail()` path, and a preflight fixture asserting a non-zero exit and no emitted deployment when a
+deterministic name resolves to a non-blueprint-owned resource.
+
+**Scope boundaries of this contract:**
+
+- The preflight is an operator-run gate outside the ARM template, because Bicep cannot query
+  resource existence during compilation or evaluation. Deployments that bypass the gate carry the
+  full create-or-update retagging risk, which is why task 6.2 documents it as a prerequisite rather
+  than an optional check.
+- The preflight is intentionally narrow: it checks only the deterministic names this change tags.
+  The broader fail-closed network preflight validator in `specs/00-network-foundation/tasks.md`
+  (T030-T033, T035-T039) still owns CIDR overlap and wider brownfield validation, and this change
+  does not duplicate it.
 
 This is preferred over deployment-level post-processing or generic tag-update resources, which
 could cross ownership boundaries and mutate customer-managed infrastructure.
@@ -220,12 +233,12 @@ separate Stage 1 evidence-file inconsistency is not modified by this change.
   deployment contract separately from policy-added live state.
 - **[Risk] Tag examples could expose customer metadata.** → Use only generic sanitized keys and
   values and include confidentiality checks in regression coverage.
-- **[Risk] The create-branch collision guard only checks caller-declared ownership parameters, so
-  an undeclared same-named resource could still be silently retagged.** → Document this residual
-  risk and the required out-of-band name coordination in deployment guidance (task 6.2, this
-  change's own tasks.md) alongside the ownership boundary, so operators see it before deploying
-  rather than only in this design record; treat closing the gap with a runtime existence check as
-  part of the already-tracked deferred preflight validator, not this change.
+- **[Risk] ARM create-or-update could retag a customer resource that happens to use a deterministic
+  blueprint-owned name.** → Templates cannot detect this, so creation with tags is gated on an
+  out-of-template ownership preflight that resolves every deterministic name, fails when a name
+  exists and is not blueprint-owned, and produces the required deployment evidence; in-template
+  `fail()` covers only contradictory caller ownership inputs, and deployment guidance (task 6.2)
+  documents the preflight as a prerequisite.
 - **[Trade-off] Purpose-keyed maps are less discoverable than singular parameters.** → Publish the
   accepted logical keys and defaults in parameter contracts and customer examples.
 

@@ -94,6 +94,11 @@
 - [ ] 5.5 Run `OFFLINE_ONLY=true specs/02-apim-ai-gateway/validation/validate.sh all` and all
   affected network and Foundry regression suites; verify offline checks pass while unavailable
   Foundry live gates remain explicitly `BLOCKED`.
+- [ ] 5.6 Add the out-of-template ownership preflight that resolves every deterministic
+  blueprint-owned name a tagged create declaration would produce, queries Azure for existence and
+  blueprint ownership, and exits non-zero when a name exists and is not blueprint-owned; verify the
+  gate fails and emits no deployment for a non-blueprint-owned fixture and passes for absent or
+  blueprint-owned names, and that contradictory caller ownership inputs fail template validation.
 
 ## 6. Documentation and Completion
 
@@ -101,9 +106,9 @@
   resource, ownership mode, input name or map key, default, merge behavior, and unsupported reason;
   verify every reviewed inventory row appears exactly once.
 - [ ] 6.2 Update network, Foundry, APIM, and customer deployment guidance with sanitized examples,
-  ownership boundaries, legacy Foundry compatibility, repeated-family map usage, and the
-  create-branch collision guard's residual risk (undeclared same-named resources are not detected
-  and require out-of-band name coordination); verify all documented names match the implemented
+  ownership boundaries, legacy Foundry compatibility, repeated-family map usage, and the mandatory
+  ownership preflight prerequisite for deployments that create resources with deterministic
+  blueprint-owned names; verify all documented names match the implemented
   `.bicepparam` interfaces.
 - [ ] 6.3 Record offline validation results and mark approval-dependent Foundry what-if/runtime
   evidence `BLOCKED` without changing the separate Stage 1 evidence-file reconciliation; verify no
