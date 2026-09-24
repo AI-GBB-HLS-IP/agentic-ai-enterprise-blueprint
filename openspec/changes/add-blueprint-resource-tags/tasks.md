@@ -94,11 +94,14 @@
 - [ ] 5.5 Run `OFFLINE_ONLY=true specs/02-apim-ai-gateway/validation/validate.sh all` and all
   affected network and Foundry regression suites; verify offline checks pass while unavailable
   Foundry live gates remain explicitly `BLOCKED`.
-- [ ] 5.6 Add the out-of-template ownership preflight that resolves every deterministic
-  blueprint-owned name a tagged create declaration would produce, queries Azure for existence and
-  blueprint ownership, and exits non-zero when a name exists and is not blueprint-owned; verify the
-  gate fails and emits no deployment for a non-blueprint-owned fixture and passes for absent or
-  blueprint-owned names, and that contradictory caller ownership inputs fail template validation.
+- [ ] 5.6 Add `scripts/tags/preflight-owned-names.sh` and invoke it from the existing deployment
+  preflight path: resolve every deterministic blueprint-owned name a tagged create declaration
+  would produce, query Azure for existence, pass only absent names or names listed in the
+  operator's `--accept-existing` re-deployment attestation that match the previous preflight
+  evidence artifact, and exit non-zero otherwise; verify the gate fails and emits no deployment for
+  an existing non-attested fixture, passes for absent and attested names, and that contradictory
+  caller ownership inputs (an existing-ID/reuse parameter resolving to a name another input still
+  forces the deployment to create) fail template validation.
 
 ## 6. Documentation and Completion
 

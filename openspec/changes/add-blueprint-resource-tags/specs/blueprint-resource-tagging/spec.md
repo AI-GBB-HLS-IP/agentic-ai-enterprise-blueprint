@@ -70,8 +70,9 @@ caller has declared as customer-owned, policy-owned, or externally supplied thro
 existing-ID/reuse parameters. Because template evaluation cannot perform a runtime existence
 lookup, a deployment that creates resources with deterministic blueprint-owned names SHALL be
 gated on an ownership preflight executed outside the templates, which resolves each such name,
-fails when the name already exists and is not blueprint-owned, and produces the evidence required
-before the deployment runs.
+fails when the name resolves to an existing resource the operator has not attested as
+blueprint-created for that deployment, and produces the evidence required before the deployment
+runs.
 
 #### Scenario: Brownfield network resources are supplied
 - **WHEN** a deployment references an existing VNet, route table, shared NSG, or reusable
@@ -98,13 +99,16 @@ before the deployment runs.
 
 #### Scenario: Deterministic name already exists and is not blueprint-owned
 - **WHEN** the ownership preflight resolves a deterministic blueprint-owned name that a create
-  declaration would produce and finds an existing resource that is not blueprint-owned
+  declaration would produce and finds an existing resource that the operator has not attested as
+  blueprint-created for that deployment
 - **THEN** the preflight fails and the tagging deployment is not executed, so no tag update reaches
   that resource
 
 #### Scenario: Caller declares contradictory ownership inputs
-- **WHEN** a caller supplies an existing-resource ID or reuse flag that designates the same
-  deterministic name a create branch would produce
+- **WHEN** a caller supplies an existing-resource ID or reuse parameter that resolves to a name
+  which another input of the same deployment still forces a create declaration to produce, such as
+  a shared NSG ID whose name equals the deterministic per-purpose NSG name while per-purpose NSG
+  reuse is disabled
 - **THEN** template validation fails deterministically instead of creating and tagging that name
 
 #### Scenario: Create declaration documents the preflight prerequisite

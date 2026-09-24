@@ -158,19 +158,26 @@ places, neither of which pretends to detect collisions from inside the create br
 
 1. **In-template input consistency (not collision detection).** Each conditional create-or-reference
    path keeps tags on the create branch only, and additionally calls `fail()` when the caller's
-   inputs are self-contradictory — an existing-resource ID or reuse flag (`sharedHybridNsgId` /
-   `reuseExistingNsgs` and the equivalent existing-ID parameters for Storage, AI Search, Cosmos DB,
-   and DNS) that designates the same deterministic name the create branch would produce. This
-   rejects contradictory ownership declarations deterministically; it makes no claim about
+   inputs are self-contradictory: an existing-resource ID or reuse parameter resolves to a name
+   that is also the deterministic name of a resource another input still forces the same
+   deployment to create. The concrete brownfield case is `sharedHybridNsgId` pointing at a resource
+   whose name equals the deterministic per-purpose NSG name while `reuseExistingNsgs` is `false`,
+   so that NSG would be created and tagged over the resource the caller declared as external. The
+   equivalent existing-ID parameters for Storage, AI Search, Cosmos DB, and DNS use the same rule.
+   This rejects contradictory ownership declarations deterministically; it makes no claim about
    undeclared resources.
 2. **Out-of-template ownership preflight (the proof of ownership).** Creation with tags is not
    permitted without evidence that each deterministic blueprint-owned name is either absent or
-   already blueprint-owned. This change adds an ownership preflight step, executed outside the
-   templates before deployment, that resolves every deterministic name the deployment would create
-   and queries Azure for its existence and tags. The preflight exits non-zero when a name already
-   exists and is not blueprint-owned, so the deployment never runs against a customer-owned
-   same-named resource. Its output is the required evidence artifact for the tagging deployment
-   gate.
+   already blueprint-owned. This change adds `scripts/tags/preflight-owned-names.sh`, executed
+   outside the templates before deployment and invoked by the existing `scripts/foundry/
+   preflight.sh` path, that resolves every deterministic name the deployment would create and
+   queries Azure for its existence. A name passes when it does not resolve to an existing resource,
+   or when it resolves to a resource the operator has attested as blueprint-created by listing it
+   in the deployment's `--accept-existing` re-deployment attestation, which must match the names
+   recorded in that deployment's previous preflight evidence artifact. Any other existing resource
+   fails the gate with a non-zero exit, so the deployment never runs against a customer-owned
+   same-named resource. The gate's output is the required evidence artifact for the tagging
+   deployment.
 
 Ownership regression tests will cover both halves: a contradictory-input fixture asserting the
 `fail()` path, and a preflight fixture asserting a non-zero exit and no emitted deployment when a
@@ -236,7 +243,8 @@ separate Stage 1 evidence-file inconsistency is not modified by this change.
 - **[Risk] ARM create-or-update could retag a customer resource that happens to use a deterministic
   blueprint-owned name.** → Templates cannot detect this, so creation with tags is gated on an
   out-of-template ownership preflight that resolves every deterministic name, fails when a name
-  exists and is not blueprint-owned, and produces the required deployment evidence; in-template
+  resolves to an existing resource the operator has not attested as blueprint-created, and produces
+  the required deployment evidence; in-template
   `fail()` covers only contradictory caller ownership inputs, and deployment guidance (task 6.2)
   documents the preflight as a prerequisite.
 - **[Trade-off] Purpose-keyed maps are less discoverable than singular parameters.** → Publish the
