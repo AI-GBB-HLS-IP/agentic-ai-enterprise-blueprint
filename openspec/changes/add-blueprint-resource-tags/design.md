@@ -103,7 +103,9 @@ two services.ai zone/link inputs above. Endpoints are created by
 map is declared on `infra/envs/poc/foundry.bicep` and threaded down that path only.
 
 Every entry point derives the supplied keys from `items(map)`, filters out its accepted family key
-set, and calls `fail()` when any keys remain. The stable error format is
+set, and calls `fail()` when any keys remain. `brownfield-dns.bicep` selects that set from
+`dnsIntegrationMode`: the six-key set for `vnet-link` and the empty set for `zone-group`. The stable
+error format is
 `<parameterName> contains unsupported logical resource key(s): <keys>` so tests can assert both the
 affected map and rejected keys. Unknown keys are never silently dropped.
 
@@ -188,7 +190,8 @@ places, neither of which pretends to detect collisions from inside the create br
    with `--prior-evidence <path>`. That artifact must record the ID as `absent` for the same logical
    declaration and target scope. The script rejects malformed manifests or evidence, unknown or
    duplicate attestation IDs, manifest-digest/scope mismatches, and any unlisted existing resource
-   with a non-zero exit. `OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15 minutes) is a hard-coded,
+   with a non-zero exit. The script assigns `readonly OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15
+   minutes) and ignores any inherited environment value of that name. This is a hard-coded,
    non-overrideable evidence freshness invariant: the deployment gate accepts evidence only when
    its manifest digest matches the current manifest and its timestamp remains within that TTL of the
    ARM invocation; missing, stale, or mismatched evidence fails closed.
