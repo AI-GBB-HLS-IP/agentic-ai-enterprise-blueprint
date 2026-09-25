@@ -1,7 +1,9 @@
 ## Purpose
 
-Defines consistent, independently configurable Azure resource tags and ownership boundaries for
-taggable resources created across the enterprise blueprint.
+Defines consistent, independently configurable Azure resource tags and declared-ownership
+boundaries for taggable resources managed across the enterprise blueprint. "Blueprint-created"
+includes previously blueprint-created resources redeployed through create/update paths; it is not
+proof of resource ownership in Azure.
 
 ## ADDED Requirements
 
@@ -28,13 +30,16 @@ endpoint, and APIM foundation resources.
 
 ### Requirement: New tag inputs are backward compatible
 Every newly introduced resource-specific tag input SHALL default to an empty object, and existing
-deployment inputs SHALL remain valid without supplying the new tag inputs. Every archived Stage 1
+non-contradictory deployment inputs SHALL remain valid without supplying the new tag inputs. The
+declared-ownership input check intentionally rejects previously tolerated contradictory inputs;
+omitting tag inputs does not bypass that check. Every archived Stage 1
 APIM tag input (`apimServiceTags`, `apimPublicIpTags`, `privateDnsZoneTags`,
 `privateDnsVnetLinkTags`, `applicationInsightsTags`, `logAnalyticsWorkspaceTags`, and
 `capacityAlertTags`) SHALL remain accepted with its documented resource mapping and default value.
 
 #### Scenario: Existing caller omits new tag inputs
-- **WHEN** an existing parameter file omits all newly introduced resource-specific tag inputs
+- **WHEN** an otherwise valid, non-contradictory existing parameter file omits all newly introduced
+  resource-specific tag inputs
 - **THEN** template validation and deployment proceed without a missing-parameter error
 
 #### Scenario: Existing Foundry caller uses the shared tag input
@@ -63,16 +68,23 @@ blueprint-controlled tags SHALL retain their documented highest precedence.
   public IP `ProjectCode`
 - **THEN** the deployed resource uses the documented blueprint-controlled value
 
-### Requirement: External resources are never retagged
-The blueprint SHALL apply tag inputs only to resources it creates, and SHALL NOT issue tag updates
-against any resource that is referenced as existing or whose deterministic blueprint-owned name the
-caller has declared as customer-owned, policy-owned, or externally supplied through the documented
-existing-ID/reuse parameters. Because template evaluation cannot perform a runtime existence
-lookup, a deployment that creates resources with deterministic blueprint-owned names SHALL be
-gated on an ownership preflight executed outside the templates, which resolves each such name,
-fails when the name resolves to an existing resource the operator has not attested as
-blueprint-created for that deployment, and produces the evidence required before the deployment
-runs.
+### Requirement: Tag inputs respect declared ownership
+The blueprint SHALL apply tag inputs only to resources managed through its create/update paths,
+including redeployment of previously blueprint-created resources. It SHALL NOT apply those inputs
+to resources referenced through existing-resource or BYO paths. It SHALL reject contradictions
+determinable from caller-supplied ownership inputs and active create/update targets, comparing full
+resource identities rather than bare names.
+
+Operators MUST verify that each create/update target is either absent or already blueprint-owned
+in the intended Azure cloud and deployment scope and prevent conflicting concurrent deployments.
+If ownership cannot be established, operators MUST stop or use a supported existing-resource/BYO
+path instead of adopting an unrelated resource through the create/update path.
+
+Selecting a create/update path does not prove ownership: ARM may update a same-named unrelated
+resource, including one created after an operator's check. Automatic discovery of undeclared name
+collisions, ownership attestation, and concurrency enforcement are outside this capability. This
+change SHALL NOT introduce ownership manifests, evidence-file gates, freshness limits, or new
+deployment wrappers as prerequisites; existing unrelated deployment prerequisites remain unchanged.
 
 #### Scenario: Brownfield network resources are supplied
 - **WHEN** a deployment references an existing VNet, route table, shared NSG, or reusable
@@ -97,36 +109,41 @@ runs.
 - **THEN** the created link receives its resource-specific link tag input, while the externally
   owned zone it links to receives no tag update
 
-#### Scenario: Deterministic name already exists and is not blueprint-owned
-- **WHEN** the ownership preflight resolves a deterministic blueprint-owned name that a create
-  declaration would produce and finds an existing resource that the operator has not attested as
-  blueprint-created for that deployment
-- **THEN** the preflight fails and the tagging deployment is not executed, so no tag update reaches
-  that resource
+#### Scenario: Previously blueprint-created resource is redeployed
+- **WHEN** the operator redeploys a previously blueprint-created resource through its managed
+  create/update path
+- **THEN** the resource receives the current effective tags with the documented defaults and merge
+  precedence, without a new ownership manifest, attestation, or evidence-file requirement
 
 #### Scenario: Caller declares contradictory ownership inputs
-- **WHEN** a caller supplies an existing-resource ID or reuse parameter that resolves to a name
-  which another input of the same deployment still forces a create declaration to produce, such as
-  `existingApimNsgId` or `existingComputeNsgId` whose name equals the matching deterministic
-  per-purpose NSG name while `reuseExistingNsgs` is false
-- **THEN** template validation fails deterministically instead of creating and tagging that name
+- **WHEN** a caller-supplied external resource ID identifies the same full resource identity as an
+  active create/update target, such as either existing per-purpose NSG ID matching either active
+  NSG target while `sharedHybridNsgId` is empty and `reuseExistingNsgs` is false
+- **THEN** evaluated input validation fails deterministically instead of creating/updating and
+  tagging that resource
 
-#### Scenario: Fresh matching ownership evidence permits deployment
-- **WHEN** the ownership preflight evidence is within the `ownershipEvidenceTtlSeconds` contract and
-  has a manifest digest matching the deployment's
-  resolved manifest
-- **THEN** the deployment proceeds after the preflight succeeds
+#### Scenario: Same resource name exists in a different scope
+- **WHEN** a supplied external resource ID has the same resource name as a create/update target
+  but a different subscription or resource group
+- **THEN** the ownership-input check does not reject it as an identity collision solely because
+  the names match
 
-#### Scenario: Ownership evidence is missing, stale, or mismatched
-- **WHEN** the ownership evidence is missing, older than the `ownershipEvidenceTtlSeconds`
-  contract, or has a manifest digest that differs from the deployment's resolved manifest
-- **THEN** the deployment gate fails and does not invoke ARM
+#### Scenario: Shared NSG reference suppresses creation
+- **WHEN** a valid non-empty `sharedHybridNsgId` disables the per-purpose NSG module
+- **THEN** the ownership-input check does not reject the deployment for a collision with those
+  inactive NSG targets, and no blueprint tag input is applied to the referenced shared NSG
 
-#### Scenario: Create declaration documents the preflight prerequisite
-- **WHEN** the deployment contract describes a create declaration that uses a deterministic
-  blueprint-owned name
-- **THEN** it states that the ownership preflight is a prerequisite of that deployment, because
-  ARM create-or-update would otherwise retag a same-named resource
+#### Scenario: Create/update guidance documents operator responsibilities
+- **WHEN** guidance describes a tagged create/update path for network, DNS, optional Bastion,
+  Foundry, or APIM Stage 1, through a script or direct deployment command
+- **THEN** it requires operator ownership verification and prevention of conflicting concurrent
+  deployments and states that selecting a create branch is not proof of ownership
+
+#### Scenario: Undeclared collision or concurrent creation is outside the guarantee
+- **WHEN** guidance describes an unrelated resource already occupying the target identity or being
+  created there after the operator checks it
+- **THEN** it states that ARM may retag that resource and that this capability does not detect or
+  prevent the collision or race, rather than claiming compilation or input checks prove ownership
 
 ### Requirement: Caller tag values remain opaque and confidential
 The blueprint SHALL preserve Azure-valid caller-provided tag keys and values without
@@ -160,8 +177,11 @@ Azure resource tags and SHALL NOT introduce synthetic tag parameters for those r
 
 ### Requirement: Tag propagation and ownership boundaries are validated
 Automated validation SHALL verify parameter exposure, default values, merge precedence, module
-propagation, compiled resource mappings, conditional creation behavior, and protection of external
-resources for every supported tag input.
+propagation, compiled resource mappings, create/update versus reference behavior, and exclusion of
+referenced existing/BYO resources from tag assignments for every supported tag input. The resource
+inventory SHALL map every in-scope entry point and resource to its ownership branch, tag contract,
+implementation task, and acceptance scenario (or unsupported reason). Offline checks SHALL NOT be
+presented as proof against undeclared Azure name collisions or concurrent writers.
 
 #### Scenario: Tag input is missing or miswired
 - **WHEN** a supported resource-specific tag input is removed, mapped to the wrong resource, or

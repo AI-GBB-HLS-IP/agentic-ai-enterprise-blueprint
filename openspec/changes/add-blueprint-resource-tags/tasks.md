@@ -1,9 +1,17 @@
 ## 1. Resource Inventory and Contracts
 
+Scope: tagging under declared ownership, including normal redeployment. Automatic ownership
+discovery, attestation/evidence gates, and concurrency enforcement are excluded, not pending
+dependencies. Existing unrelated deployment prerequisites remain unchanged.
+
 - [ ] 1.1 Inventory every resource declaration under `infra/envs/poc/` and `infra/modules/`,
-  classifying it as blueprint-created taggable, blueprint-created unsupported, existing/external,
-  or conditional create-or-reference; verify the reviewed inventory covers every compiled resource
-  type from all environment entry points.
+  classifying it as declared blueprint-managed taggable, managed unsupported, existing/BYO
+  reference, or conditional create/update-or-reference. Record entry point, full resource
+  identity/scope, active branch condition, tag input/default/precedence or unsupported reason,
+  implementation task, and acceptance scenario in one matrix. Cover `main.bicep` (including
+  private DNS and optional Bastion), `brownfield-network.bicep`, `brownfield-dns.bicep`,
+  `foundry.bicep`, `foundry-dns.bicep`, `apim.bicep`, and `apim-foundry-integration.bicep`;
+  verify every compiled resource type and applicable ownership branch is represented.
 - [ ] 1.2 Verify Azure tag support for each parent, child, extension, and preview API resource type
   in the inventory; verify no tag parameter is planned for a resource whose selected API does not
   expose Azure resource tags.
@@ -39,6 +47,12 @@
   examples and generated files, and the brownfield parameter generator with sanitized tag inputs
   and `{}` defaults; verify `tests/network/test-generate-brownfield-params.sh` covers every
   generated tag contract.
+- [ ] 2.7 Implement input-consistency validation for determinable contradictions between supplied
+  external IDs and active create/update targets identified by task 1.1, including relevant Foundry
+  paths if that inventory identifies any. Compare full ARM IDs case-insensitively, not bare names.
+  For brownfield NSGs, check both existing per-purpose IDs against both active NSG targets only
+  when `sharedHybridNsgId` is empty and `reuseExistingNsgs=false`. Wire guards into evaluated
+  expressions so they cannot be discarded as unused; do not add Azure ownership discovery.
 
 ## 3. Foundry Resource Tagging
 
@@ -74,14 +88,15 @@
   policies; verify `apim-foundry-integration.bicep` gains no unsupported tag parameters.
 - [ ] 4.3 Extend APIM regression coverage only where needed to protect blueprint-wide invariants;
   verify `tests/foundry/test-apim-review-regressions.sh` still proves independent Stage 1 mappings,
-  mandatory tag precedence, and Stage 2 ownership boundaries.
+  mandatory tag precedence, declared Stage 1 create/update-versus-reference behavior, and Stage 2
+  unsupported tag surfaces.
 
 ## 5. Automated Validation
 
 - [ ] 5.1 Extend `tests/network/run-tests.sh` coverage with compiled-template assertions for
   greenfield and brownfield tag mappings, `{}` defaults, repeated-family keys, optional Bastion,
-  unknown-key rejection, and external-resource immutability; verify the suite fails for a
-  deliberately miswired assertion and passes after restoration.
+  unknown-key rejection, and exclusion of referenced existing/BYO resources from tag assignments;
+  verify the suite fails for a deliberately miswired assertion and passes after restoration.
 - [ ] 5.2 Extend `tests/foundry/run-tests.sh` coverage for Foundry shared-base compatibility,
   resource-specific precedence, conditional create-or-reference behavior, private-endpoint maps,
   services.ai DNS mode behavior, unknown-key rejection, and unsupported child resources; verify the
@@ -94,53 +109,34 @@
 - [ ] 5.5 Run `OFFLINE_ONLY=true specs/02-apim-ai-gateway/validation/validate.sh all` and all
   affected network and Foundry regression suites; verify offline checks pass while unavailable
   Foundry live gates remain explicitly `BLOCKED`.
-- [ ] 5.6 Define and generate a deployment-specific ownership manifest after resolving the exact
-  template, effective parameters, DNS mode, optional resources, and cross-scope targets. Require a
-  schema version, Azure cloud, deployment scope, template and effective-parameter digests, and one
-  entry for every planned tagged declaration containing its logical name, type, subscription,
-  resource group, name, and canonical resource ID.
-- [ ] 5.7 Define the versioned JSON evidence schema and the `--accept-existing` and
-  `--prior-evidence <path>` CLI contract. Require a creation timestamp, manifest digest, and an
-  `absent` or `accepted-existing` outcome with canonical ID for every entry; allow prior evidence
-  only for the same logical declaration and scope.
-- [ ] 5.8 Add `scripts/tags/preflight-owned-names.sh` to consume the manifest and evidence contract,
-  query each canonical ID, and reject malformed inputs, duplicate or unknown attestations,
-  prior-evidence logical-declaration or scope mismatches, manifest-digest mismatches, and all other
-  existing resources with a non-zero exit. Enforce the design's non-overrideable
-  `ownershipEvidenceTtlSeconds` freshness invariant; an initial run with an existing name fails,
-  while a partial initial deployment can use the evidence that recorded the name as absent.
-- [ ] 5.9 Add preflight fixtures proving absent and eligible re-deployment cases pass, while
-  non-attested, malformed, duplicate, stale, and mismatched evidence cases fail.
-- [ ] 5.10 Add `scripts/tags/deploy-with-ownership-preflight.sh` to generate the manifest, invoke
-  the preflight, and verify fresh evidence immediately before deployment.
-- [ ] 5.11 Wire the ownership gate to every tagged entry point:
-  `infra/envs/poc/main.bicep` (including private DNS and optional Bastion),
-  `infra/envs/poc/brownfield-network.bicep`, `infra/envs/poc/brownfield-dns.bicep`,
-  `infra/envs/poc/foundry.bicep`, and `infra/envs/poc/foundry-dns.bicep`. Wire the first three
-  through their commands in `docs/deploy-00-network.md` and the final two through
-  `scripts/foundry/deploy.sh`; that script must invoke `scripts/foundry/preflight.sh` before the
-  common gate.
-- [ ] 5.12 Update every documented direct `az deployment group create` procedure with the required
-  ownership-gate sequence and no supported bypass command.
-- [ ] 5.13 Verify missing, stale, or manifest-mismatched evidence fails closed and emits no
-  deployment on each gated path.
-- [ ] 5.14 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
-  a name another input still forces the same deployment to create; in brownfield NSG coverage,
-  exercise `existingApimNsgId` and `existingComputeNsgId` with `reuseExistingNsgs=false`, while
-  confirming `sharedHybridNsgId` remains valid because it suppresses creation. Verify the
-  contradictory-input fixture fails template validation and the non-contradictory equivalents still
-  compile.
+- [ ] 5.6 Add evaluated-input regression fixtures for task 2.7: same-identity contradictions
+  (including case variants and cross-purpose NSG matches) must fail with an ownership-input error;
+  different-scope same-name IDs and valid shared/reused NSG branches must not fail that check.
+  Exercise other inventory-identified contradictions and their valid counterparts. Verify actual
+  guard evaluation, including when new tag inputs are omitted, not merely successful Bicep
+  compilation or the presence of `fail()` in output.
+- [ ] 5.7 Verify create/update tag payloads retain documented defaults and merge precedence for
+  redeployment of previously blueprint-created resources, including APIM Stage 1 and Foundry.
+  Assert no new ownership manifest, attestation, or evidence input is required. Record these as
+  offline payload/contract checks, not proof of live resource ownership or collision prevention.
 
 ## 6. Documentation and Completion
 
-- [ ] 6.1 Add one blueprint-wide resource-tag inventory and contract table listing each logical
-  resource, ownership mode, input name or map key, default, merge behavior, and unsupported reason;
-  verify every reviewed inventory row appears exactly once.
+- [ ] 6.1 Publish the reviewed task 1.1 resource-tag matrix as the single inventory, completing its
+  input names/map keys, defaults, merge behavior, branch conditions, unsupported reasons, task
+  links, and acceptance-scenario links; verify every reviewed row appears exactly once and no
+  in-scope entry point, including APIM Stage 1, is omitted.
 - [ ] 6.2 Update network, Foundry, APIM, and customer deployment guidance with sanitized examples,
-  ownership boundaries, legacy Foundry compatibility, repeated-family map usage, and the mandatory
-  ownership preflight prerequisite for deployments that create resources with deterministic
-  blueprint-owned names; verify all documented names match the implemented
-  `.bicepparam` interfaces.
+  declared-ownership boundaries, normal redeployment, legacy Foundry compatibility, and
+  repeated-family map usage. Cover every task 1.1 create/update entry point in scripted and direct
+  procedures, including `docs/deploy-00-network.md`, Foundry deployment guidance, and
+  `specs/02-apim-ai-gateway/quickstart.md`. Require operator verification that targets are absent or
+  already blueprint-owned, stopping or using supported BYO paths otherwise, and prevention of
+  conflicting concurrent deployments. Explicitly document the accepted undeclared-collision/race
+  risk without promising automated detection or adding a new ownership gate. Verify names match
+  implemented JSON and `.bicepparam` interfaces and existing unrelated preflights remain intact.
+  Document the intentional rejection of previously tolerated contradictory ownership inputs and
+  how callers correct their create/reuse selection.
 - [ ] 6.3 Record offline validation results and mark approval-dependent Foundry what-if/runtime
   evidence `BLOCKED` without changing the separate Stage 1 evidence-file reconciliation; verify no
   document claims unexecuted live validation passed.

@@ -27,7 +27,8 @@ prerequisite for proving offline tag contracts.
 - Preserve existing Foundry shared-tag behavior while allowing resource-specific overrides.
 - Use the same logical tagging contract in greenfield and brownfield paths when they create the same
   resource type.
-- Prove resource-to-tag wiring and external-resource protection through compiled-template tests.
+- Prove resource-to-tag wiring and exclusion of referenced existing/BYO resources from tag
+  assignments through compiled-template tests, without claiming to prove ownership in Azure.
 
 **Non-Goals:**
 
@@ -37,6 +38,9 @@ prerequisite for proving offline tag contracts.
   reconciliation.
 - Making customer Foundry approval available or treating blocked live validation as successful.
 - Defining a mandatory enterprise tag taxonomy beyond existing blueprint-controlled invariants.
+- Automatically discovering resource ownership or undeclared name collisions, adopting unrelated
+  resources, or enforcing concurrency safety.
+- Adding ownership manifests, attestation/evidence files, freshness gates, or deployment wrappers.
 
 ## Decisions
 
@@ -45,12 +49,20 @@ prerequisite for proving offline tag contracts.
 Implementation will first classify every resource declaration by logical owner, creation
 condition, and tag support:
 
+In this inventory, "blueprint-created" includes create/update declarations used to redeploy
+previously blueprint-created resources. It describes declared management intent, not proof that a
+resource name is absent or owned in Azure.
+
 - **blueprint-created and taggable** — receives an explicit tag input;
 - **blueprint-created but not independently taggable** — documented as unsupported;
 - **existing or externally supplied** — receives no tag assignment;
 - **conditional create-or-reference** — receives tags only on the create branch.
 
 The inventory will cover all environment entry points and modules, including both APIM stages.
+Each row will link the entry point, resource identity/scope, active create/update or reference
+condition, tag input/default/precedence (or unsupported reason), implementation task, and acceptance
+scenario. Task 1.1 establishes this matrix and task 6.1 publishes the same inventory, not a second
+independently maintained list.
 This is preferred over adding parameters opportunistically because missed conditional paths could
 silently retag external resources or leave blueprint-owned resources ungoverned.
 
@@ -143,90 +155,82 @@ legacy/base tags -> resource-specific tags -> mandatory blueprint tags
 This preserves the APIM public IP `ProjectCode: APIM` invariant. No new mandatory tags are
 introduced by this change.
 
-### Enforce creation ownership at the resource declaration
+### Respect declared ownership without claiming ownership discovery
 
-Tag expressions will appear only on declarations that create resources. Existing-resource
-declarations remain tag-free. Conditional create-or-reference paths for Storage, AI Search, Cosmos
-DB, NSGs, DNS, and private endpoints will pass tags only into the create branch. For private
-endpoints this is the Foundry creation path; `foundry-dns.bicep`, which only associates existing
-endpoint IDs with DNS zone groups, passes no endpoint tags at all.
+**Decision:** This capability provides tagging under declared ownership, not automatic proof of
+ownership. Tag expressions appear only on blueprint-managed create/update declarations, including
+redeployments of previously blueprint-created resources. Resources referenced through
+existing-resource or BYO paths receive no blueprint tag assignment. Conditional paths pass tags
+only into the active create/update branch.
 
-ARM deployments are create-or-update, so a non-`existing` declaration with a deterministic
-blueprint-owned name (for example brownfield's `hybrid-nsg-agent-blueprint-<region>-apim`) would
-silently retag a same-named resource a customer created outside the blueprint if that name already
-exists. A template-internal name comparison cannot close this gap: when no existing-resource ID is
-supplied Bicep has no way to discover a same-named customer resource, and when one is supplied the
-create branch is already disabled. The ownership boundary is therefore enforced in two distinct
-places, neither of which pretends to detect collisions from inside the create branch:
+| Resource situation | Tagging behavior |
+|---|---|
+| Existing-resource or BYO reference | No blueprint tag assignment to the referenced resource |
+| New resource on a blueprint-managed create/update path | Apply its effective tag inputs |
+| Previously blueprint-created resource redeployed on that path | Apply current effective tags using the same merge precedence; no new ownership evidence input |
+| Determinable contradiction between a supplied external ID and an active create/update target | Reject the contradictory inputs |
+| Undeclared unrelated resource occupying the target identity | Not detected by this capability; ARM may update it |
 
-1. **In-template input consistency (not collision detection).** Each conditional create-or-reference
-   path keeps tags on the create branch only, and additionally calls `fail()` when the caller's
-   inputs are self-contradictory: an existing-resource ID or reuse parameter resolves to a name
-   that is also the deterministic name of a resource another input still forces the same
-   deployment to create. The concrete brownfield cases are `existingApimNsgId` or
-   `existingComputeNsgId` pointing at the matching deterministic per-purpose NSG while
-   `reuseExistingNsgs` is `false`; that NSG would otherwise be created and tagged over the
-   resource the caller declared as external. `sharedHybridNsgId` is not contradictory: its
-   non-empty value sets `useSharedHybridNsg` and suppresses the NSG module regardless of
-   `reuseExistingNsgs`. The equivalent existing-ID parameters for Storage, AI Search, Cosmos DB,
-   and DNS use the same rule. This rejects contradictory ownership declarations deterministically;
-   it makes no claim about undeclared resources.
-2. **Out-of-template ownership preflight (the proof of ownership).** Creation with tags is not
-   permitted without evidence that each deterministic blueprint-owned name is either absent or
-   already blueprint-owned. This change adds `scripts/tags/preflight-owned-names.sh`, executed
-   outside the templates before deployment, that consumes a deployment-specific manifest and
-   queries Azure for each name it lists. The manifest is generated after the exact template,
-   parameter, mode, optional-resource, and cross-scope choices have been resolved; it contains a
-   schema version, Azure cloud, target deployment scope, template and effective-parameter digests,
-   and one entry per planned tagged declaration with its logical name, resource type, subscription,
-   resource group, name, and canonical resource ID. This makes the set of names and scopes
-   deterministic rather than asking the script to rediscover them from loosely related arguments.
+For private endpoints, tagging belongs to the Foundry creation path; `foundry-dns.bicep` passes no
+endpoint tags because it references endpoint IDs for DNS zone-group associations. Its services.ai
+zone/link create/update declarations retain their own supported tag inputs.
 
-   The script writes a JSON evidence artifact containing its schema version, creation timestamp,
-   manifest digest, and one result per manifest entry with the canonical resource ID and outcome
-   (`absent` or `accepted-existing`). A name passes when it does not resolve to an existing
-   resource, or when it resolves to a resource the operator has attested as blueprint-created by
-   listing its canonical ID in `--accept-existing` and supplying that ID's prior evidence artifact
-   with `--prior-evidence <path>`. That artifact must record the ID as `absent` for the same logical
-   declaration and target scope. The script rejects malformed manifests or evidence, unknown or
-   duplicate attestation IDs, manifest-digest/scope mismatches, and any unlisted existing resource
-   with a non-zero exit. The internal script constant `ownershipEvidenceTtlSeconds=900` (15
-   minutes) is a hard-coded, non-overrideable evidence freshness invariant; the implementation
-   must not accept an environment override. The deployment gate accepts evidence only when its
-   manifest digest matches the current manifest and its timestamp remains within that TTL of the
-   ARM invocation; missing, stale, or mismatched evidence fails closed.
-   On a first run, an existing name cannot be accepted because no prior evidence can record it as
-   absent. A partially successful first deployment can be re-run only with the evidence artifact
-   written by its successful preflight, which records the name as absent before that deployment
-   created it. The gate's output is the required evidence artifact for the tagging deployment.
+**Operator prerequisite and accepted residual risk:** Before deploying, operators must verify that
+each create/update target in the actual Azure cloud, subscription, resource group, resource type,
+and name is either absent or already blueprint-owned. They must prevent conflicting concurrent
+deployments through their operational controls. If ownership cannot be established, they must stop
+or select a supported existing-resource/BYO path rather than adopt an unrelated resource through
+the create/update path.
 
-   Every deployment wrapper and documented direct deployment procedure must generate the manifest,
-   run the preflight, and verify the fresh evidence immediately before invoking ARM. This applies
-   to greenfield network (including private DNS and optional Bastion), brownfield network,
-   brownfield DNS, Foundry, and Foundry DNS entry points. For Foundry, `scripts/foundry/deploy.sh`
-   runs `scripts/foundry/preflight.sh` first and then
-   `scripts/tags/deploy-with-ownership-preflight.sh` before ARM. A direct
-   `az deployment group create` example must invoke the same gate with the exact template and
-   effective parameters and must not present a bypass command as supported.
+ARM is create-or-update: selecting a create branch, choosing a deterministic name, or compiling
+successfully does not prove ownership. An incorrect declaration or another actor creating the
+target after the operator's check can cause an unrelated resource to be retagged. This capability
+does not detect or prevent that collision or race and does not promise that external resources can
+never be retagged regardless of caller inputs or concurrent activity.
 
-Ownership regression tests will cover both halves: a contradictory-input fixture asserting the
-`fail()` path, and preflight fixtures asserting a non-zero exit and no emitted deployment for an
-unattested existing resource, a missing/stale/mismatched evidence artifact, and a manifest that
-omits a required scope or tagged declaration.
+**In-template input consistency:** Reject contradictions determinable from supplied inputs and
+active branches with `fail()`. Compare full resource identities (scope, type, and name), not bare
+names, using case-insensitive ARM ID comparison. In brownfield network, an
+`existingApimNsgId` or `existingComputeNsgId` identifying an NSG that the active NSG module will
+create/update is contradictory when `sharedHybridNsgId` is empty and `reuseExistingNsgs` is
+`false`. Either supplied ID must be checked against both active NSG targets, not only the
+same-purpose target. An identically named NSG in a different subscription or resource group is
+not the same resource. A non-empty `sharedHybridNsgId` suppresses that module and must not be
+rejected by this check. Other conditional paths use the same active-target rule where applicable;
+do not invent a contradiction where an existing ID already disables creation. Ensure the guard is
+consumed by an evaluated expression so compilation cannot discard it as unused.
 
-**Scope boundaries of this contract:**
+This is an intentional compatibility exception for previously tolerated contradictory inputs,
+including when new tag inputs are omitted. Valid shared/reuse configurations and non-contradictory
+parameter files remain supported; task 6.2 documents how to correct an affected caller's
+create/reuse selection rather than silently accepting a conflicting ownership declaration.
 
-- The preflight is an operator-run gate outside the ARM template, because Bicep cannot query
-  resource existence during compilation or evaluation. Deployments that bypass the gate carry the
-  full create-or-update retagging risk, which is why task 5.11 enforces it and task 6.2 documents it
-  as a prerequisite rather than an optional check.
-- The preflight is intentionally narrow: it checks only the deterministic names this change tags.
-  The broader fail-closed network preflight validator in `specs/00-network-foundation/tasks.md`
-  (T030-T033, T035-T039) still owns CIDR overlap and wider brownfield validation, and this change
-  does not duplicate it.
+Task 2.7 implements input-consistency validation. Tasks 5.6-5.7 cover contradictions, valid reference
+branches, and ordinary redeployments. These checks prove branch/tag wiring and declared-input
+consistency, not live Azure ownership.
 
-This is preferred over deployment-level post-processing or generic tag-update resources, which
-could cross ownership boundaries and mutate customer-managed infrastructure.
+| Ownership obligation | Implementation/documentation tasks | Acceptance coverage |
+|---|---|---|
+| Exclude existing/BYO references from tag assignments | 2.4-2.5, 3.2-3.4, 4.1 | Spec brownfield/Foundry/DNS reference scenarios; tests 4.3, 5.1-5.2 |
+| Preserve normal managed-resource redeployment | 1.4, 3.1, 4.1 | Spec redeployment scenario; test 5.7 |
+| Reject determinable input contradictions, without rejecting inactive targets or different scopes | 2.7 | Spec contradiction, different-scope, and shared-NSG scenarios; test 5.6 |
+| Make operator prerequisites and collision/concurrency limitations explicit | 6.2 | Spec operator-guidance and undeclared-collision scenarios |
+| Include all entry points, including APIM Stage 1 | 1.1, 6.1 | Spec inventory requirement; matrix reconciliation and tests 4.3, 5.1-5.3 |
+
+**Entry-point coverage:** The inventory and operator guidance include `infra/envs/poc/main.bicep`
+(private DNS and optional Bastion included), `brownfield-network.bicep`, `brownfield-dns.bicep`,
+`foundry.bicep`, `foundry-dns.bicep`, and `apim.bicep` under the same directory. APIM Stage 1
+retains all existing tag mappings and follows the same declared-ownership boundary. Stage 2
+`apim-foundry-integration.bicep` remains inventoried for unsupported tag surfaces; no synthetic tag
+inputs or ownership gate are added.
+
+**Scope decision:** Automatic ownership discovery, adoption/attestation, ownership manifests,
+evidence files, freshness limits, deployment wrappers, locks, and name reservations are not part of
+this change or a new prerequisite for it. The earlier proposed ownership preflight is superseded
+by this decision, not deferred as an unresolved implementation task. A separate capability may
+define automated safeguards if required later. Existing network/Foundry preflights and their
+unrelated prerequisites remain unchanged. Task 6.2 documents operator responsibilities for both
+scripted and direct deployment procedures without adding a new gate.
 
 ### Treat unsupported child and extension resources as documentation, not fake inputs
 
@@ -249,7 +253,9 @@ Tests will compile each affected entry point and assert:
 - Foundry base and resource-specific merge precedence is correct;
 - mandatory APIM tag precedence is unchanged;
 - external/BYO paths contain no tag update;
-- greenfield and brownfield ownership modes emit only their owned resources;
+- greenfield and brownfield modes apply tags only on their declared create/update branches;
+- previously blueprint-created resources use the same tag inputs and merge rules on redeployment;
+- determinable contradictory ownership inputs fail while valid reference branches remain accepted;
 - unsupported resources do not gain misleading tag inputs.
 
 Foundry live what-if and runtime evidence remain `BLOCKED` when approval or an authorized
@@ -271,13 +277,12 @@ separate Stage 1 evidence-file inconsistency is not modified by this change.
   deployment contract separately from policy-added live state.
 - **[Risk] Tag examples could expose customer metadata.** → Use only generic sanitized keys and
   values and include confidentiality checks in regression coverage.
-- **[Risk] ARM create-or-update could retag a customer resource that happens to use a deterministic
-  blueprint-owned name.** → Templates cannot detect this, so creation with tags is gated on an
-  out-of-template ownership preflight that resolves every deterministic name, fails when a name
-  resolves to an existing resource the operator has not attested as blueprint-created, and produces
-  the required deployment evidence; in-template
-  `fail()` covers only contradictory caller ownership inputs, and deployment guidance (task 6.2)
-  documents the preflight as a prerequisite.
+- **[Accepted risk] ARM create-or-update could retag an undeclared customer resource at the target
+  identity, including one created concurrently after an operator check.** Operators must verify
+  ownership and prevent conflicting concurrent deployments; this capability does not enforce
+  those responsibilities. Input-consistency checks reject only determinable contradictions, not
+  undisclosed Azure collisions. Task 6.2 documents this boundary without promising automatic
+  ownership proof.
 - **[Trade-off] Purpose-keyed maps are less discoverable than singular parameters.** → Publish the
   accepted logical keys and defaults in parameter contracts and customer examples.
 
@@ -286,10 +291,11 @@ separate Stage 1 evidence-file inconsistency is not modified by this change.
 1. Complete and review the resource ownership/tag-support inventory.
 2. Add backward-compatible tag inputs to environment and module interfaces.
 3. Preserve the Foundry shared `tags` input and layer resource-specific overrides over it.
-4. Apply effective tags only to blueprint-created, taggable resources.
+4. Apply effective tags only to declared blueprint-managed, taggable create/update targets.
 5. Update `.bicepparam` environment-variable contracts and sanitized examples.
 6. Add compiled-template, parameter, merge-precedence, and ownership-boundary regression tests.
-7. Update deployment documentation with supported and unsupported tag surfaces.
+7. Update deployment documentation with supported/unsupported tag surfaces, operator ownership
+   prerequisites, normal redeployment behavior, and the accepted collision/concurrency risk.
 8. Run all offline builds and validation suites; record approval-dependent Foundry live gates as
    `BLOCKED`.
 
