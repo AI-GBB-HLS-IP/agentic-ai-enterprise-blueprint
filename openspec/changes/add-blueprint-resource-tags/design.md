@@ -160,29 +160,49 @@ places, neither of which pretends to detect collisions from inside the create br
    path keeps tags on the create branch only, and additionally calls `fail()` when the caller's
    inputs are self-contradictory: an existing-resource ID or reuse parameter resolves to a name
    that is also the deterministic name of a resource another input still forces the same
-   deployment to create. The concrete brownfield case is `sharedHybridNsgId` pointing at a resource
-   whose name equals the deterministic per-purpose NSG name while `reuseExistingNsgs` is `false`,
-   so that NSG would be created and tagged over the resource the caller declared as external. The
-   equivalent existing-ID parameters for Storage, AI Search, Cosmos DB, and DNS use the same rule.
-   This rejects contradictory ownership declarations deterministically; it makes no claim about
-   undeclared resources.
+   deployment to create. The concrete brownfield cases are `existingApimNsgId` or
+   `existingComputeNsgId` pointing at the matching deterministic per-purpose NSG while
+   `reuseExistingNsgs` is `false`; that NSG would otherwise be created and tagged over the
+   resource the caller declared as external. `sharedHybridNsgId` is not contradictory: its
+   non-empty value sets `useSharedHybridNsg` and suppresses the NSG module regardless of
+   `reuseExistingNsgs`. The equivalent existing-ID parameters for Storage, AI Search, Cosmos DB,
+   and DNS use the same rule. This rejects contradictory ownership declarations deterministically;
+   it makes no claim about undeclared resources.
 2. **Out-of-template ownership preflight (the proof of ownership).** Creation with tags is not
    permitted without evidence that each deterministic blueprint-owned name is either absent or
    already blueprint-owned. This change adds `scripts/tags/preflight-owned-names.sh`, executed
-   outside the templates before deployment and invoked by the existing
-   `scripts/foundry/preflight.sh` path, that resolves every deterministic name the deployment would
-   create and
-   queries Azure for its existence. A name passes when it does not resolve to an existing resource,
-   or when it resolves to a resource the operator has attested as blueprint-created by listing it
-   in the deployment's `--accept-existing` re-deployment attestation, which must match the names
-   recorded in that deployment's previous preflight evidence artifact. Any other existing resource
-   fails the gate with a non-zero exit, so the deployment never runs against a customer-owned
-   same-named resource. The gate's output is the required evidence artifact for the tagging
-   deployment.
+   outside the templates before deployment, that consumes a deployment-specific manifest and
+   queries Azure for each name it lists. The manifest is generated after the exact template,
+   parameter, mode, optional-resource, and cross-scope choices have been resolved; it contains a
+   schema version, Azure cloud, target deployment scope, template and effective-parameter digests,
+   and one entry per planned tagged declaration with its logical name, resource type, subscription,
+   resource group, name, and canonical resource ID. This makes the set of names and scopes
+   deterministic rather than asking the script to rediscover them from loosely related arguments.
+
+   The script writes a JSON evidence artifact containing its schema version, creation timestamp,
+   manifest digest, and one result per manifest entry with the canonical resource ID and outcome
+   (`absent` or `accepted-existing`). A name passes when it does not resolve to an existing
+   resource, or when it resolves to a resource the operator has attested as blueprint-created by
+   listing its canonical ID in `--accept-existing` and that ID is recorded as `absent` in the
+   prior evidence artifact for the same logical declaration and target scope. The script rejects
+   malformed manifests or evidence, unknown or duplicate attestation IDs, manifest-digest/scope
+   mismatches, and any unlisted existing resource with a non-zero exit. The deployment gate accepts
+   evidence only when its manifest digest matches the current manifest and its timestamp remains
+   within the documented freshness window; missing, stale, or mismatched evidence fails closed.
+   The gate's output is the required evidence artifact for the tagging deployment.
+
+   Every deployment wrapper and documented direct deployment procedure must generate the manifest,
+   run the preflight, and verify the fresh evidence immediately before invoking ARM. This applies
+   to greenfield network (including private DNS and optional Bastion), brownfield network,
+   brownfield DNS, Foundry, and Foundry DNS entry points; `scripts/foundry/preflight.sh` remains
+   the Foundry wrapper integration point. A direct `az deployment group create` example must invoke
+   the same gate with the exact template and effective parameters and must not present a bypass
+   command as supported.
 
 Ownership regression tests will cover both halves: a contradictory-input fixture asserting the
-`fail()` path, and a preflight fixture asserting a non-zero exit and no emitted deployment when a
-deterministic name resolves to a non-blueprint-owned resource.
+`fail()` path, and preflight fixtures asserting a non-zero exit and no emitted deployment for an
+unattested existing resource, a missing/stale/mismatched evidence artifact, and a manifest that
+omits a required scope or tagged declaration.
 
 **Scope boundaries of this contract:**
 

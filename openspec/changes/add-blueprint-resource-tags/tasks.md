@@ -94,16 +94,30 @@
 - [ ] 5.5 Run `OFFLINE_ONLY=true specs/02-apim-ai-gateway/validation/validate.sh all` and all
   affected network and Foundry regression suites; verify offline checks pass while unavailable
   Foundry live gates remain explicitly `BLOCKED`.
-- [ ] 5.6 Add `scripts/tags/preflight-owned-names.sh` that resolves every deterministic
-  blueprint-owned name a tagged create declaration would produce, queries Azure for existence,
-  passes only absent names or names listed in the operator's `--accept-existing` re-deployment
-  attestation that match the previous preflight evidence artifact, and exits non-zero otherwise;
-  verify it fails for an existing non-attested fixture and passes for absent and attested names.
-- [ ] 5.7 Invoke the ownership preflight from the deployment preflight path so no tagged create
-  deployment runs without its evidence artifact; verify a failing preflight emits no deployment.
-- [ ] 5.8 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
-  a name another input still forces the same deployment to create; verify the contradictory-input
-  fixture fails template validation and the non-contradictory equivalents still compile.
+- [ ] 5.6 Define and generate a deployment-specific ownership manifest after resolving the exact
+  template, effective parameters, DNS mode, optional resources, and cross-scope targets. Require a
+  schema version, Azure cloud, deployment scope, template and effective-parameter digests, and one
+  entry for every planned tagged declaration containing its logical name, type, subscription,
+  resource group, name, and canonical resource ID.
+- [ ] 5.7 Add `scripts/tags/preflight-owned-names.sh` to consume that manifest, query each canonical
+  ID, and write a versioned JSON evidence artifact with its creation timestamp, manifest digest, and
+  an `absent` or `accepted-existing` outcome for every entry. Permit `--accept-existing` only for a
+  canonical ID recorded as absent in prior evidence for the same logical declaration and scope;
+  reject malformed inputs, duplicate or unknown attestations, scope/digest mismatches, and all other
+  existing resources. Verify absent and eligible re-deployment fixtures pass and non-attested,
+  malformed, duplicate, and mismatched fixtures fail.
+- [ ] 5.8 Integrate the manifest, preflight, and fresh-evidence verification immediately before
+  every tagged deployment: greenfield network (including private DNS and optional Bastion),
+  brownfield network, brownfield DNS, Foundry, and Foundry DNS. Invoke it through
+  `scripts/foundry/preflight.sh` for Foundry and provide the same required sequence in every
+  documented direct `az deployment group create` procedure. Fail closed for missing, stale, or
+  manifest-mismatched evidence, and verify a failing gate emits no deployment on each path.
+- [ ] 5.9 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
+  a name another input still forces the same deployment to create; in brownfield NSG coverage,
+  exercise `existingApimNsgId` and `existingComputeNsgId` with `reuseExistingNsgs=false`, while
+  confirming `sharedHybridNsgId` remains valid because it suppresses creation. Verify the
+  contradictory-input fixture fails template validation and the non-contradictory equivalents still
+  compile.
 
 ## 6. Documentation and Completion
 
