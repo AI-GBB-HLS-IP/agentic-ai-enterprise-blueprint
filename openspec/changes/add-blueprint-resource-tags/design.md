@@ -202,9 +202,9 @@ places, neither of which pretends to detect collisions from inside the create br
    to greenfield network (including private DNS and optional Bastion), brownfield network,
    brownfield DNS, Foundry, and Foundry DNS entry points. For Foundry, `scripts/foundry/deploy.sh`
    runs `scripts/foundry/preflight.sh` first and then
-   `scripts/tags/deploy-with-ownership-preflight.sh` before ARM. A direct `az deployment group
-   create` example must invoke the same gate with the exact template and effective parameters and
-   must not present a bypass command as supported.
+   `scripts/tags/deploy-with-ownership-preflight.sh` before ARM. A direct
+   `az deployment group create` example must invoke the same gate with the exact template and
+   effective parameters and must not present a bypass command as supported.
 
 Ownership regression tests will cover both halves: a contradictory-input fixture asserting the
 `fail()` path, and preflight fixtures asserting a non-zero exit and no emitted deployment for an
