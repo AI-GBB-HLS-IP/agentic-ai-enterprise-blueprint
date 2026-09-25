@@ -100,14 +100,15 @@
   entry for every planned tagged declaration containing its logical name, type, subscription,
   resource group, name, and canonical resource ID.
 - [ ] 5.7 Add `scripts/tags/preflight-owned-names.sh` to consume that manifest, query each canonical
-  ID, and write a versioned JSON evidence artifact with its creation timestamp, manifest digest, and
-  an `absent` or `accepted-existing` outcome for every entry. Permit `--accept-existing` only for a
-  canonical ID recorded as absent in the `--prior-evidence <path>` artifact for the same logical
-  declaration and scope;
-  reject malformed inputs, duplicate or unknown attestations, scope/digest mismatches, and all other
-  existing resources. Enforce the design's `OWNERSHIP_EVIDENCE_TTL_SECONDS` freshness contract; an
-  initial run with an existing name fails, while a partial initial deployment can use the evidence
-  that recorded the name as absent. Verify absent and eligible re-deployment fixtures pass and non-attested,
+  ID, and write a versioned JSON evidence artifact containing its schema version, creation timestamp,
+  manifest digest, and an `absent` or `accepted-existing` outcome with canonical ID for every entry.
+  Permit `--accept-existing` only for a canonical ID recorded as absent in the
+  `--prior-evidence <path>` artifact for the same logical declaration and scope; reject malformed
+  inputs, duplicate or unknown attestations, prior-evidence logical-declaration or scope mismatches,
+  manifest-digest mismatches, and all other existing resources with a non-zero exit. Enforce the
+  design's non-overrideable `OWNERSHIP_EVIDENCE_TTL_SECONDS` freshness invariant; an initial run
+  with an existing name fails, while a partial initial deployment can use the evidence that recorded
+  the name as absent. Verify absent and eligible re-deployment fixtures pass and non-attested,
   malformed, duplicate, stale, and mismatched fixtures fail.
 - [ ] 5.8 Integrate the manifest, preflight, and fresh-evidence verification immediately before
   every tagged deployment through `scripts/tags/deploy-with-ownership-preflight.sh`: the greenfield

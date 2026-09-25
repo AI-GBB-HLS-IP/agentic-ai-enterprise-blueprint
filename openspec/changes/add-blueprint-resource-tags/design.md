@@ -77,7 +77,7 @@ table.
 | Greenfield `infra/modules/network/private-dns.bicep` | Private DNS zones | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
 | Greenfield `infra/modules/network/private-dns.bicep` | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
 | Brownfield `infra/envs/poc/brownfield-dns.bicep` (`vnet-link` mode) | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `keyVault`, `storageBlob`, `cosmosDB`, `aiSearch` |
-| Brownfield `infra/envs/poc/brownfield-dns.bicep` (`zone-group` mode) | Private DNS virtual network links | none |
+| Brownfield `infra/envs/poc/brownfield-dns.bicep` (`zone-group` mode) | Private DNS virtual network links | empty — parameter must be omitted or `{}` |
 | Foundry creation path `infra/envs/poc/foundry.bicep` -> `infra/modules/foundry/main.bicep` -> `infra/modules/foundry/private-endpoint.bicep` | Foundry private endpoints | `foundry`, `storage`, `keyVault`, `cosmosDB`, `aiSearch` |
 
 `brownfield-dns.bicep` is a single template shared by both `dnsIntegrationMode` values, so its link
@@ -188,10 +188,10 @@ places, neither of which pretends to detect collisions from inside the create br
    with `--prior-evidence <path>`. That artifact must record the ID as `absent` for the same logical
    declaration and target scope. The script rejects malformed manifests or evidence, unknown or
    duplicate attestation IDs, manifest-digest/scope mismatches, and any unlisted existing resource
-   with a non-zero exit. `OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15 minutes) is the single evidence
-   freshness contract: the deployment gate accepts evidence only when its manifest digest matches
-   the current manifest and its timestamp remains within that TTL of the ARM invocation; missing,
-   stale, or mismatched evidence fails closed.
+   with a non-zero exit. `OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15 minutes) is a hard-coded,
+   non-overrideable evidence freshness invariant: the deployment gate accepts evidence only when
+   its manifest digest matches the current manifest and its timestamp remains within that TTL of the
+   ARM invocation; missing, stale, or mismatched evidence fails closed.
    On a first run, an existing name cannot be accepted because no prior evidence can record it as
    absent. A partially successful first deployment can be re-run only with the evidence artifact
    written by its successful preflight, which records the name as absent before that deployment
@@ -215,8 +215,8 @@ omits a required scope or tagged declaration.
 
 - The preflight is an operator-run gate outside the ARM template, because Bicep cannot query
   resource existence during compilation or evaluation. Deployments that bypass the gate carry the
-  full create-or-update retagging risk, which is why task 6.2 documents it as a prerequisite rather
-  than an optional check.
+  full create-or-update retagging risk, which is why task 5.8 enforces it and task 6.2 documents it
+  as a prerequisite rather than an optional check.
 - The preflight is intentionally narrow: it checks only the deterministic names this change tags.
   The broader fail-closed network preflight validator in `specs/00-network-foundation/tasks.md`
   (T030-T033, T035-T039) still owns CIDR overlap and wider brownfield validation, and this change
