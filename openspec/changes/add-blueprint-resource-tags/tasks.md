@@ -111,13 +111,15 @@
   the name as absent. Verify absent and eligible re-deployment fixtures pass and non-attested,
   malformed, duplicate, stale, and mismatched fixtures fail.
 - [ ] 5.8 Add `scripts/tags/deploy-with-ownership-preflight.sh` to generate the manifest, invoke
-  the preflight, and verify fresh evidence immediately before every tagged deployment: the
-  greenfield and brownfield network/DNS commands documented in `docs/deploy-00-network.md`, and the
-  Foundry and Foundry DNS commands in `scripts/foundry/deploy.sh`. `scripts/foundry/deploy.sh` must
-  invoke `scripts/foundry/preflight.sh` before the common gate. Provide the same required sequence
-  in every documented direct `az deployment group create` procedure. Fail closed for missing,
-  stale, or manifest-mismatched evidence, and verify a failing gate emits no deployment on each
-  path.
+  the preflight, and verify fresh evidence immediately before every tagged deployment:
+  `infra/envs/poc/main.bicep` (including private DNS and optional Bastion),
+  `infra/envs/poc/brownfield-network.bicep`, `infra/envs/poc/brownfield-dns.bicep`,
+  `infra/envs/poc/foundry.bicep`, and `infra/envs/poc/foundry-dns.bicep`. Wire the first three
+  through their commands in `docs/deploy-00-network.md` and the final two through
+  `scripts/foundry/deploy.sh`; that script must invoke `scripts/foundry/preflight.sh` before the
+  common gate. Provide the same required sequence in every documented direct
+  `az deployment group create` procedure. Fail closed for missing, stale, or manifest-mismatched
+  evidence, and verify a failing gate emits no deployment on each path.
 - [ ] 5.9 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
   a name another input still forces the same deployment to create; in brownfield NSG coverage,
   exercise `existingApimNsgId` and `existingComputeNsgId` with `reuseExistingNsgs=false`, while

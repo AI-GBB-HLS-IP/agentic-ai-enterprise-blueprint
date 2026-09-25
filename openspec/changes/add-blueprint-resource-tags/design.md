@@ -190,11 +190,11 @@ places, neither of which pretends to detect collisions from inside the create br
    with `--prior-evidence <path>`. That artifact must record the ID as `absent` for the same logical
    declaration and target scope. The script rejects malformed manifests or evidence, unknown or
    duplicate attestation IDs, manifest-digest/scope mismatches, and any unlisted existing resource
-   with a non-zero exit. The script assigns `readonly OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15
-   minutes) and ignores any inherited environment value of that name. This is a hard-coded,
-   non-overrideable evidence freshness invariant: the deployment gate accepts evidence only when
-   its manifest digest matches the current manifest and its timestamp remains within that TTL of the
-   ARM invocation; missing, stale, or mismatched evidence fails closed.
+   with a non-zero exit. The script first executes `unset OWNERSHIP_EVIDENCE_TTL_SECONDS` and then
+   assigns `readonly OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15 minutes), so an inherited value cannot
+   alter the hard-coded, non-overrideable evidence freshness invariant. The deployment gate accepts
+   evidence only when its manifest digest matches the current manifest and its timestamp remains
+   within that TTL of the ARM invocation; missing, stale, or mismatched evidence fails closed.
    On a first run, an existing name cannot be accepted because no prior evidence can record it as
    absent. A partially successful first deployment can be re-run only with the evidence artifact
    written by its successful preflight, which records the name as absent before that deployment
