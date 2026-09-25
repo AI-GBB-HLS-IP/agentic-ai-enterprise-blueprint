@@ -190,11 +190,11 @@ places, neither of which pretends to detect collisions from inside the create br
    with `--prior-evidence <path>`. That artifact must record the ID as `absent` for the same logical
    declaration and target scope. The script rejects malformed manifests or evidence, unknown or
    duplicate attestation IDs, manifest-digest/scope mismatches, and any unlisted existing resource
-   with a non-zero exit. The script first executes `unset OWNERSHIP_EVIDENCE_TTL_SECONDS` and then
-   assigns `readonly OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15 minutes), so an inherited value cannot
-   alter the hard-coded, non-overrideable evidence freshness invariant. The deployment gate accepts
-   evidence only when its manifest digest matches the current manifest and its timestamp remains
-   within that TTL of the ARM invocation; missing, stale, or mismatched evidence fails closed.
+   with a non-zero exit. `OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15 minutes) is a hard-coded,
+   non-overrideable evidence freshness invariant; the implementation must not accept an environment
+   override. The deployment gate accepts evidence only when its manifest digest matches the current
+   manifest and its timestamp remains within that TTL of the ARM invocation; missing, stale, or
+   mismatched evidence fails closed.
    On a first run, an existing name cannot be accepted because no prior evidence can record it as
    absent. A partially successful first deployment can be re-run only with the evidence artifact
    written by its successful preflight, which records the name as absent before that deployment
@@ -218,7 +218,7 @@ omits a required scope or tagged declaration.
 
 - The preflight is an operator-run gate outside the ARM template, because Bicep cannot query
   resource existence during compilation or evaluation. Deployments that bypass the gate carry the
-  full create-or-update retagging risk, which is why task 5.8 enforces it and task 6.2 documents it
+  full create-or-update retagging risk, which is why task 5.10 enforces it and task 6.2 documents it
   as a prerequisite rather than an optional check.
 - The preflight is intentionally narrow: it checks only the deterministic names this change tags.
   The broader fail-closed network preflight validator in `specs/00-network-foundation/tasks.md`

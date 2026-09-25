@@ -99,18 +99,19 @@
   schema version, Azure cloud, deployment scope, template and effective-parameter digests, and one
   entry for every planned tagged declaration containing its logical name, type, subscription,
   resource group, name, and canonical resource ID.
-- [ ] 5.7 Add `scripts/tags/preflight-owned-names.sh` to consume that manifest, query each canonical
-  ID, and write a versioned JSON evidence artifact containing its schema version, creation timestamp,
-  manifest digest, and an `absent` or `accepted-existing` outcome with canonical ID for every entry.
-  Permit `--accept-existing` only for a canonical ID recorded as absent in the
-  `--prior-evidence <path>` artifact for the same logical declaration and scope; reject malformed
-  inputs, duplicate or unknown attestations, prior-evidence logical-declaration or scope mismatches,
-  manifest-digest mismatches, and all other existing resources with a non-zero exit. Enforce the
-  design's non-overrideable `OWNERSHIP_EVIDENCE_TTL_SECONDS` freshness invariant; an initial run
-  with an existing name fails, while a partial initial deployment can use the evidence that recorded
-  the name as absent. Verify absent and eligible re-deployment fixtures pass and non-attested,
-  malformed, duplicate, stale, and mismatched fixtures fail.
-- [ ] 5.8 Add `scripts/tags/deploy-with-ownership-preflight.sh` to generate the manifest, invoke
+- [ ] 5.7 Define the versioned JSON evidence schema and the `--accept-existing` and
+  `--prior-evidence <path>` CLI contract. Require a creation timestamp, manifest digest, and an
+  `absent` or `accepted-existing` outcome with canonical ID for every entry; allow prior evidence
+  only for the same logical declaration and scope.
+- [ ] 5.8 Add `scripts/tags/preflight-owned-names.sh` to consume the manifest and evidence contract,
+  query each canonical ID, and reject malformed inputs, duplicate or unknown attestations,
+  prior-evidence logical-declaration or scope mismatches, manifest-digest mismatches, and all other
+  existing resources with a non-zero exit. Enforce the design's non-overrideable
+  `OWNERSHIP_EVIDENCE_TTL_SECONDS` freshness invariant; an initial run with an existing name fails,
+  while a partial initial deployment can use the evidence that recorded the name as absent.
+- [ ] 5.9 Add preflight fixtures proving absent and eligible re-deployment cases pass, while
+  non-attested, malformed, duplicate, stale, and mismatched evidence cases fail.
+- [ ] 5.10 Add `scripts/tags/deploy-with-ownership-preflight.sh` to generate the manifest, invoke
   the preflight, and verify fresh evidence immediately before every tagged deployment:
   `infra/envs/poc/main.bicep` (including private DNS and optional Bastion),
   `infra/envs/poc/brownfield-network.bicep`, `infra/envs/poc/brownfield-dns.bicep`,
@@ -120,7 +121,7 @@
   common gate. Provide the same required sequence in every documented direct
   `az deployment group create` procedure. Fail closed for missing, stale, or manifest-mismatched
   evidence, and verify a failing gate emits no deployment on each path.
-- [ ] 5.9 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
+- [ ] 5.11 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
   a name another input still forces the same deployment to create; in brownfield NSG coverage,
   exercise `existingApimNsgId` and `existingComputeNsgId` with `reuseExistingNsgs=false`, while
   confirming `sharedHybridNsgId` remains valid because it suppresses creation. Verify the
