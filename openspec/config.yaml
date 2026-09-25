@@ -1,32 +1,30 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Follow the Pre-PR Readiness Gate in .github/copilot-instructions.md before opening
+  a ready-for-review PR or describing artifacts as implementation-ready. Apply it
+  during generation and after material revisions, not only after review feedback.
+  Artifact existence, OpenSpec done status, and strict validation establish neither
+  feasibility nor cross-artifact consistency. Report blockers instead of claiming
+  readiness when material design decisions or feasibility assumptions are unresolved.
+  Keep readiness evidence in existing artifacts or the PR description, not a new
+  standalone checklist. These are workflow instructions, not automated enforcement.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
-
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+rules:
+  proposal:
+    - Ground material guarantees in inspected code and authoritative platform behavior; cite the evidence and identify assumptions before finalizing scope.
+    - Inventory affected entry points, callers, modes, ownership branches, compatibility constraints, and dependencies now; do not defer the entire inventory to implementation.
+    - State non-goals and exclusions explicitly. Seek approval for material scope choices or weakened guarantees; unresolved choices block an implementation-ready handoff.
+  specs:
+    - Make requirements observable and testable, with acceptance scenarios for relevant modes, failure paths, and compatibility behavior.
+    - Distinguish enforced guarantees from operator prerequisites and accepted residual risks. Do not claim compilation or input validation proves runtime ownership, concurrency safety, or live behavior.
+    - Reconcile names, defaults, scope, and guarantees with the proposal and inspected implementation; record intentional compatibility changes and obtain approval.
+  design:
+    - Explain how each material guarantee is enforceable, citing relevant code and authoritative platform references; identify unsupported assumptions and needed feasibility evidence.
+    - Maintain one coverage and traceability matrix mapping material requirements to affected paths/modes, design decisions, implementation tasks, and acceptance scenarios. Use artifact paths and stable names/IDs; reconcile task links after tasks are generated.
+    - Include dependencies, compatibility effects, rejected alternatives, and residual risks. Obtain approval for material decisions; unresolved feasibility or architecture choices must remain explicitly blocked rather than implementation-ready.
+  tasks:
+    - Before declaring readiness, reconcile proposal, specs, design/plan, and tasks as a complete set, including the coverage matrix, issue/PR scope, and any affected examples.
+    - Assign implementation and integration work plus acceptance coverage for every required mechanism and affected entry point. Make actual prerequisite relationships and externally owned blockers explicit.
+    - Distinguish compilation, evaluated-input checks, and live validation. Require evidence appropriate to the guarantee; mark unavailable mandatory checks BLOCKED at the stage they gate instead of claiming success.
+    - After review fixes, reconcile the whole affected contract and rerun relevant readiness checks on one coherent revision; do not silently add mechanisms or expand scope to satisfy individual comments.
