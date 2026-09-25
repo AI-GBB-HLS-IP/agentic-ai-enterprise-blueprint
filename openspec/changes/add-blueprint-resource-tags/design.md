@@ -87,12 +87,12 @@ validation the same way an unsupported key would in `vnet-link` mode. The parame
 will state this explicitly — that in `zone-group` mode the parameter must be omitted or left `{}` —
 so callers do not submit `vnet-link`-mode keys and hit a confusing failure.
 
-Brownfield DNS never creates the `apim` or `sql` zone links (`brownfield-dns.bicep` links only the
-six Foundry-required zones), so those keys are valid only for the greenfield map and are rejected
-by the brownfield entry point's `fail()` check like any other unsupported key. The services.ai
-private DNS zone and virtual network link are not members of any repeated-family map; the Foundry
-DNS entry point exposes them through separate singular `servicesAiPrivateDnsZoneTags` and
-`servicesAiPrivateDnsVnetLinkTags` inputs.
+Brownfield DNS never creates the `apim` or `sql` zone links. Its six Foundry-required links are
+`cognitiveServices`, `azureOpenAI`, `keyVault`, `storageBlob`, `cosmosDB`, and `aiSearch`; `apim`
+and `sql` are valid only for the greenfield map and are rejected by the brownfield entry point's
+`fail()` check like any other unsupported key. The services.ai private DNS zone and virtual network
+link are not members of any repeated-family map; the Foundry DNS entry point exposes them through
+separate singular `servicesAiPrivateDnsZoneTags` and `servicesAiPrivateDnsVnetLinkTags` inputs.
 
 The Foundry private-endpoint map belongs exclusively to the Foundry creation path, because
 `foundry-dns.bicep` never creates private endpoints: it receives already-created endpoint IDs and
@@ -190,11 +190,11 @@ places, neither of which pretends to detect collisions from inside the create br
    with `--prior-evidence <path>`. That artifact must record the ID as `absent` for the same logical
    declaration and target scope. The script rejects malformed manifests or evidence, unknown or
    duplicate attestation IDs, manifest-digest/scope mismatches, and any unlisted existing resource
-   with a non-zero exit. `OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15 minutes) is a hard-coded,
-   non-overrideable evidence freshness invariant; the implementation must not accept an environment
-   override. The deployment gate accepts evidence only when its manifest digest matches the current
-   manifest and its timestamp remains within that TTL of the ARM invocation; missing, stale, or
-   mismatched evidence fails closed.
+   with a non-zero exit. The internal script constant `ownershipEvidenceTtlSeconds=900` (15
+   minutes) is a hard-coded, non-overrideable evidence freshness invariant; the implementation
+   must not accept an environment override. The deployment gate accepts evidence only when its
+   manifest digest matches the current manifest and its timestamp remains within that TTL of the
+   ARM invocation; missing, stale, or mismatched evidence fails closed.
    On a first run, an existing name cannot be accepted because no prior evidence can record it as
    absent. A partially successful first deployment can be re-run only with the evidence artifact
    written by its successful preflight, which records the name as absent before that deployment
@@ -218,7 +218,7 @@ omits a required scope or tagged declaration.
 
 - The preflight is an operator-run gate outside the ARM template, because Bicep cannot query
   resource existence during compilation or evaluation. Deployments that bypass the gate carry the
-  full create-or-update retagging risk, which is why task 5.10 enforces it and task 6.2 documents it
+  full create-or-update retagging risk, which is why task 5.11 enforces it and task 6.2 documents it
   as a prerequisite rather than an optional check.
 - The preflight is intentionally narrow: it checks only the deterministic names this change tags.
   The broader fail-closed network preflight validator in `specs/00-network-foundation/tasks.md`

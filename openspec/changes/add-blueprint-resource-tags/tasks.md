@@ -107,21 +107,24 @@
   query each canonical ID, and reject malformed inputs, duplicate or unknown attestations,
   prior-evidence logical-declaration or scope mismatches, manifest-digest mismatches, and all other
   existing resources with a non-zero exit. Enforce the design's non-overrideable
-  `OWNERSHIP_EVIDENCE_TTL_SECONDS` freshness invariant; an initial run with an existing name fails,
+  `ownershipEvidenceTtlSeconds` freshness invariant; an initial run with an existing name fails,
   while a partial initial deployment can use the evidence that recorded the name as absent.
 - [ ] 5.9 Add preflight fixtures proving absent and eligible re-deployment cases pass, while
   non-attested, malformed, duplicate, stale, and mismatched evidence cases fail.
 - [ ] 5.10 Add `scripts/tags/deploy-with-ownership-preflight.sh` to generate the manifest, invoke
-  the preflight, and verify fresh evidence immediately before every tagged deployment:
+  the preflight, and verify fresh evidence immediately before deployment.
+- [ ] 5.11 Wire the ownership gate to every tagged entry point:
   `infra/envs/poc/main.bicep` (including private DNS and optional Bastion),
   `infra/envs/poc/brownfield-network.bicep`, `infra/envs/poc/brownfield-dns.bicep`,
   `infra/envs/poc/foundry.bicep`, and `infra/envs/poc/foundry-dns.bicep`. Wire the first three
   through their commands in `docs/deploy-00-network.md` and the final two through
   `scripts/foundry/deploy.sh`; that script must invoke `scripts/foundry/preflight.sh` before the
-  common gate. Provide the same required sequence in every documented direct
-  `az deployment group create` procedure. Fail closed for missing, stale, or manifest-mismatched
-  evidence, and verify a failing gate emits no deployment on each path.
-- [ ] 5.11 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
+  common gate.
+- [ ] 5.12 Update every documented direct `az deployment group create` procedure with the required
+  ownership-gate sequence and no supported bypass command.
+- [ ] 5.13 Verify missing, stale, or manifest-mismatched evidence fails closed and emits no
+  deployment on each gated path.
+- [ ] 5.14 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
   a name another input still forces the same deployment to create; in brownfield NSG coverage,
   exercise `existingApimNsgId` and `existingComputeNsgId` with `reuseExistingNsgs=false`, while
   confirming `sharedHybridNsgId` remains valid because it suppresses creation. Verify the
