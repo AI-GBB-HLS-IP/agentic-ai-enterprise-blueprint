@@ -45,3 +45,18 @@ Agent deployment described by the current Chapter 08 flow.
 #### Scenario: Report runtime location
 - **WHEN** deployment evidence is generated
 - **THEN** it identifies AKS as the code-based agent runtime and Foundry as the prompt-agent and knowledge-service platform
+
+### Requirement: Foundry-managed hosted agent is a follow-on
+The roadmap SHALL retain a Foundry-managed hosted agent as a third runtime for a later extension
+of this demo. It SHALL NOT replace the AKS implementation or gate initial POC acceptance.
+The follow-on SHALL reuse the knowledge, APIM tool, and acceptance contracts where supported,
+but SHALL require separate identity, networking, persistence, and telemetry feasibility evidence
+before its implementation scope is approved.
+
+#### Scenario: Complete the initial two-agent POC
+- **WHEN** the prompt agent and AKS agent satisfy all mandatory initial POC gates
+- **THEN** the absence of a Foundry-managed hosted agent does not prevent initial acceptance, and evidence labels that third runtime as deferred rather than passed
+
+#### Scenario: Plan the third runtime
+- **WHEN** the Foundry-managed hosted-agent extension is proposed
+- **THEN** it is a separately scoped follow-on with runtime-specific feasibility and acceptance coverage, not an assumption that the AKS deployment artifacts work unchanged
