@@ -77,6 +77,7 @@ table.
 | Greenfield `infra/modules/network/private-dns.bicep` | Private DNS zones | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
 | Greenfield `infra/modules/network/private-dns.bicep` | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`, `storageBlob`, `sql`, `cosmosDB`, `aiSearch` |
 | Brownfield `infra/envs/poc/brownfield-dns.bicep` (`vnet-link` mode) | Private DNS virtual network links | `cognitiveServices`, `azureOpenAI`, `keyVault`, `storageBlob`, `cosmosDB`, `aiSearch` |
+| Brownfield `infra/envs/poc/brownfield-dns.bicep` (`zone-group` mode) | Private DNS virtual network links | none |
 | Foundry creation path `infra/envs/poc/foundry.bicep` -> `infra/modules/foundry/main.bicep` -> `infra/modules/foundry/private-endpoint.bicep` | Foundry private endpoints | `foundry`, `storage`, `keyVault`, `cosmosDB`, `aiSearch` |
 
 `brownfield-dns.bicep` is a single template shared by both `dnsIntegrationMode` values, so its link
@@ -188,8 +189,11 @@ places, neither of which pretends to detect collisions from inside the create br
    malformed manifests or evidence, unknown or duplicate attestation IDs, manifest-digest/scope
    mismatches, and any unlisted existing resource with a non-zero exit. The deployment gate accepts
    evidence only when its manifest digest matches the current manifest and its timestamp remains
-   within the documented freshness window; missing, stale, or mismatched evidence fails closed.
-   The gate's output is the required evidence artifact for the tagging deployment.
+   within 15 minutes of the ARM invocation; missing, stale, or mismatched evidence fails closed.
+   On a first run, an existing name cannot be accepted because no prior evidence can record it as
+   absent. A partially successful first deployment can be re-run only with the evidence artifact
+   written by its successful preflight, which records the name as absent before that deployment
+   created it. The gate's output is the required evidence artifact for the tagging deployment.
 
    Every deployment wrapper and documented direct deployment procedure must generate the manifest,
    run the preflight, and verify the fresh evidence immediately before invoking ARM. This applies

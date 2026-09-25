@@ -107,9 +107,19 @@ runs.
 #### Scenario: Caller declares contradictory ownership inputs
 - **WHEN** a caller supplies an existing-resource ID or reuse parameter that resolves to a name
   which another input of the same deployment still forces a create declaration to produce, such as
-  a shared NSG ID whose name equals the deterministic per-purpose NSG name while per-purpose NSG
-  reuse is disabled
+  `existingApimNsgId` or `existingComputeNsgId` whose name equals the matching deterministic
+  per-purpose NSG name while `reuseExistingNsgs` is false
 - **THEN** template validation fails deterministically instead of creating and tagging that name
+
+#### Scenario: Fresh matching ownership evidence permits deployment
+- **WHEN** the ownership preflight evidence is no more than 15 minutes old and has a manifest digest
+  matching the deployment's resolved manifest
+- **THEN** the deployment proceeds after the preflight succeeds
+
+#### Scenario: Ownership evidence is missing, stale, or mismatched
+- **WHEN** the ownership evidence is missing, more than 15 minutes old, or has a manifest digest
+  that differs from the deployment's resolved manifest
+- **THEN** the deployment gate fails and does not invoke ARM
 
 #### Scenario: Create declaration documents the preflight prerequisite
 - **WHEN** the deployment contract describes a create declaration that uses a deterministic

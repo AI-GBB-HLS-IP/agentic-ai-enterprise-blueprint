@@ -104,12 +104,15 @@
   an `absent` or `accepted-existing` outcome for every entry. Permit `--accept-existing` only for a
   canonical ID recorded as absent in prior evidence for the same logical declaration and scope;
   reject malformed inputs, duplicate or unknown attestations, scope/digest mismatches, and all other
-  existing resources. Verify absent and eligible re-deployment fixtures pass and non-attested,
-  malformed, duplicate, and mismatched fixtures fail.
+  existing resources. Limit evidence to 15 minutes from its creation timestamp; an initial run with
+  an existing name fails, while a partial initial deployment can use the evidence that recorded the
+  name as absent. Verify absent and eligible re-deployment fixtures pass and non-attested,
+  malformed, duplicate, stale, and mismatched fixtures fail.
 - [ ] 5.8 Integrate the manifest, preflight, and fresh-evidence verification immediately before
-  every tagged deployment: greenfield network (including private DNS and optional Bastion),
-  brownfield network, brownfield DNS, Foundry, and Foundry DNS. Invoke it through
-  `scripts/foundry/preflight.sh` for Foundry and provide the same required sequence in every
+  every tagged deployment through `scripts/tags/deploy-with-ownership-preflight.sh`: the greenfield
+  and brownfield network/DNS commands documented in `docs/deploy/00- network.md`, and the Foundry
+  and Foundry DNS commands in `scripts/foundry/deploy.sh`. `scripts/foundry/deploy.sh` must invoke
+  `scripts/foundry/preflight.sh` before the common gate. Provide the same required sequence in every
   documented direct `az deployment group create` procedure. Fail closed for missing, stale, or
   manifest-mismatched evidence, and verify a failing gate emits no deployment on each path.
 - [ ] 5.9 Add in-template validation that fails when an existing-ID or reuse parameter resolves to
