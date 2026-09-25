@@ -110,7 +110,7 @@
   malformed, duplicate, stale, and mismatched fixtures fail.
 - [ ] 5.8 Integrate the manifest, preflight, and fresh-evidence verification immediately before
   every tagged deployment through `scripts/tags/deploy-with-ownership-preflight.sh`: the greenfield
-  and brownfield network/DNS commands documented in `docs/deploy/00- network.md`, and the Foundry
+  and brownfield network/DNS commands documented in `docs/deploy-00-network.md`, and the Foundry
   and Foundry DNS commands in `scripts/foundry/deploy.sh`. `scripts/foundry/deploy.sh` must invoke
   `scripts/foundry/preflight.sh` before the common gate. Provide the same required sequence in every
   documented direct `az deployment group create` procedure. Fail closed for missing, stale, or
