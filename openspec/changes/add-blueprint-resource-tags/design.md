@@ -119,13 +119,13 @@ effective tags = union(existing shared tags, resource-specific tags)
 Bicep `union()` gives later arguments precedence, so the resource-specific value wins on duplicate
 keys. Existing callers therefore retain current tag behavior, while new callers can differentiate
 the account, project, Key Vault, Storage, AI Search, Cosmos DB, and each private endpoint created
-by the Foundry creation path, plus the services.ai private DNS zone and virtual network link
-created by `foundry-dns.bicep`. In
-`vnet-link` mode, the existing shared `tags` object is the base for both services.ai DNS resources
-and their separate resource-specific tag objects override duplicate keys. In `zone-group` mode,
-`foundry-dns.bicep` creates neither the services.ai zone nor its virtual network link, so neither
-resource-specific input applies and no tag update is emitted. Any documented mandatory blueprint
-tags are applied as the final merge layer described in the next decision.
+by the Foundry creation path, plus the services.ai private DNS zone and virtual network link created
+by `foundry-dns.bicep`. In `vnet-link` mode, the existing shared `tags` object is the base for both
+services.ai DNS resources and their separate resource-specific tag objects override duplicate keys.
+In `zone-group` mode, `foundry-dns.bicep` creates neither the services.ai zone nor its virtual
+network link, so neither resource-specific input applies and no tag update is emitted. Any
+documented mandatory blueprint tags are applied as the final merge layer described in the next
+decision.
 
 Removing or changing the meaning of `tags` was rejected as a breaking change. Applying the shared
 object after the resource-specific object was rejected because it would prevent explicit overrides.
@@ -184,12 +184,14 @@ places, neither of which pretends to detect collisions from inside the create br
    manifest digest, and one result per manifest entry with the canonical resource ID and outcome
    (`absent` or `accepted-existing`). A name passes when it does not resolve to an existing
    resource, or when it resolves to a resource the operator has attested as blueprint-created by
-   listing its canonical ID in `--accept-existing` and that ID is recorded as `absent` in the
-   prior evidence artifact for the same logical declaration and target scope. The script rejects
-   malformed manifests or evidence, unknown or duplicate attestation IDs, manifest-digest/scope
-   mismatches, and any unlisted existing resource with a non-zero exit. The deployment gate accepts
-   evidence only when its manifest digest matches the current manifest and its timestamp remains
-   within 15 minutes of the ARM invocation; missing, stale, or mismatched evidence fails closed.
+   listing its canonical ID in `--accept-existing` and supplying that ID's prior evidence artifact
+   with `--prior-evidence <path>`. That artifact must record the ID as `absent` for the same logical
+   declaration and target scope. The script rejects malformed manifests or evidence, unknown or
+   duplicate attestation IDs, manifest-digest/scope mismatches, and any unlisted existing resource
+   with a non-zero exit. `OWNERSHIP_EVIDENCE_TTL_SECONDS=900` (15 minutes) is the single evidence
+   freshness contract: the deployment gate accepts evidence only when its manifest digest matches
+   the current manifest and its timestamp remains within that TTL of the ARM invocation; missing,
+   stale, or mismatched evidence fails closed.
    On a first run, an existing name cannot be accepted because no prior evidence can record it as
    absent. A partially successful first deployment can be re-run only with the evidence artifact
    written by its successful preflight, which records the name as absent before that deployment
@@ -198,10 +200,11 @@ places, neither of which pretends to detect collisions from inside the create br
    Every deployment wrapper and documented direct deployment procedure must generate the manifest,
    run the preflight, and verify the fresh evidence immediately before invoking ARM. This applies
    to greenfield network (including private DNS and optional Bastion), brownfield network,
-   brownfield DNS, Foundry, and Foundry DNS entry points; `scripts/foundry/preflight.sh` remains
-   the Foundry wrapper integration point. A direct `az deployment group create` example must invoke
-   the same gate with the exact template and effective parameters and must not present a bypass
-   command as supported.
+   brownfield DNS, Foundry, and Foundry DNS entry points. For Foundry, `scripts/foundry/deploy.sh`
+   runs `scripts/foundry/preflight.sh` first and then
+   `scripts/tags/deploy-with-ownership-preflight.sh` before ARM. A direct `az deployment group
+   create` example must invoke the same gate with the exact template and effective parameters and
+   must not present a bypass command as supported.
 
 Ownership regression tests will cover both halves: a contradictory-input fixture asserting the
 `fail()` path, and preflight fixtures asserting a non-zero exit and no emitted deployment for an

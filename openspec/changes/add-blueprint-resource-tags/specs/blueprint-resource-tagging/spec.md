@@ -112,13 +112,14 @@ runs.
 - **THEN** template validation fails deterministically instead of creating and tagging that name
 
 #### Scenario: Fresh matching ownership evidence permits deployment
-- **WHEN** the ownership preflight evidence is no more than 15 minutes old and has a manifest digest
-  matching the deployment's resolved manifest
+- **WHEN** the ownership preflight evidence is within the
+  `OWNERSHIP_EVIDENCE_TTL_SECONDS` contract and has a manifest digest matching the deployment's
+  resolved manifest
 - **THEN** the deployment proceeds after the preflight succeeds
 
 #### Scenario: Ownership evidence is missing, stale, or mismatched
-- **WHEN** the ownership evidence is missing, more than 15 minutes old, or has a manifest digest
-  that differs from the deployment's resolved manifest
+- **WHEN** the ownership evidence is missing, older than the `OWNERSHIP_EVIDENCE_TTL_SECONDS`
+  contract, or has a manifest digest that differs from the deployment's resolved manifest
 - **THEN** the deployment gate fails and does not invoke ARM
 
 #### Scenario: Create declaration documents the preflight prerequisite
