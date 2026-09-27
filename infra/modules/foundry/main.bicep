@@ -27,6 +27,9 @@ param storageAccountName string
 @description('Key Vault name.')
 param keyVaultName string
 
+@description('Existing Key Vault full ARM resource ID. Leave empty to create a new Key Vault.')
+param existingKeyVaultResourceId string = ''
+
 @description('AI Search service name used when creating a new AI Search service (ignored when existingAISearchResourceId is set).')
 param aiSearchServiceName string = '${toLower(foundryAccountName)}search'
 
@@ -133,6 +136,7 @@ module keyVaultResources './supporting-resources.bicep' = {
   params: {
     location: location
     keyVaultName: keyVaultName
+    existingKeyVaultResourceId: existingKeyVaultResourceId
     tags: tags
   }
 }

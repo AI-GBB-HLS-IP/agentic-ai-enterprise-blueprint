@@ -439,3 +439,20 @@ Now any agent in the enterprise can discover and invoke your hosted travel agent
 ## Next Steps
 
 Proceed to [Chapter 09 — Connect Your Agent with Work IQ](./09-work-iq.md)
+
+## Phase 1 scope: hosted-agent follow-on
+
+The Foundry-managed Hosted Agent described in this chapter is a follow-on to the initial Phase 1
+demonstration, not a substitute for its AKS-hosted code agent or a gate for initial acceptance.
+The initial demo pairs a Foundry prompt agent with an independent AKS agent and supports
+repeatable project onboarding on one Foundry account, including a second-project
+non-interference check. The follow-on requires separate identity, networking, persistence, and
+telemetry feasibility before implementation. Business-unit accounts and permanent production
+isolation, capacity, chargeback, and retention topology are deferred.
+
+Track the scope in [issue #83](https://github.com/AI-GBB-HLS-IP/agentic-ai-enterprise-blueprint/issues/83)
+and the [OpenSpec change](../openspec/changes/add-phase1-agent-value-demo/proposal.md). This
+chapter's deployment examples describe the Foundry-managed Hosted Agent only; they do not prove
+the AKS deployment path or Phase 1 acceptance. Where the follow-on supports them, it should reuse
+the sample corpus, knowledge and tool contracts, and common acceptance suite rather than assume
+that AKS identity, network, memory, or telemetry configuration transfers to the Foundry runtime.

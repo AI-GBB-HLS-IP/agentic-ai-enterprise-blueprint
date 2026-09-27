@@ -1,0 +1,11 @@
+{
+  "records": [
+    {
+      "recordId": "sample-001",
+      "name": "Example equipment",
+      "status": "available",
+      "location": "North"
+    }
+  ],
+  "failureRecordId": "sample-backend-error"
+}

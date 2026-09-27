@@ -1,0 +1,36 @@
+{
+  "corpusVersion": "1",
+  "retrievalPolicy": {
+    "minimumRelevantSourcesForAnswerable": 1,
+    "maximumUnsupportedClaims": 0,
+    "unanswerableOutcome": "insufficient_knowledge",
+    "citationIdentifier": "sourceId"
+  },
+  "cases": [
+    {
+      "caseId": "catalog-fields",
+      "question": "Which fields does the sample service catalog use?",
+      "answerable": true,
+      "expectedSourceIds": [
+        "phase1-service-status-v1"
+      ],
+      "expectedAnswer": "The sample service catalog uses three fields: record ID, status, and location."
+    },
+    {
+      "caseId": "maintenance-window",
+      "question": "When is the planned maintenance window?",
+      "answerable": true,
+      "expectedSourceIds": [
+        "phase1-maintenance-window-v1"
+      ],
+      "expectedAnswer": "Every Sunday from 02:00 to 03:00 UTC."
+    },
+    {
+      "caseId": "service-owner",
+      "question": "Who owns the sample service?",
+      "answerable": false,
+      "expectedSourceIds": [],
+      "expectedAnswer": null
+    }
+  ]
+}

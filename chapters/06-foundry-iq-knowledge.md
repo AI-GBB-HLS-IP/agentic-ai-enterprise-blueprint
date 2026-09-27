@@ -287,3 +287,15 @@ Set up automatic index refresh to keep knowledge current:
 ## Next Steps
 
 Proceed to [Chapter 07 — Build a Prompt Agent in Foundry](./07-prompt-agent.md)
+
+## Phase 1 agent value demonstration scope
+
+[Issue #83](https://github.com/AI-GBB-HLS-IP/agentic-ai-enterprise-blueprint/issues/83) and the
+[OpenSpec change](../openspec/changes/add-phase1-agent-value-demo/proposal.md) define the
+initial acceptance corpus and Foundry IQ path shared by one Foundry prompt agent and one
+independent AKS agent. The POC uses one Foundry account, with repeatable project onboarding and a
+second-project non-interference check rather than a second full demo. The Foundry-managed Hosted
+Agent is a follow-on, not an initial acceptance runtime. Business-unit accounts and permanent
+production isolation, capacity, chargeback, and retention decisions are deferred. Sample-corpus
+upload can precede Foundry approval; Foundry IQ knowledge-source creation and indexing remain
+gated on the approved project and model inputs.

@@ -1,0 +1,39 @@
+{
+  "openApi": "lookup.openapi.json",
+  "fixture": "lookup-fixture.json",
+  "adapters": [
+    "foundry-prompt",
+    "aks-agent"
+  ],
+  "cases": [
+    {
+      "name": "known-record",
+      "recordId": "sample-001",
+      "status": 200,
+      "expected": {
+        "recordId": "sample-001",
+        "name": "Example equipment",
+        "status": "available",
+        "location": "North"
+      }
+    },
+    {
+      "name": "unknown-record",
+      "recordId": "sample-unknown",
+      "status": 404,
+      "expected": {
+        "code": "not_found",
+        "message": "No sample record exists for this identifier."
+      }
+    },
+    {
+      "name": "controlled-backend-failure",
+      "recordId": "sample-backend-error",
+      "status": 503,
+      "expected": {
+        "code": "backend_unavailable",
+        "message": "The sample lookup backend is unavailable."
+      }
+    }
+  ]
+}

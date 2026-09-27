@@ -1,0 +1,8 @@
+{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "issuer": "https://login.example.invalid/00000000-0000-0000-0000-000000000001/v2.0",
+  "audience": "api://phase1-tool-example",
+  "token_version": "2.0",
+  "principal_id": "00000000-0000-0000-0000-000000000002",
+  "token_type": "app"
+}
