@@ -43,6 +43,12 @@ param tags object = {
   'foundry-poc': 'true'
 }
 
+@description('Tags for the blueprint-created services.ai private DNS zone in vnet-link mode.')
+param servicesAiPrivateDnsZoneTags object = {}
+
+@description('Tags for the blueprint-created services.ai private DNS VNet link in vnet-link mode.')
+param servicesAiPrivateDnsVnetLinkTags object = {}
+
 var effectiveDnsSubscriptionId = dnsIntegrationMode == 'zone-group'
   ? (empty(dnsSubscriptionId)
       ? fail('dnsSubscriptionId is required when dnsIntegrationMode is zone-group; it must not be inferred from the workload subscription.')
@@ -83,7 +89,8 @@ module servicesAiDns '../../modules/foundry/services-ai-private-dns.bicep' = if 
   params: {
     vnetId: vnet.id
     vnetName: vnetName
-    tags: tags
+    zoneTags: union(tags, servicesAiPrivateDnsZoneTags)
+    vnetLinkTags: union(tags, servicesAiPrivateDnsVnetLinkTags)
   }
 }
 

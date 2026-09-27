@@ -13,3 +13,4 @@ param dnsSubscriptionId = '<vnet-subscription-id>'
 param dnsResourceGroupName = '<vnet-resource-group>'
 param vnetId = '<full-arm-resource-id-of-existing-vnet>'
 param vnetName = '<existing-vnet-name>'
+param privateDnsVnetLinkTags = json(readEnvironmentVariable('BROWNFIELD_DNS_VNET_LINK_TAGS', '{}'))

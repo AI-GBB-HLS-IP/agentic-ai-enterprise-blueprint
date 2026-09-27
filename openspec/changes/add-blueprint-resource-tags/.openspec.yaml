@@ -1,8 +1,9 @@
 schema: spec-driven
 created: 2026-09-22
 goal: Extend the archived APIM per-resource tagging pattern to blueprint-owned network, DNS,
-  Foundry, supporting-service, private-endpoint, and optional Bastion resources under declared
-  ownership, without applying tag inputs to resources referenced through existing-resource or BYO paths
+  Foundry, supporting-service, and private-endpoint resources under declared ownership, without
+  applying tag inputs to resources referenced through existing-resource or BYO paths; optional
+  Bastion resources remain outside this change
 affected_areas:
   - infra/envs/poc
   - infra/modules

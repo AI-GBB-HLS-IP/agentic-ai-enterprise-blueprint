@@ -52,6 +52,27 @@ param tags object = {
   'foundry-poc': 'true'
 }
 
+@description('Tags for the blueprint-created Foundry account.')
+param foundryAccountTags object = {}
+
+@description('Tags for the blueprint-created Foundry project.')
+param foundryProjectTags object = {}
+
+@description('Tags for the blueprint-created Key Vault.')
+param keyVaultTags object = {}
+
+@description('Tags for the blueprint-created Storage account. Ignored when an existing account is supplied.')
+param storageTags object = {}
+
+@description('Tags for the blueprint-created AI Search service. Ignored when an existing service is supplied.')
+param aiSearchTags object = {}
+
+@description('Tags for the blueprint-created Cosmos DB account. Ignored when an existing account is supplied.')
+param cosmosDBTags object = {}
+
+@description('Purpose-keyed tags for Foundry private endpoints. Accepted keys: foundry, storage, keyVault, cosmosDB, aiSearch. Existing/BYO endpoints are never updated.')
+param privateEndpointTags object = {}
+
 resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' existing = {
   scope: resourceGroup(networkResourceGroupName)
   name: vnetName
@@ -94,6 +115,13 @@ module foundry '../../modules/foundry/main.bicep' = {
     modelSkuName: modelSkuName
     modelCapacity: modelCapacity
     tags: tags
+    foundryAccountTags: foundryAccountTags
+    foundryProjectTags: foundryProjectTags
+    keyVaultTags: keyVaultTags
+    storageTags: storageTags
+    aiSearchTags: aiSearchTags
+    cosmosDBTags: cosmosDBTags
+    privateEndpointTags: privateEndpointTags
   }
 }
 

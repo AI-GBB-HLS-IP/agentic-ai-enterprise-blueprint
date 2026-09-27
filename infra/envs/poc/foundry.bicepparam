@@ -19,6 +19,14 @@ param cosmosDBAccountName = readEnvironmentVariable('FOUNDRY_COSMOS_DB_ACCOUNT_N
 param vnetName = readEnvironmentVariable('FOUNDRY_VNET_NAME', 'vnet-agent-factory-poc')
 param foundrySubnetName = readEnvironmentVariable('FOUNDRY_SUBNET_NAME', 'hybridsubnet-foundry')
 param privateEndpointSubnetName = readEnvironmentVariable('FOUNDRY_PRIVATE_ENDPOINT_SUBNET_NAME', 'hybridsubnet-privateendpoints')
+param tags = json(readEnvironmentVariable('FOUNDRY_TAGS', '{"foundry-poc":"true"}'))
+param foundryAccountTags = json(readEnvironmentVariable('FOUNDRY_ACCOUNT_TAGS', '{}'))
+param foundryProjectTags = json(readEnvironmentVariable('FOUNDRY_PROJECT_TAGS', '{}'))
+param keyVaultTags = json(readEnvironmentVariable('FOUNDRY_KEY_VAULT_TAGS', '{}'))
+param storageTags = json(readEnvironmentVariable('FOUNDRY_STORAGE_TAGS', '{}'))
+param aiSearchTags = json(readEnvironmentVariable('FOUNDRY_AI_SEARCH_TAGS', '{}'))
+param cosmosDBTags = json(readEnvironmentVariable('FOUNDRY_COSMOS_DB_TAGS', '{}'))
+param privateEndpointTags = json(readEnvironmentVariable('FOUNDRY_PRIVATE_ENDPOINT_TAGS', '{}'))
 
 // BYO dependent resources: leave the resource-ID params empty (default) to have this module
 // create new Storage / AI Search / Cosmos DB accounts. To reuse existing resources instead

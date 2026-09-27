@@ -12,9 +12,16 @@ param computeNsgName string = 'hybrid-nsg-agent-blueprint-${toLower(replace(loca
 @description('APIM subnet prefix used by compute outbound allow rule.')
 param apimSubnetPrefix string = '10.0.1.0/24'
 
+@description('Tags for the blueprint-created APIM NSG.')
+param apimNsgTags object = {}
+
+@description('Tags for the blueprint-created compute NSG.')
+param computeNsgTags object = {}
+
 resource apimNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
   name: apimNsgName
   location: location
+  tags: apimNsgTags
   properties: {
     securityRules: [
       {
@@ -63,6 +70,7 @@ resource apimNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
 resource computeNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
   name: computeNsgName
   location: location
+  tags: computeNsgTags
   properties: {
     securityRules: [
       {

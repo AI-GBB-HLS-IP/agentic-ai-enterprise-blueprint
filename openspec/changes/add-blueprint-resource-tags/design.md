@@ -4,7 +4,8 @@ See `proposal.md` for motivation. The archived APIM tagging change established s
 objects, empty defaults, opaque caller values, mandatory public IP tag precedence, and strict
 blueprint-ownership boundaries. Outside APIM, the current implementation is inconsistent:
 
-- greenfield network resources and optional Bastion resources expose no tag inputs;
+- greenfield network resources expose tag inputs; optional Bastion resources are explicitly out of
+  scope and expose no tag inputs in this change;
 - brownfield network deployment conditionally creates NSGs but references the customer VNet,
   route table, and reusable NSGs as external resources;
 - greenfield private DNS creates multiple zones and links without tags, while brownfield DNS may
@@ -68,8 +69,9 @@ silently retag external resources or leave blueprint-owned resources ungoverned.
 
 ### Use explicit singular inputs and purpose-keyed maps for repeated families
 
-Singular resources will use descriptive object parameters such as `virtualNetworkTags`,
-`foundryAccountTags`, or `bastionHostTags`, each defaulting to `{}`. Repeated homogeneous families
+Singular resources will use descriptive object parameters such as `virtualNetworkTags` or
+`foundryAccountTags`, each defaulting to `{}`. Optional Bastion resources are excluded from this
+change and therefore receive no tag parameters here. Repeated homogeneous families
 will use purpose-keyed objects whose values are independent tag objects, for example logical maps
 for private DNS zones, private DNS links, and private endpoints.
 
@@ -218,7 +220,7 @@ consistency, not live Azure ownership.
 | Include all entry points, including APIM Stage 1 | 1.1, 6.1 | Spec inventory requirement; matrix reconciliation and tests 4.3, 5.1-5.3 |
 
 **Entry-point coverage:** The inventory and operator guidance include `infra/envs/poc/main.bicep`
-(private DNS and optional Bastion included), `brownfield-network.bicep`, `brownfield-dns.bicep`,
+(private DNS included; optional Bastion explicitly excluded), `brownfield-network.bicep`, `brownfield-dns.bicep`,
 `foundry.bicep`, `foundry-dns.bicep`, and `apim.bicep` under the same directory. APIM Stage 1
 retains all existing tag mappings and follows the same declared-ownership boundary. Stage 2
 `apim-foundry-integration.bicep` remains inventoried for unsupported tag surfaces; no synthetic tag
