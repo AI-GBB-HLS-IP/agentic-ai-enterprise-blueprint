@@ -35,7 +35,7 @@ are manual. This table is the single source of truth for automation status; task
 | Template compiles | ✅ | ✅ | — |
 | Deployment runs | ✅ | ✅ | — |
 | Policy input validation | ✅ | ✅ | wiring into the template (T074) |
-| Deployment-time `tags` object | ❌ | ❌ | T026 |
+| Resource-specific deployment-time tags | ✅ | ✅ | Optional tag inputs default to `{}` |
 | Confidentiality scan | ✅ | ✅ | — |
 | Prerequisite / quota check | ⚠️ manual | ⚠️ manual | T017 |
 | VNet discovery | n/a | ✅ scripted | — (T032) |
@@ -47,6 +47,25 @@ are manual. This table is the single source of truth for automation status; task
 
 ⚠️ means it works, but **you** must do the checking. Every manual step below tells you exactly
 what to look for.
+
+### 2.1 Resource tags and ownership
+
+Greenfield and brownfield entry points expose independent tag objects for blueprint-managed
+resources. Omitted inputs default to `{}`. Greenfield network parameters include
+`virtualNetworkTags`, `apimNsgTags`, `computeNsgTags`, `privateDnsZoneTags`, and
+`privateDnsVnetLinkTags`. Brownfield parameters expose the NSG tag inputs only when the template
+creates those NSGs, and `brownfield-dns.bicep` accepts VNet-link tags only in `vnet-link` mode.
+Use the purpose keys documented in
+[`blueprint-resource-tag-inventory.md`](blueprint-resource-tag-inventory.md); unknown keys are
+rejected.
+
+Before any `validate`, `what-if`, or `create`, verify that every create/update target is absent
+or already owned by this blueprint in the intended subscription, resource group, resource type,
+and name. Selecting a create branch is not proof of ownership: ARM can update and retag an
+unrelated same-identity resource, and this capability does not discover collisions or prevent
+concurrent writers. Stop or select the supported existing/BYO path when ownership is uncertain.
+The templates reject determinable contradictory ownership IDs, but that input check is not live
+ownership attestation.
 
 > Any `./scripts/network/<name>.sh` referenced in `specs/` that is not listed in
 > [Section 7](#7-scripts-that-exist) does not exist yet.
@@ -576,6 +595,16 @@ Before `create`, confirm the deploying identity has write permissions for the re
 being created: Foundry/Cognitive Services, Key Vault, Storage, AI Search, Cosmos DB, and private
 endpoints. If `validate` succeeds but `create` returns `AuthorizationFailed`, treat it as an RBAC
 scope issue; do not weaken the template or switch to `what-if`.
+
+The Foundry entry point keeps the legacy shared `tags` object and adds
+`foundryAccountTags`, `foundryProjectTags`, `keyVaultTags`, `storageTags`, `aiSearchTags`,
+`cosmosDBTags`, and the purpose-keyed `privateEndpointTags` map. Resource-specific values
+override duplicate keys from the shared object. The separate
+`servicesAiPrivateDnsZoneTags` and `servicesAiPrivateDnsVnetLinkTags` inputs belong to
+`foundry-dns.bicep` and apply only when that deployment creates those resources in `vnet-link`
+mode. Existing/BYO resources and DNS zone groups are referenced without applying these tag
+inputs. Use generic placeholders in tracked parameter examples and put approved values only in
+untracked customer parameter files.
 
 ```bash
 az deployment group create \

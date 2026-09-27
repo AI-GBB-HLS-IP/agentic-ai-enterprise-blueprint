@@ -41,6 +41,21 @@
     "computeNsgName": {
       "value": "hybrid-nsg-agent-blueprint-eastus2-compute"
     },
+    "virtualNetworkTags": {
+      "value": {}
+    },
+    "apimNsgTags": {
+      "value": {}
+    },
+    "computeNsgTags": {
+      "value": {}
+    },
+    "privateDnsZoneTags": {
+      "value": {}
+    },
+    "privateDnsVnetLinkTags": {
+      "value": {}
+    },
     "privateDnsZoneNames": {
       "value": {
         "cognitiveServices": "privatelink.cognitiveservices.azure.com",

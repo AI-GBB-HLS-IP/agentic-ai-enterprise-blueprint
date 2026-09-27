@@ -495,6 +495,8 @@ lines.append(f"param sharedHybridNsgId = {bicep_string(shared_nsg_id)}")
 lines.append(f"param reuseExistingNsgs = {'true' if reuse else 'false'}")
 lines.append(f"param existingApimNsgId = {bicep_string(apim_nsg_id)}")
 lines.append(f"param existingComputeNsgId = {bicep_string(compute_nsg_id)}")
+lines.append("param apimNsgTags = {}")
+lines.append("param computeNsgTags = {}")
 lines.append("")
 lines.append("// APIM subnet route table (common brownfield-deployment network policy). Leave empty for no route table.")
 lines.append(f"param apimRouteTableId = {bicep_string(apim_route_table_id)}")
@@ -520,6 +522,7 @@ param privateDnsZoneNames = {{
   cosmosDB: 'privatelink.documents.azure.com'
   aiSearch: 'privatelink.search.windows.net'
 }}
+param privateDnsVnetLinkTags = {{}}
 """
 
 foundry_param_text = f"""using '{foundry_bicep_path}'
@@ -535,6 +538,14 @@ param networkResourceGroupName = {bicep_string(vnet_rg)}
 param vnetName = {bicep_string(vnet_name)}
 param foundrySubnetName = {bicep_string(plan[0][1])}
 param privateEndpointSubnetName = {bicep_string(plan[2][1])}
+param tags = {{}}
+param foundryAccountTags = {{}}
+param foundryProjectTags = {{}}
+param keyVaultTags = {{}}
+param storageTags = {{}}
+param aiSearchTags = {{}}
+param cosmosDBTags = {{}}
+param privateEndpointTags = {{}}
 """
 
 foundry_dns_param_text = f"""using '{foundry_dns_bicep_path}'
@@ -558,6 +569,9 @@ param storagePrivateEndpointId = '/subscriptions/<workload-subscription-id>/reso
 param keyVaultPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<key-vault-private-endpoint-name>'
 param cosmosDBPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<cosmos-db-private-endpoint-name>'
 param aiSearchPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<ai-search-private-endpoint-name>'
+param tags = {{}}
+param servicesAiPrivateDnsZoneTags = {{}}
+param servicesAiPrivateDnsVnetLinkTags = {{}}
 """
 
 network_path = os.path.join(out_dir, "brownfield-network.bicepparam")

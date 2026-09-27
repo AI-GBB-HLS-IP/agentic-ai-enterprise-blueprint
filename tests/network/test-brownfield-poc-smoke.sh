@@ -163,7 +163,8 @@ echo "==> .bicepparam.example files contain placeholders only"
 # empty string, a boolean, or a non-customer-identifying Azure enum literal from the allowlist
 # below. Anything else risks leaking a real deployment value into a tracked file.
 safe_enum_literals="Disabled|Enabled|NetworkSecurityGroupEnabled|RouteTableEnabled|vnet-link|zone-group"
-placeholder_pattern="^param [A-Za-z][A-Za-z0-9]* = ('<[^']*>'|''|true|false|'(${safe_enum_literals})')\$"
+safe_environment_default_pattern="json\(readEnvironmentVariable\('[A-Z0-9_]+', '\{\}'\)\)"
+placeholder_pattern="^param [A-Za-z][A-Za-z0-9]* = ('<[^']*>'|''|true|false|'(${safe_enum_literals})'|${safe_environment_default_pattern})\$"
 for example in "$NETWORK_PARAM_EXAMPLE" "$DNS_PARAM_EXAMPLE"; do
   while IFS= read -r line; do
     if [[ "$line" =~ ^param[[:space:]] ]] && ! [[ "$line" =~ $placeholder_pattern ]]; then

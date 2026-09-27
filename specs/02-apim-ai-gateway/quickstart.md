@@ -38,6 +38,13 @@ Workspace tags apply only when the template creates the workspace, and private D
 only in `blueprint` DNS mode. Existing workspaces and customer-managed DNS resources are never
 retagged.
 
+Before using the Stage 1 create/update path, verify that the APIM service, public IP, workspace,
+Application Insights component, alert, and blueprint-owned DNS resources are absent or already
+owned by this blueprint in the intended subscription, resource group, resource type, and name.
+Selecting the managed branch is not proof of ownership: ARM can update a same-identity unrelated
+resource, and the template does not discover collisions or prevent concurrent writers. Stop or
+use the supported existing/reference path when ownership is uncertain.
+
 Then validate, preview, and deploy:
 
 ```bash

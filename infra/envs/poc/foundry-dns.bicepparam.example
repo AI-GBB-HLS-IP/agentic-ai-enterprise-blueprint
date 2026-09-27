@@ -22,3 +22,6 @@ param storagePrivateEndpointId = '/subscriptions/<workload-subscription-id>/reso
 param keyVaultPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<key-vault-private-endpoint-name>'
 param cosmosDBPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<cosmos-db-private-endpoint-name>'
 param aiSearchPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<ai-search-private-endpoint-name>'
+param tags = json(readEnvironmentVariable('FOUNDRY_DNS_TAGS', '{"foundry-poc":"true"}'))
+param servicesAiPrivateDnsZoneTags = json(readEnvironmentVariable('FOUNDRY_SERVICES_AI_DNS_ZONE_TAGS', '{}'))
+param servicesAiPrivateDnsVnetLinkTags = json(readEnvironmentVariable('FOUNDRY_SERVICES_AI_DNS_LINK_TAGS', '{}'))

@@ -7,19 +7,20 @@ param vnetId string
 param vnetName string
 
 @description('Tags to apply to the private DNS zone and VNet link.')
-param tags object
+param zoneTags object = {}
+param vnetLinkTags object = {}
 
 resource servicesAiDns 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: 'privatelink.services.ai.azure.com'
   location: 'global'
-  tags: tags
+  tags: zoneTags
 }
 
 resource servicesAiDnsLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: servicesAiDns
   name: '${vnetName}-link'
   location: 'global'
-  tags: tags
+  tags: vnetLinkTags
   properties: {
     virtualNetwork: {
       id: vnetId

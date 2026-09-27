@@ -77,10 +77,50 @@ param tags object = {
   'foundry-poc': 'true'
 }
 
+@description('Tags for the blueprint-created Foundry account.')
+param foundryAccountTags object = {}
+
+@description('Tags for the blueprint-created Foundry project.')
+param foundryProjectTags object = {}
+
+@description('Tags for the blueprint-created Key Vault.')
+param keyVaultTags object = {}
+
+@description('Tags for the blueprint-created Storage account. Ignored when an existing account is supplied.')
+param storageTags object = {}
+
+@description('Tags for the blueprint-created AI Search service. Ignored when an existing service is supplied.')
+param aiSearchTags object = {}
+
+@description('Tags for the blueprint-created Cosmos DB account. Ignored when an existing account is supplied.')
+param cosmosDBTags object = {}
+
+@description('Purpose-keyed tags for Foundry private endpoints. Accepted keys: foundry, storage, keyVault, cosmosDB, aiSearch. Existing/BYO endpoints are never updated.')
+param privateEndpointTags object = {}
+
+var foundryPrivateEndpointKeys = [
+  'foundry'
+  'storage'
+  'keyVault'
+  'cosmosDB'
+  'aiSearch'
+]
+var unsupportedFoundryPrivateEndpointTagItems = filter(items(privateEndpointTags), item => !contains(foundryPrivateEndpointKeys, item.key))
+var privateEndpointTagsValidated = length(unsupportedFoundryPrivateEndpointTagItems) == 0
+  ? true
+  : fail('privateEndpointTags contains unsupported logical resource key: ${first(unsupportedFoundryPrivateEndpointTagItems).?key ?? ''}')
+var effectivePrivateEndpointTags = {
+  foundry: union(tags, privateEndpointTags.?foundry ?? {})
+  storage: union(tags, privateEndpointTags.?storage ?? {})
+  keyVault: union(tags, privateEndpointTags.?keyVault ?? {})
+  cosmosDB: union(tags, privateEndpointTags.?cosmosDB ?? {})
+  aiSearch: union(tags, privateEndpointTags.?aiSearch ?? {})
+}
+
 resource account 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
   name: foundryAccountName
   location: location
-  tags: tags
+  tags: union(tags, foundryAccountTags)
   sku: {
     name: 'S0'
   }
@@ -113,7 +153,7 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-previ
   parent: account
   name: projectName
   location: location
-  tags: tags
+  tags: union(tags, foundryProjectTags)
   identity: {
     type: 'SystemAssigned'
   }
@@ -133,7 +173,7 @@ module keyVaultResources './supporting-resources.bicep' = {
   params: {
     location: location
     keyVaultName: keyVaultName
-    tags: tags
+    tags: union(tags, keyVaultTags)
   }
 }
 
@@ -183,7 +223,7 @@ module newStorageAccount './storage.bicep' = if (!storagePassedIn) {
   params: {
     location: location
     storageAccountName: storageAccountNameResolved
-    tags: tags
+    tags: union(tags, storageTags)
   }
 }
 
@@ -198,7 +238,7 @@ module newAISearchService './ai-search.bicep' = if (!searchPassedIn) {
   params: {
     location: location
     aiSearchServiceName: aiSearchServiceNameResolved
-    tags: tags
+    tags: union(tags, aiSearchTags)
   }
 }
 
@@ -213,7 +253,7 @@ module newCosmosDBAccount './cosmos-db.bicep' = if (!cosmosPassedIn) {
   params: {
     location: location
     cosmosDBAccountName: cosmosDBAccountNameResolved
-    tags: tags
+    tags: union(tags, cosmosDBTags)
   }
 }
 
@@ -252,7 +292,8 @@ module privateEndpoints './private-endpoint.bicep' = {
     cosmosDBAccountId: cosmosDBAccountIdResolved
     createAISearchPrivateEndpoint: !(searchPassedIn && existingAISearchPrivateEndpoint)
     aiSearchServiceId: aiSearchServiceIdResolved
-    tags: tags
+    privateEndpointTags: effectivePrivateEndpointTags
+    privateEndpointTagsValidated: privateEndpointTagsValidated
   }
   dependsOn: [
     project

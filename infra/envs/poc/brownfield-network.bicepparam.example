@@ -37,6 +37,8 @@ param sharedHybridNsgId = ''
 param reuseExistingNsgs = false
 param existingApimNsgId = ''
 param existingComputeNsgId = ''
+param apimNsgTags = json(readEnvironmentVariable('BROWNFIELD_APIM_NSG_TAGS', '{}'))
+param computeNsgTags = json(readEnvironmentVariable('BROWNFIELD_COMPUTE_NSG_TAGS', '{}'))
 
 // Azure only enforces NSG rules on private endpoint traffic when this is 'Enabled' or
 // 'NetworkSecurityGroupEnabled'. With 'Disabled' the NSG is still associated with the subnet

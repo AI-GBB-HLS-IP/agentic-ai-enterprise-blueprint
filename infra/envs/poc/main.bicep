@@ -42,6 +42,21 @@ param computeNsgName string = 'nsg-compute'
 @description('Private DNS zone names.')
 param privateDnsZoneNames object
 
+@description('Tags for the blueprint-created virtual network.')
+param virtualNetworkTags object = {}
+
+@description('Tags for the blueprint-created APIM NSG.')
+param apimNsgTags object = {}
+
+@description('Tags for the blueprint-created compute NSG.')
+param computeNsgTags object = {}
+
+@description('Purpose-keyed tags for blueprint-created private DNS zones.')
+param privateDnsZoneTags object = {}
+
+@description('Purpose-keyed tags for blueprint-created private DNS virtual network links.')
+param privateDnsVnetLinkTags object = {}
+
 module network '../../modules/network/main.bicep' = {
   name: 'network-foundation'
   params: {
@@ -57,6 +72,11 @@ module network '../../modules/network/main.bicep' = {
     apimNsgName: apimNsgName
     computeNsgName: computeNsgName
     privateDnsZoneNames: privateDnsZoneNames
+    virtualNetworkTags: virtualNetworkTags
+    apimNsgTags: apimNsgTags
+    computeNsgTags: computeNsgTags
+    privateDnsZoneTags: privateDnsZoneTags
+    privateDnsVnetLinkTags: privateDnsVnetLinkTags
   }
 }
 

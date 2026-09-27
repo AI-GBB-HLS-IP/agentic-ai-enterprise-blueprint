@@ -9,6 +9,9 @@ param vnetId string
 @description('VNet name used to build a deterministic, idempotent link name.')
 param vnetName string
 
+@description('Tags for the blueprint-created virtual network link.')
+param tags object = {}
+
 resource zone 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
   name: zoneName
 }
@@ -17,6 +20,7 @@ resource link 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01'
   parent: zone
   name: '${vnetName}-link'
   location: 'global'
+  tags: tags
   properties: {
     // Fixed false: this brownfield DNS-owner path only ever links an already-existing,
     // already-populated zone for private-endpoint resolution. Enabling registration would let
