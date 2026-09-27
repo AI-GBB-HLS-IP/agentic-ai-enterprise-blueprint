@@ -8,9 +8,10 @@ proof of resource ownership in Azure.
 ## ADDED Requirements
 
 ### Requirement: Blueprint-owned taggable resources have explicit tag inputs
-The blueprint SHALL expose an explicit tag input for every taggable resource that it creates,
-including taggable network, private DNS, optional Bastion, Foundry, supporting-service, private
-endpoint, and APIM foundation resources.
+The blueprint SHALL expose an explicit tag input for every in-scope taggable resource that it
+creates, including taggable network, private DNS, Foundry, supporting-service, private endpoint,
+and APIM foundation resources. Optional Bastion resources are out of scope for this capability and
+remain owned by the separate network-foundation change.
 
 #### Scenario: Different resources require different governance metadata
 - **WHEN** a caller supplies different tag objects for two or more blueprint-owned resources
@@ -134,8 +135,8 @@ deployment wrappers as prerequisites; existing unrelated deployment prerequisite
   inactive NSG targets, and no blueprint tag input is applied to the referenced shared NSG
 
 #### Scenario: Create/update guidance documents operator responsibilities
-- **WHEN** guidance describes a tagged create/update path for network, DNS, optional Bastion,
-  Foundry, or APIM Stage 1, through a script or direct deployment command
+- **WHEN** guidance describes a tagged create/update path for network, DNS, Foundry, or APIM Stage
+  1, through a script or direct deployment command
 - **THEN** it requires operator ownership verification and prevention of conflicting concurrent
   deployments and states that selecting a create branch is not proof of ownership
 

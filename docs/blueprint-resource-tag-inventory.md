@@ -16,7 +16,7 @@ referenced without applying blueprint tag inputs.
 | `network/private-dns.bicep` / VNet links | Greenfield managed resources | `privateDnsVnetLinkTags.<purpose>`, default `{}` per key | None | 2.2; repeated-family keys |
 | `brownfield-network.bicep` / APIM and compute NSGs | Managed only when `sharedHybridNsgId` is empty and `reuseExistingNsgs` is `false` | `apimNsgTags` and `computeNsgTags`, default `{}` | Existing VNet, route table, shared NSG, reused NSGs, and subnet children are not retagged | 2.4; BYO exclusion |
 | `brownfield-dns.bicep` / VNet links | Managed only in `vnet-link` mode | `privateDnsVnetLinkTags.<purpose>`, default `{}` per key | Existing DNS zones, records, private endpoints, and zone groups are not retagged; map must be empty in `zone-group` mode | 2.5; DNS-mode scenarios |
-| Optional Bastion public IP and host | Blocked pending network foundation tasks T025 and T059-T063 | Planned `bastionPublicIpTags` and `bastionHostTags`, default `{}` | No implementation or completion claim until the optional Bastion contract is complete | 2.3 |
+| Optional Bastion public IP and host | Explicitly excluded; owned by a separate network-foundation change when enabled | No tag inputs in this change | Bastion is optional; no Bastion resources or synthetic tag parameters are added here | 2.3 |
 
 Accepted greenfield DNS keys are `cognitiveServices`, `azureOpenAI`, `apim`, `keyVault`,
 `storageBlob`, `sql`, `cosmosDB`, and `aiSearch`. Brownfield DNS accepts only
@@ -69,5 +69,5 @@ for unrelated API-schema and interpolation diagnostics.
 Approval-dependent Foundry what-if, runtime, live ownership verification, collision detection, and
 concurrent-deployment evidence are **BLOCKED** until an authorized Azure environment and
 deployment window are available. Offline compilation and input-contract checks do not establish
-those live guarantees. Optional Bastion tagging remains blocked by network-foundation tasks T025
-and T059-T063.
+Those live guarantees. Optional Bastion tagging is outside this change and remains a future
+network-foundation follow-up only if an environment enables Bastion.

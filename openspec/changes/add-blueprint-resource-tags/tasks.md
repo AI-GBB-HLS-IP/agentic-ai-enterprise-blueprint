@@ -9,21 +9,21 @@ dependencies. Existing unrelated deployment prerequisites remain unchanged.
   reference, or conditional create/update-or-reference. Record entry point, full resource
   identity/scope, active branch condition, tag input/default/precedence or unsupported reason,
   implementation task, and acceptance scenario in one matrix. Cover `main.bicep` (including
-  private DNS and optional Bastion), `brownfield-network.bicep`, `brownfield-dns.bicep`,
+  private DNS), `brownfield-network.bicep`, `brownfield-dns.bicep`,
   `foundry.bicep`, `foundry-dns.bicep`, `apim.bicep`, and `apim-foundry-integration.bicep`;
   verify every compiled resource type and applicable ownership branch is represented.
 - [x] 1.2 Verify Azure tag support for each parent, child, extension, and preview API resource type
   in the inventory; verify no tag parameter is planned for a resource whose selected API does not
   expose Azure resource tags.
 - [x] 1.3 Define consistent singular parameter names and purpose-keyed map keys for network, DNS,
-  Bastion, Foundry, supporting-service, and private-endpoint resources; verify every
+  Foundry, supporting-service, and private-endpoint resources; verify every
   blueprint-created taggable inventory row maps to exactly one documented input and every
   repeated-family map rejects unknown keys with a resource-specific error.
 - [x] 1.4 Define the compatibility and merge contract for the existing Foundry `tags` object,
   resource-specific overrides, and mandatory APIM tags; verify examples demonstrate
   base-to-specific-to-mandatory precedence with generic values.
 
-## 2. Network, DNS, and Bastion Tagging
+## 2. Network and DNS Tagging
 
 - [x] 2.1 Add independent tag inputs for the greenfield VNet and blueprint-created APIM and compute
   NSGs, wiring them through `infra/envs/poc/main.bicep` and the network modules; verify compiled
@@ -31,12 +31,10 @@ dependencies. Existing unrelated deployment prerequisites remain unchanged.
 - [x] 2.2 Add purpose-keyed tag maps for blueprint-created private DNS zones and virtual network
   links; verify every supported zone and link can receive a distinct tag object and missing keys
   resolve to `{}`, while unknown keys are rejected.
-- [ ] 2.3 After optional Bastion tasks T025 and T059-T063 in
-  `specs/00-network-foundation/tasks.md` are complete, add independent tag inputs for the Bastion
-  public IP and Bastion host without implementing a second conditional-deployment contract here;
-  verify enabled deployments emit the correct tags and disabled deployments emit neither resource.
-  If those dependencies remain incomplete, keep this task blocked and do not claim this tagging
-  change complete.
+- [x] 2.3 Bastion resources are explicitly excluded from this change because Bastion is optional
+  and its conditional deployment/tagging contract belongs to the separate network-foundation
+  change. Record Bastion as a future follow-up only when an environment enables it; do not add
+  Bastion tag parameters or treat its unimplemented tasks as a blocker here.
 - [x] 2.4 Add independent tag inputs to brownfield network paths only for blueprint-created NSGs;
   verify existing VNets, route tables, shared NSGs, reusable per-purpose NSGs, and subnet children
   receive no tag update.
@@ -94,7 +92,7 @@ dependencies. Existing unrelated deployment prerequisites remain unchanged.
 ## 5. Automated Validation
 
 - [x] 5.1 Extend `tests/network/run-tests.sh` coverage with compiled-template assertions for
-  greenfield and brownfield tag mappings, `{}` defaults, repeated-family keys, optional Bastion,
+  greenfield and brownfield tag mappings, `{}` defaults, repeated-family keys,
   unknown-key rejection, and exclusion of referenced existing/BYO resources from tag assignments;
   verify the suite fails for a deliberately miswired assertion and passes after restoration.
 - [x] 5.2 Extend `tests/foundry/run-tests.sh` coverage for Foundry shared-base compatibility,

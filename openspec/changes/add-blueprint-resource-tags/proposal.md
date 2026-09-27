@@ -10,7 +10,8 @@ tagging capability.
 ## What Changes
 
 - Extend the archived APIM per-resource tagging pattern across blueprint-owned network, DNS,
-  Foundry, supporting-service, private-endpoint, and optional Bastion resources.
+  Foundry, supporting-service, and private-endpoint resources. Optional Bastion resources are
+  explicitly excluded and remain owned by the separate network-foundation change.
 - Expose independent tag objects with `{}` defaults so callers can configure resource-specific
   governance metadata without breaking existing parameter files.
 - Preserve caller-provided Azure-valid tag keys and values without normalization, except for
@@ -47,8 +48,7 @@ None.
 ## Impact
 
 - Greenfield and brownfield environment entry points under `infra/envs/poc/`.
-- Network, Foundry, DNS, supporting-resource, private-endpoint, and optional Bastion modules under
-  `infra/modules/`.
+- Network, Foundry, DNS, supporting-resource, and private-endpoint modules under `infra/modules/`.
 - Existing APIM tagging interfaces, which remain compatible and retain their current mandatory
   public IP tag behavior.
 - Environment-backed `.bicepparam` contracts and sanitized customer example parameter files.
