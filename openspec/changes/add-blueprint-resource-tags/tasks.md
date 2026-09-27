@@ -140,6 +140,6 @@ dependencies. Existing unrelated deployment prerequisites remain unchanged.
 - [x] 6.3 Record offline validation results and mark approval-dependent Foundry what-if/runtime
   evidence `BLOCKED` without changing the separate Stage 1 evidence-file reconciliation; verify no
   document claims unexecuted live validation passed.
-- [ ] 6.4 Run `openspec validate add-blueprint-resource-tags --strict`, update #81 with final
+- [x] 6.4 Run `openspec validate add-blueprint-resource-tags --strict`, update #81 with final
   evidence links and completion status, and verify the implementation pull request references the
   issue and all acceptance criteria.
