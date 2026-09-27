@@ -29,6 +29,13 @@ create a competing AMPLS/workspace, weaken shared access settings, or silently u
 AKS, Foundry, and APIM telemetry paths SHALL be assessed independently; success from one runtime
 SHALL NOT be presented as proof for another.
 
+For this POC, APIM retains its existing instrumentation-key-based Application Insights logger.
+This logger is not claimed to use managed identity; its authentication configuration requires
+monitoring-owner acceptance, and its private ingestion route and telemetry arrival SHALL be
+verified independently. If the configuration is not approved or that private route is unsupported,
+the APIM telemetry gate remains blocked without a public-ingestion fallback or an implicit logger
+authentication migration.
+
 #### Scenario: Reuse the shared monitoring path
 - **WHEN** the approved workspace, AMPLS, resource associations, private endpoint, and DNS are available
 - **THEN** a trace from each required sender arrives at its intended component through that sender's approved private path without replacing existing monitoring resources

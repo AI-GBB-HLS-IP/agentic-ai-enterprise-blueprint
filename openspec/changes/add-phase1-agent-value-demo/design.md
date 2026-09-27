@@ -113,8 +113,18 @@ change shared settings to make the demo pass. Validate AKS, Foundry-generated tr
 gateway telemetry separately. A private route from AKS is not proof that the Foundry runtime or
 APIM logger can use the same path or identity mechanism. If a sender's supported private
 telemetry path cannot be established, that runtime's observability remains BLOCKED without a
-public-ingestion fallback. Existing APIM logger authentication must be assessed explicitly rather
-than described as managed identity without evidence.
+public-ingestion fallback.
+
+The current APIM logger in `infra/modules/apim/observability.bicep` obtains the Application
+Insights instrumentation key from the component and configures it as logger credentials. Preserve
+that existing logger authentication for this POC; do not describe it as managed identity or add a
+logger-authentication migration to this change. The instrumentation key is resource-derived at
+deployment, not a literal committed credential. Separately verify that this logger's telemetry
+reaches the intended APIM Application Insights component over the monitoring owner's approved
+private ingestion route, without changing its public-access mode or silently falling back to a
+public route. If policy rejects the existing logger mechanism or the route is unsupported, keep
+APIM telemetry readiness BLOCKED and propose any required authentication migration as a separate,
+feasibility-checked scope decision.
 
 A single Application Insights component was rejected because gateway and application ownership,
 alerts, sampling, and telemetry volume differ. Creating new workspace/AMPLS infrastructure when
@@ -264,7 +274,7 @@ This table is the coverage record, not a new runtime gate or a second task syste
 | [Shared platform](specs/phase1-shared-agent-platform/spec.md): Shared Phase 1 service foundation | 1-3; shared composition/monitoring | 2.1-2.8 | Deploy foundation before Foundry approval; Preserve APIM telemetry boundary; Resolve the agent telemetry workspace |
 | Shared platform: Approval-gated platform activation | 1; account and project entry points | 2.6, 6.1-6.7, 6.9 | Block Foundry-dependent activation; Provision one account after approval; Continue after approval; Missing shared-resource handoff |
 | Shared platform: Repeatable onboarding on one POC account | 1-2,7; project modules and legacy entry point | 6.3-6.9 | Onboard a second project; Repeat project onboarding; Retain the legacy deployment interface |
-| Shared platform: Private and identity-based access | 1,3,6,8; endpoints/DNS, identities | 1.5-1.6, 2.3-2.5, 2.8, 5.1-5.3, 10.2-10.3 | Validate private connectivity; Reject embedded credentials |
+| Shared platform: Private and identity-based access, including scoped APIM logger exception | 1,3,6,8; endpoints/DNS, identities, APIM logger/private ingestion path | 1.5-1.6, 2.3-2.5, 2.8, 5.1-5.3, 10.2-10.3 | Validate private connectivity; Reject embedded credentials; Preserve and separately validate the existing APIM telemetry logger; APIM telemetry policy or private route is unsupported |
 | Shared platform: Reusable non-sensitive sample corpus; Phase 1 sharing is not a permanent global contract | 2,4; shared data and guidance | 3.1-3.4, 11.2-11.3 | Prepare grounding data; Document deferred scale decisions |
 | [Grounding](specs/foundry-iq-grounding/spec.md): Foundry IQ knowledge base; Searchable ingestion pipeline | 4; Storage/Search ingestion | 1.3, 3.1-3.4, 7.1-7.5 | Create indexed knowledge source; Keep Foundry-dependent creation gated; Complete initial ingestion; Detect incomplete ingestion |
 | Grounding: Grounded retrieval with citations; Shared knowledge contract for both agents | 4-5,9; knowledge interface and both runtimes | 7.4, 7.6, 8.1-8.2, 9.2, 10.1 | Retrieve an expected answer; Avoid unsupported claims; Publish the retrieval interface contract; Block an undefined retrieval interface; Compare grounding behavior |

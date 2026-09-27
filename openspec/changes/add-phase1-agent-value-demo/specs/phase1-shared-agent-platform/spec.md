@@ -65,15 +65,32 @@ demonstrate this behavior without requiring a second full agent demonstration.
 ### Requirement: Private and identity-based access
 The shared platform SHALL disable public data-plane access where the selected service supports
 the required private deployment model and SHALL use Microsoft Entra managed identities for
-service-to-service authentication.
+service-to-service authentication where the service integration supports that authentication
+method.
+
+For this POC, the existing APIM-to-Application-Insights logger SHALL retain its current
+instrumentation-key-based configuration. This is a narrow compatibility exception, not a claim
+that the logger uses managed identity and not a general exception for agent or application
+service-to-service access. APIM telemetry's private ingestion route and destination SHALL be
+validated independently of its logger authentication. If the approved monitoring policy forbids
+this logger configuration or its private ingestion route cannot be established, APIM telemetry
+readiness SHALL remain blocked; this change does not silently migrate the logger.
 
 #### Scenario: Validate private connectivity
 - **WHEN** a shared service is marked ready
 - **THEN** its required private endpoint is approved, its private name resolves from an approved network location, and no unintended public data-plane route is enabled
 
 #### Scenario: Reject embedded credentials
-- **WHEN** an agent or platform component accesses Cosmos DB, Storage, Azure AI Search, APIM, or telemetry ingestion
+- **WHEN** an agent or platform component accesses Cosmos DB, Storage, Azure AI Search, APIM, or agent telemetry ingestion
 - **THEN** it uses an approved managed identity or workload identity and does not require a committed account key, connection secret, or access token
+
+#### Scenario: Preserve and separately validate the existing APIM telemetry logger
+- **WHEN** APIM sends gateway telemetry through the existing Application Insights logger
+- **THEN** the POC retains its existing instrumentation-key-based logger configuration, makes no managed-identity claim for that logger, and separately verifies the approved private ingestion route and destination without committing a literal instrumentation key
+
+#### Scenario: APIM telemetry policy or private route is unsupported
+- **WHEN** the monitoring owner disallows the existing logger authentication or its private ingestion route cannot be verified
+- **THEN** APIM telemetry readiness remains blocked and no public-ingestion fallback or unapproved logger-authentication migration is introduced
 
 ### Requirement: Reusable non-sensitive sample corpus
 The pre-approval stage SHALL place a small generic, non-sensitive document corpus in a dedicated
