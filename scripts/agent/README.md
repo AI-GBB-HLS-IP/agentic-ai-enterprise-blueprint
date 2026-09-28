@@ -109,10 +109,13 @@ with the actual shared-services deployment outputs and approved subnet, or expor
 corresponding environment variables. Explicitly set all four `AGENT_PE_CREATE_*` variables
 to `true` or `false` (or replace those expressions with explicit booleans in the local file).
 Each `false` requires the full ID of an existing endpoint for that exact service/subresource.
-The AMPLS scope and endpoint IDs are required owner-provided references: if either is unavailable,
-this stage remains blocked. Do not substitute an unrelated endpoint.
+This stage does not require AMPLS IDs. If an older local customer parameter copy contains
+`approvedAmplsPrivateEndpointId` or `approvedAmplsResourceId`, remove those lines before
+validation; they are no longer parameters of this template. Monitoring-owner approval and the
+private Azure Monitor route remain separate BLOCKED gates for observability and complete POC
+readiness; removing these inputs does not authorize public telemetry.
 
-Only after endpoint inventory, monitoring-owner inputs, and network-owner approval, review:
+Only after endpoint inventory and network-owner approval, review:
 
 ```bash
 az deployment group what-if \
@@ -123,4 +126,5 @@ az deployment group what-if \
 
 This stage does not change the subnet NSG or route table, configure AMPLS, or associate private
 DNS. It does not establish private reachability; validate connection approval and DNS separately
-after the owner-approved association.
+after the owner-approved association. Do not count the four service endpoint outputs as
+monitoring evidence.

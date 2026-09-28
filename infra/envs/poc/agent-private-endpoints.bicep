@@ -42,12 +42,6 @@ param createAISearchPrivateEndpoint bool
 @description('Existing Azure AI Search private endpoint ID required when createAISearchPrivateEndpoint is false.')
 param aiSearchPrivateEndpointId string = ''
 
-@description('Approved, owner-managed AMPLS private endpoint ID. This stage only references it.')
-param approvedAmplsPrivateEndpointId string
-
-@description('Approved Azure Monitor Private Link Scope resource ID targeted by the supplied AMPLS endpoint.')
-param approvedAmplsResourceId string
-
 @description('Tags applied only to newly created private endpoints.')
 param tags object = {}
 
@@ -68,8 +62,6 @@ module privateEndpoints '../../modules/agent/shared-private-endpoints.bicep' = {
     cosmosDBPrivateEndpointId: cosmosDBPrivateEndpointId
     createAISearchPrivateEndpoint: createAISearchPrivateEndpoint
     aiSearchPrivateEndpointId: aiSearchPrivateEndpointId
-    approvedAmplsPrivateEndpointId: approvedAmplsPrivateEndpointId
-    approvedAmplsResourceId: approvedAmplsResourceId
     tags: tags
   }
 }
@@ -78,4 +70,3 @@ output storagePrivateEndpointId string = privateEndpoints.outputs.storagePrivate
 output keyVaultPrivateEndpointId string = privateEndpoints.outputs.keyVaultPrivateEndpointId
 output cosmosDBPrivateEndpointId string = privateEndpoints.outputs.cosmosDBPrivateEndpointId
 output aiSearchPrivateEndpointId string = privateEndpoints.outputs.aiSearchPrivateEndpointId
-output amplsPrivateEndpointId string = privateEndpoints.outputs.amplsPrivateEndpointId

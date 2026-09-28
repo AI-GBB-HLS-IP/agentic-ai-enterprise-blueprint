@@ -42,12 +42,6 @@ param createAISearchPrivateEndpoint bool
 @description('Existing Azure AI Search private endpoint ID required when createAISearchPrivateEndpoint is false.')
 param aiSearchPrivateEndpointId string = ''
 
-@description('Approved, owner-managed AMPLS private endpoint ID. This module only references it.')
-param approvedAmplsPrivateEndpointId string
-
-@description('Approved Azure Monitor Private Link Scope resource ID targeted by the supplied AMPLS endpoint.')
-param approvedAmplsResourceId string
-
 @description('Tags applied only to newly created private endpoints.')
 param tags object = {}
 
@@ -216,24 +210,6 @@ resource newAISearchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-
   }
 }
 
-var amplsEndpointParts = split(approvedAmplsPrivateEndpointId, '/')
-var _validateAmplsEndpointId = ((length(amplsEndpointParts) == 9) || (length(amplsEndpointParts) == 10 && empty(amplsEndpointParts[9]))) && toLower(amplsEndpointParts[1]) == 'subscriptions' && toLower(amplsEndpointParts[3]) == 'resourcegroups' && toLower(amplsEndpointParts[5]) == 'providers' && toLower(amplsEndpointParts[6]) == 'microsoft.network' && toLower(amplsEndpointParts[7]) == 'privateendpoints' && !empty(amplsEndpointParts[8])
-  ? true
-  : fail('approvedAmplsPrivateEndpointId must be a full owner-managed Microsoft.Network/privateEndpoints resource ID.')
-var amplsEndpointName = _validateAmplsEndpointId ? amplsEndpointParts[8] : ''
-var amplsEndpointSubscriptionId = _validateAmplsEndpointId ? amplsEndpointParts[2] : ''
-var amplsEndpointResourceGroupName = _validateAmplsEndpointId ? amplsEndpointParts[4] : ''
-var amplsTargetParts = split(approvedAmplsResourceId, '/')
-var _validateAmplsTargetId = ((length(amplsTargetParts) == 9) || (length(amplsTargetParts) == 10 && empty(amplsTargetParts[9]))) && toLower(amplsTargetParts[1]) == 'subscriptions' && toLower(amplsTargetParts[3]) == 'resourcegroups' && toLower(amplsTargetParts[5]) == 'providers' && toLower(amplsTargetParts[6]) == 'microsoft.insights' && toLower(amplsTargetParts[7]) == 'privatelinkscopes' && !empty(amplsTargetParts[8])
-  ? true
-  : fail('approvedAmplsResourceId must be a full ARM resource ID for Microsoft.Insights/privateLinkScopes.')
-var validatedAmplsEndpointName = _validateAmplsEndpointId && _validateAmplsTargetId ? amplsEndpointName : fail('A valid AMPLS endpoint and target resource ID are required.')
-
-resource approvedAmplsPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' existing = {
-  scope: resourceGroup(amplsEndpointSubscriptionId, amplsEndpointResourceGroupName)
-  name: validatedAmplsEndpointName
-}
-
 #disable-next-line BCP318
 output storagePrivateEndpointId string = createStoragePrivateEndpoint ? newStoragePrivateEndpoint.id : existingStoragePrivateEndpoint.id
 #disable-next-line BCP318
@@ -242,4 +218,3 @@ output keyVaultPrivateEndpointId string = createKeyVaultPrivateEndpoint ? newKey
 output cosmosDBPrivateEndpointId string = createCosmosDBPrivateEndpoint ? newCosmosDBPrivateEndpoint.id : existingCosmosDBPrivateEndpoint.id
 #disable-next-line BCP318
 output aiSearchPrivateEndpointId string = createAISearchPrivateEndpoint ? newAISearchPrivateEndpoint.id : existingAISearchPrivateEndpoint.id
-output amplsPrivateEndpointId string = approvedAmplsPrivateEndpoint.id

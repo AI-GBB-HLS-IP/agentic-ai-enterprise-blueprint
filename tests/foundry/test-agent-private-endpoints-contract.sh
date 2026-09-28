@@ -35,8 +35,8 @@ for name in required_flags:
     if "defaultValue" in parameters.get(name, {}):
         sys.exit(f"{name} must require an explicit create-or-reuse decision")
 for name in ("approvedAmplsPrivateEndpointId", "approvedAmplsResourceId"):
-    if "defaultValue" in parameters.get(name, {}):
-        sys.exit(f"{name} must be required; the AMPLS endpoint is reused, not created")
+    if name in parameters:
+        sys.exit(f"{name} must not gate the four service endpoints")
 
 deployments = [
     resource
@@ -46,6 +46,8 @@ deployments = [
 if len(deployments) != 1:
     sys.exit(f"expected one private-endpoint module deployment, found {len(deployments)}")
 nested = deployments[0].get("properties", {}).get("template", {})
+if any(name in nested.get("parameters", {}) for name in ("approvedAmplsPrivateEndpointId", "approvedAmplsResourceId")):
+    sys.exit("the service endpoint module must not require AMPLS inputs")
 resources = nested.get("resources", [])
 endpoints = [
     resource for resource in resources
@@ -61,7 +63,7 @@ if any(
 if any(resource.get("type", "").startswith("Microsoft.CognitiveServices/") for resource in resources):
     sys.exit("the pre-approval endpoint stage must not create Foundry account or project endpoints")
 if any(resource.get("type") == "Microsoft.Insights/privateLinkScopes" for resource in resources):
-    sys.exit("the private-endpoint stage must reuse, not create, an AMPLS")
+    sys.exit("the private-endpoint stage must not create an AMPLS")
 
 expected = {
     "phase1-agent-storage-connection": ("storageAccountId", ["blob"], "createStoragePrivateEndpoint"),
@@ -92,10 +94,11 @@ for name in (
     "keyVaultPrivateEndpointId",
     "cosmosDBPrivateEndpointId",
     "aiSearchPrivateEndpointId",
-    "amplsPrivateEndpointId",
 ):
     if name not in outputs:
         sys.exit(f"private endpoint handoff is missing output {name}")
+if "amplsPrivateEndpointId" in outputs or "amplsPrivateEndpointId" in nested.get("outputs", {}):
+    sys.exit("the service endpoint handoff must not claim an AMPLS endpoint")
 
 print("Shared service private endpoint create/reuse contracts passed.")
 PY
