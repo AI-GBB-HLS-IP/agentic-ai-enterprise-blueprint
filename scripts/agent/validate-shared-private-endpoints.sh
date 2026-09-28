@@ -19,8 +19,6 @@ check_required_input COSMOS_DB_ACCOUNT_ID "${COSMOS_DB_ACCOUNT_ID:-}"
 check_required_input COSMOS_DB_PRIVATE_ENDPOINT_ID "${COSMOS_DB_PRIVATE_ENDPOINT_ID:-}"
 check_required_input AI_SEARCH_SERVICE_ID "${AI_SEARCH_SERVICE_ID:-}"
 check_required_input AI_SEARCH_PRIVATE_ENDPOINT_ID "${AI_SEARCH_PRIVATE_ENDPOINT_ID:-}"
-check_required_input AMPLS_RESOURCE_ID "${AMPLS_RESOURCE_ID:-}"
-check_required_input AMPLS_PRIVATE_ENDPOINT_ID "${AMPLS_PRIVATE_ENDPOINT_ID:-}"
 if [[ "$missing" -ne 0 ]]; then
   exit 2
 fi
@@ -35,7 +33,6 @@ endpoint_ids=(
   "$KEY_VAULT_PRIVATE_ENDPOINT_ID"
   "$COSMOS_DB_PRIVATE_ENDPOINT_ID"
   "$AI_SEARCH_PRIVATE_ENDPOINT_ID"
-  "$AMPLS_PRIVATE_ENDPOINT_ID"
 )
 for ((left = 0; left < ${#endpoint_ids[@]}; left++)); do
   left_id_lower="$(printf '%s' "${endpoint_ids[$left]}" | tr '[:upper:]' '[:lower:]')"
@@ -149,8 +146,6 @@ validate_endpoint "Key Vault" "$KEY_VAULT_PRIVATE_ENDPOINT_ID" "$KEY_VAULT_ID" "
 validate_endpoint "Cosmos DB" "$COSMOS_DB_PRIVATE_ENDPOINT_ID" "$COSMOS_DB_ACCOUNT_ID" "Sql" ||
   exit 2
 validate_endpoint "Azure AI Search" "$AI_SEARCH_PRIVATE_ENDPOINT_ID" "$AI_SEARCH_SERVICE_ID" "searchService" ||
-  exit 2
-validate_endpoint "AMPLS" "$AMPLS_PRIVATE_ENDPOINT_ID" "$AMPLS_RESOURCE_ID" "azuremonitor" ||
   exit 2
 
 printf 'PASSED: supplied service endpoints target the expected resources/subresources and have approved connections and private IPs. DNS association remains a separate stage.\n'

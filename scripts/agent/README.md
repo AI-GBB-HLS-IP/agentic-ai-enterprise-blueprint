@@ -127,4 +127,7 @@ az deployment group what-if \
 This stage does not change the subnet NSG or route table, configure AMPLS, or associate private
 DNS. It does not establish private reachability; validate connection approval and DNS separately
 after the owner-approved association. Do not count the four service endpoint outputs as
-monitoring evidence.
+monitoring evidence. `scripts/agent/validate-shared-private-endpoints.sh` checks only these
+four endpoints' target/subresource, approved connection, distinct IDs, and assigned private IP;
+it requires no AMPLS inputs and does not verify DNS resolution. Monitoring remains gated by
+`scripts/agent/monitoring-preflight.sh` and separate live telemetry validation.

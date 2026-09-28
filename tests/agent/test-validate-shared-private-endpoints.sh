@@ -23,7 +23,6 @@ if [[ "$1" == "network" && "$2" == "private-endpoint" && "$3" == "show" ]]; then
     *pe-keyvault) label=keyvault; target="$KEY_VAULT_ID"; group=vault ;;
     *pe-cosmos) label=cosmos; target="$COSMOS_DB_ACCOUNT_ID"; group=Sql ;;
     *pe-search) label=search; target="$AI_SEARCH_SERVICE_ID"; group=searchService ;;
-    *pe-ampls) label=ampls; target="$AMPLS_RESOURCE_ID"; group=azuremonitor ;;
     *) exit 2 ;;
   esac
   status=Approved
@@ -68,13 +67,19 @@ export COSMOS_DB_ACCOUNT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/
 export COSMOS_DB_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-cosmos
 export AI_SEARCH_SERVICE_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Search/searchServices/search-example
 export AI_SEARCH_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-search
-export AMPLS_RESOURCE_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Insights/privateLinkScopes/ampls-example
-export AMPLS_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-ampls
 export MOCK_NIC_IP=10.0.1.4
 
-output="$("$VALIDATE")"
+output="$(env -u AMPLS_RESOURCE_ID -u AMPLS_PRIVATE_ENDPOINT_ID "$VALIDATE")"
 grep -Fq 'PASSED: supplied service endpoints target the expected resources/subresources and have approved connections and private IPs.' <<<"$output" ||
-  fail "approved private endpoints must pass the validation contract"
+  fail "approved service endpoints must validate without AMPLS inputs"
+
+set +e
+output="$(env -u AI_SEARCH_PRIVATE_ENDPOINT_ID "$VALIDATE" 2>&1)"
+status=$?
+set -e
+[[ "$status" -eq 2 ]] || fail "missing service endpoint ID must block validation"
+grep -Fq 'BLOCKED: required private endpoint input AI_SEARCH_PRIVATE_ENDPOINT_ID is not set.' <<<"$output" ||
+  fail "missing service endpoint ID must be named"
 
 set +e
 output="$(MOCK_REJECTED_ENDPOINT=storage "$VALIDATE" 2>&1)"
