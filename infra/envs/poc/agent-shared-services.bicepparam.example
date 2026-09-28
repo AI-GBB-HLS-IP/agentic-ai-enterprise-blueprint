@@ -1,0 +1,24 @@
+using './agent-shared-services.bicep'
+
+// PLACEHOLDER VALUES ONLY. Copy this file to the ignored
+// `agent-shared-services.customer.bicepparam` and replace every placeholder with an
+// owner-approved value before running what-if or deployment. Do not commit customer-specific
+// values in this tracked example.
+//
+// Empty existing-resource IDs mean CREATE a new resource. To reuse an existing resource, set
+// its ID to the full ARM resource ID and provide the matching name parameter as well.
+// Review `az deployment group what-if` output before deploying; this stage can create shared
+// Storage, Key Vault, AI Search, and Cosmos DB resources.
+
+param location = '<approved-region>'
+param storageAccountName = '<globally-unique-storage-account-name>'
+param existingAzureStorageAccountResourceId = ''
+param keyVaultName = '<globally-unique-key-vault-name>'
+param existingKeyVaultResourceId = ''
+param aiSearchServiceName = '<globally-unique-ai-search-service-name>'
+param existingAISearchResourceId = ''
+param cosmosDBAccountName = '<globally-unique-cosmos-db-account-name>'
+param existingAzureCosmosDBAccountResourceId = ''
+param tags = {
+  'phase1-agent-platform': 'true'
+}

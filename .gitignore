@@ -20,6 +20,8 @@
 **/*.local-evidence.*
 **/brownfield-*.bicepparam
 !**/brownfield-*.bicepparam.example
+**/agent-shared-services.customer.bicepparam
+!**/agent-shared-services.bicepparam.example
 **/foundry.customer.bicepparam
 **/apim.customer.bicepparam
 !**/apim.customer.example.bicepparam
