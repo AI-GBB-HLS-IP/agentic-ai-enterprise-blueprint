@@ -8,7 +8,8 @@ using './agent-shared-services.bicep'
 // Empty existing-resource IDs mean CREATE a new resource. To reuse an existing resource, set
 // its ID to the full ARM resource ID and provide the matching name parameter as well.
 // Review `az deployment group what-if` output before deploying; this stage can create shared
-// Storage, Key Vault, AI Search, and Cosmos DB resources.
+// Storage, Key Vault, AI Search, and Cosmos DB resources. Tags apply to newly created resources
+// only; reused resources retain their existing tags. Replace tag values with approved values.
 
 param location = '<approved-region>'
 param storageAccountName = '<globally-unique-storage-account-name>'
@@ -21,4 +22,7 @@ param cosmosDBAccountName = '<globally-unique-cosmos-db-account-name>'
 param existingAzureCosmosDBAccountResourceId = ''
 param tags = {
   'phase1-agent-platform': 'true'
+  ProjectCode: '<approved-project-code>'
+  ProjectID: '<approved-project-id>'
+  Component: '<approved-shared-services-component>'
 }
