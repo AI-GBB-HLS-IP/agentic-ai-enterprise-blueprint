@@ -10,6 +10,18 @@ Deploy Chapter 02 through two independently deployable and independently verifia
 Stage 1 provides a usable private APIM foundation without Foundry. Stage 2 adds a governed
 Foundry-backed API after the separate customer Foundry governance process is complete.
 
+### Related Phase 1 agent value demonstration
+
+[Issue #83](https://github.com/AI-GBB-HLS-IP/agentic-ai-enterprise-blueprint/issues/83) and the
+[OpenSpec change](../../openspec/changes/add-phase1-agent-value-demo/proposal.md) scope a
+separate read-only tool API for the Foundry prompt agent and independent AKS agent. The tool API
+uses approved Entra caller identities without subscription keys; APIM's existing model API
+authentication remains unchanged. Initial acceptance uses one Foundry account with repeatable
+project onboarding and a second-project non-interference check. The Foundry-managed Hosted Agent
+is a later follow-on, while business-unit accounts and permanent production
+isolation/capacity/chargeback/retention topology remain deferred. This link does not claim those
+tool integrations or runtime paths are already deployed.
+
 ## Stage 1 — APIM Foundation
 
 ### Inputs

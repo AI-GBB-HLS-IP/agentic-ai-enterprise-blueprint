@@ -19,11 +19,6 @@ resource aiSearch 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   }
   properties: {
     disableLocalAuth: true
-    authOptions: {
-      aadOrApiKey: {
-        aadAuthFailureMode: 'http401WithBearerChallenge'
-      }
-    }
     encryptionWithCmk: {
       enforcement: 'Unspecified'
     }

@@ -1,0 +1,126 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Phase 1 Sample Record Lookup",
+    "version": "1.0.0",
+    "description": "Read-only lookup against generic deterministic fixture data."
+  },
+  "paths": {
+    "/records/{recordId}": {
+      "get": {
+        "operationId": "getSampleRecord",
+        "summary": "Get a sample record",
+        "description": "Returns one generic fixture record. The reserved identifier sample-backend-error produces a controlled backend failure for validation.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "recordId",
+            "in": "path",
+            "required": true,
+            "description": "Stable identifier of the generic sample record.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sample record found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SampleRecord"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No sample record exists for this identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The lookup backend is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "SampleRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "recordId",
+          "name",
+          "status",
+          "location"
+        ],
+        "properties": {
+          "recordId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available"
+            ]
+          },
+          "location": {
+            "type": "string"
+          }
+        }
+      },
+      "LookupError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "not_found",
+              "backend_unavailable"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

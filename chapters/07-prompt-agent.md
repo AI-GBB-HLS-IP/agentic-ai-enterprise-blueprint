@@ -270,3 +270,18 @@ Expected flow:
 ## Next Steps
 
 Proceed to [Chapter 08 — Build a Hosted Agent in Foundry](./08-hosted-agent.md)
+
+## Phase 1 agent value demonstration scope
+
+[Issue #83](https://github.com/AI-GBB-HLS-IP/agentic-ai-enterprise-blueprint/issues/83) and the
+[OpenSpec change](../openspec/changes/add-phase1-agent-value-demo/proposal.md) define this
+prompt-agent path as one of two initial runtimes; the other is an independently implemented
+code-based agent on AKS. Both use the shared Foundry IQ knowledge contract, one read-only
+deterministic APIM tool, and comparable durable-memory and telemetry acceptance checks. The POC
+uses one Foundry account and supports repeatable project onboarding, with a second-project
+non-interference check. This chapter's broader MCP/A2A and enterprise-action examples are not
+initial Phase 1 acceptance evidence; the Hosted Agent is a separately scoped follow-on.
+Business-unit accounts and permanent production isolation, capacity, chargeback, and retention
+decisions remain deferred. If the prompt agent and another Foundry agent share a verified caller
+principal, both receive the same POC tool permission; agent/project headers are diagnostic only
+and do not establish per-agent authorization.

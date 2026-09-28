@@ -14,6 +14,10 @@ for the initial value demonstration.
 - **WHEN** Foundry approval is not yet available
 - **THEN** the shared service instances can be deployed and validated without creating a Foundry account, project, project connections, capability host, or Foundry-managed Cosmos DB structures
 
+#### Scenario: Prepare service endpoints while monitoring is unresolved
+- **WHEN** the four service endpoint targets, subnet, and create-or-reuse decisions are approved but AMPLS approval is pending
+- **THEN** the service endpoint stage requires no AMPLS resource or endpoint IDs and emits only the four service endpoint IDs; monitoring and overall readiness remain blocked until their separate private telemetry gates pass
+
 #### Scenario: Preserve APIM telemetry boundary
 - **WHEN** the agent observability resources are deployed
 - **THEN** the existing APIM Application Insights component remains dedicated to APIM gateway telemetry and a separate Application Insights component is available for agent and application telemetry

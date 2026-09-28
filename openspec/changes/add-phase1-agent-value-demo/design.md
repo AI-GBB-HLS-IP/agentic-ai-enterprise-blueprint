@@ -58,7 +58,9 @@ Validate this with one extra project, not a full agent demo per project or a pro
 
 The shared-stage output contract carries full Storage, Search, Cosmos and applicable Key Vault
 resource IDs, service endpoints, existing private-endpoint IDs and target subresources, subnet/DNS
-ownership and association state, workspace/agent component/AMPLS IDs, and readiness by resource.
+ownership and association state, separately approved workspace/agent component/AMPLS IDs when
+available, and readiness by resource. Missing monitoring IDs remain BLOCKED for observability,
+not for bare service endpoint creation.
 Account outputs add the account ID/endpoint/identity and account endpoint/DNS readiness. Project
 outputs add project ID/endpoint/identity and capability readiness. These are ordinary deployment
 outputs and parameters, not a new ownership-evidence system.
@@ -76,6 +78,11 @@ Retain bare endpoint creation followed by separately owned DNS association, incl
 account DNS. Model provisioning is account-scoped and cannot require a project that has not yet
 been created. Project creation precedes project-identity validation, connections/RBAC, and
 capability activation; preflight must not require the new project's endpoint before creating it.
+The four shared-service endpoints are independent of Azure Monitor: their bare endpoint
+composition requires only service, subnet, and create-or-reuse inputs and emits only service
+endpoint IDs. AMPLS IDs belong to the separately blocked monitoring handoff in task 1.6, not
+this composition. Endpoint creation does not establish DNS, private reachability, or monitoring
+readiness.
 Foundry sender/tool readiness is not a prerequisite for creating the account/project needed to
 evaluate those paths. Gate each stage on its actual prerequisites rather than an aggregate
 platform-ready flag. Existing deployment approval/what-if checks remain in place.
@@ -271,7 +278,7 @@ This table is the coverage record, not a new runtime gate or a second task syste
 
 | Spec and material requirements | Design / affected path | Tasks | Acceptance scenarios or evidence |
 |---|---|---|---|
-| [Shared platform](specs/phase1-shared-agent-platform/spec.md): Shared Phase 1 service foundation | 1-3; shared composition/monitoring | 2.1-2.8 | Deploy foundation before Foundry approval; Preserve APIM telemetry boundary; Resolve the agent telemetry workspace |
+| [Shared platform](specs/phase1-shared-agent-platform/spec.md): Shared Phase 1 service foundation | 1-3; shared composition, independent service endpoints, and monitoring | 2.1-2.8 | Deploy foundation before Foundry approval; Prepare service endpoints while monitoring is unresolved; Preserve APIM telemetry boundary; Resolve the agent telemetry workspace |
 | Shared platform: Approval-gated platform activation | 1; account and project entry points | 2.6, 6.1-6.7, 6.9 | Block Foundry-dependent activation; Provision one account after approval; Continue after approval; Missing shared-resource handoff |
 | Shared platform: Repeatable onboarding on one POC account | 1-2,7; project modules and legacy entry point | 6.3-6.9 | Onboard a second project; Repeat project onboarding; Retain the legacy deployment interface |
 | Shared platform: Private and identity-based access, including scoped APIM logger exception | 1,3,6,8; endpoints/DNS, identities, APIM logger/private ingestion path | 1.5-1.6, 2.3-2.5, 2.8, 5.1-5.3, 10.2-10.3 | Validate private connectivity; Reject embedded credentials; Preserve and separately validate the existing APIM telemetry logger; APIM telemetry policy or private route is unsupported |
@@ -286,7 +293,7 @@ This table is the coverage record, not a new runtime gate or a second task syste
 | [Delivery](specs/dual-agent-delivery/spec.md): Separate agent implementations; Common functional contract | 5,9; Foundry prompt and AKS deployments | 8.1-8.5, 9.1-9.7, 10.1, 11.5 | Identify both deployments; Update one implementation independently; Execute comparable workflow |
 | Delivery: AKS deployment readiness; No hidden Foundry-hosting substitution | 5-6; cluster workload and guidance | 1.1, 5.1-5.5, 9.6, 11.1 | Deploy healthy AKS workload; Block without AKS prerequisite; Report runtime location |
 | Delivery: Foundry-managed hosted agent is a follow-on | 5; roadmap only | 11.1, 11.3 | Complete the initial two-agent POC; Plan the third runtime |
-| [Observability](specs/agent-observability-validation/spec.md): Separate APIM and agent telemetry components; Reuse approved private monitoring connectivity | 3; approved AMPLS/workspace and both components | 1.6, 2.2-2.4, 2.8, 4.5, 8.4, 9.5, 10.4 | Route gateway telemetry; Route agent telemetry; Reuse the shared monitoring path; Missing approval or unsupported telemetry route |
+| [Observability](specs/agent-observability-validation/spec.md): Separate APIM and agent telemetry components; Reuse approved private monitoring connectivity | 3; approved AMPLS/workspace and both components, separate from service endpoint composition | 1.6, 2.2, 2.4, 2.8, 4.5, 8.4, 9.5, 10.4 | Route gateway telemetry; Route agent telemetry; Reuse the shared monitoring path; Missing approval or unsupported telemetry route |
 | Observability: Correlated dependency telemetry; Repeatable end-to-end validation | 3,9; runtime-specific validation adapters | 10.1-10.5, 11.5 | Investigate one transaction; Pass the value demonstration; Fail closed on incomplete evidence |
 | Observability: Safe validation evidence | 9; logs/evidence | 8.4, 9.5, 10.6, 11.4 | Publish validation evidence |
 
@@ -316,10 +323,11 @@ This table is the coverage record, not a new runtime gate or a second task syste
 
 ## Migration Plan
 
-1. Deploy or reuse shared Cosmos DB, Storage, Search, applicable Key Vault, and agent Application
-   Insights; consume approved existing workspace/AMPLS and record the shared-resource handoff.
-2. Complete bare private endpoints and the existing staged DNS association process; validate
-   identity-based data-plane access from approved network locations.
+1. Deploy or reuse shared Cosmos DB, Storage, Search, and applicable Key Vault. The agent
+   Application Insights stage consumes the approved existing workspace and monitoring handoff
+   separately; it remains blocked without those inputs.
+2. Complete bare service private endpoints without AMPLS inputs, then the owner-approved staged
+   DNS association; validate identity-based data-plane access from approved network locations.
 3. Upload the generic sample corpus and record its expected document identifiers and test
    questions.
 4. Prepare the AKS namespace, workload identity binding, registry access, private dependency
@@ -350,7 +358,7 @@ managed hosted-agent follow-on. These are not open architecture questions.
 |---|---|---|
 | Approved AKS cluster, registry, namespace and private ingress reachable by callers/APIM | 1.1, 5.1 | AKS/tool deployment, not independent shared-service provisioning |
 | Tenant API applications and verified Foundry OpenAPI caller/audience for the pinned runtime | 1.5 | Foundry tool integration; offline policy work may proceed, no claim of verified caller identity |
-| Shared workspace/AMPLS owner approval and supported private telemetry path per sender | 1.6, 2.8 | Affected telemetry integration and complete demo acceptance |
+| Shared workspace/AMPLS owner approval and supported private telemetry path per sender | 1.6, 2.8 | Affected telemetry integration and complete demo acceptance, not four-service endpoint creation |
 | Foundry account/project and regional model approvals, compatible provider/API version | 1.3, 6.1 | Account provisioning and dependent activation |
 | Pinned Foundry IQ retrieval endpoint/schema/audience usable by both runtimes | 7.6 | Agent retrieval implementation/integration, not pre-approval corpus upload |
 

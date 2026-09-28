@@ -23,6 +23,18 @@ integration, BYO VNet association, and approved model deployment are deployed in
 Remaining validation and negative-path tasks continue to be tracked in `tasks.md` and the
 `validation/` evidence files.
 
+### Related Phase 1 agent value demonstration
+
+[Issue #83](https://github.com/AI-GBB-HLS-IP/agentic-ai-enterprise-blueprint/issues/83) and the
+[OpenSpec change](../../openspec/changes/add-phase1-agent-value-demo/proposal.md) define a
+separately staged extension: prepare shared services before Foundry approval, provision one
+approved Foundry account, and onboard projects individually against the existing shared-resource
+handoff. Initial acceptance covers one Foundry prompt agent and one independent AKS agent, with a
+second-project non-interference check on the same account. The Foundry-managed Hosted Agent is a
+follow-on; business-unit accounts and permanent production isolation/capacity/chargeback/
+retention topology are deferred. These are planned extension boundaries, not claims that this
+feature's existing combined deployment already implements them.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Platform engineer provisions a private Foundry foundation (Priority: P1)
