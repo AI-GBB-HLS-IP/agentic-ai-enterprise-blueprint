@@ -99,3 +99,28 @@ The POC shares resources only for the initial demonstration and a second-project
 non-interference check on the same Foundry account. This does not establish production
 multi-project isolation, business-unit accounts, capacity guarantees, chargeback, or retention
 governance.
+
+## Private endpoint parameter handoff
+
+`infra/envs/poc/agent-private-endpoints.bicepparam.example` is a tracked placeholder example
+for `infra/envs/poc/agent-private-endpoints.bicep`. Copy it to the ignored
+`agent-private-endpoints.customer.bicepparam` in the same directory; replace placeholder IDs
+with the actual shared-services deployment outputs and approved subnet, or export the
+corresponding environment variables. Explicitly set all four `AGENT_PE_CREATE_*` variables
+to `true` or `false` (or replace those expressions with explicit booleans in the local file).
+Each `false` requires the full ID of an existing endpoint for that exact service/subresource.
+The AMPLS scope and endpoint IDs are required owner-provided references: if either is unavailable,
+this stage remains blocked. Do not substitute an unrelated endpoint.
+
+Only after endpoint inventory, monitoring-owner inputs, and network-owner approval, review:
+
+```bash
+az deployment group what-if \
+  --resource-group "<approved-resource-group>" \
+  --template-file infra/envs/poc/agent-private-endpoints.bicep \
+  --parameters infra/envs/poc/agent-private-endpoints.customer.bicepparam
+```
+
+This stage does not change the subnet NSG or route table, configure AMPLS, or associate private
+DNS. It does not establish private reachability; validate connection approval and DNS separately
+after the owner-approved association.

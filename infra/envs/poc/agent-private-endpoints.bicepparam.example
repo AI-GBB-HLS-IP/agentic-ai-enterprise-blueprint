@@ -1,0 +1,38 @@
+using './agent-private-endpoints.bicep'
+
+// PLACEHOLDER VALUES ONLY. Copy to the ignored `agent-private-endpoints.customer.bicepparam`.
+// Replace all placeholders locally or export the corresponding environment variables.
+// Do not commit customer resource IDs or what-if output.
+//
+// Use the four resource IDs from the successful agent-shared-services deployment, and the
+// network-owner-approved existing private-endpoint subnet ID. Verify the four target services,
+// the endpoint deployment scope, and the subnet are permitted by the applicable subscription
+// policy. Inventory endpoint connections first; set each create flag explicitly to true ONLY
+// when no endpoint already serves that target/subresource. For reuse, set the flag to false
+// AND supply the matching existing endpoint's full ID. Do not reuse endpoints for other services.
+//
+// AMPLS scope and endpoint IDs MUST be provided by the monitoring owner. This stage references
+// them but neither creates nor configures AMPLS. Do not invent them to satisfy validation.
+// This stage creates bare endpoints only; DNS association and private reachability require
+// separate owner-approved steps. Review what-if for unintended updates and duplicate endpoints.
+
+param location = readEnvironmentVariable('AGENT_PE_LOCATION', '<approved-region>')
+param privateEndpointSubnetId = readEnvironmentVariable('AGENT_PE_SUBNET_ID', '<approved-private-endpoint-subnet-id>')
+
+param storageAccountId = readEnvironmentVariable('AGENT_PE_STORAGE_ACCOUNT_ID', '<shared-storage-account-resource-id>')
+param keyVaultId = readEnvironmentVariable('AGENT_PE_KEY_VAULT_ID', '<shared-key-vault-resource-id>')
+param cosmosDBAccountId = readEnvironmentVariable('AGENT_PE_COSMOS_DB_ACCOUNT_ID', '<shared-cosmos-db-account-resource-id>')
+param aiSearchServiceId = readEnvironmentVariable('AGENT_PE_AI_SEARCH_SERVICE_ID', '<shared-ai-search-service-resource-id>')
+
+param createStoragePrivateEndpoint = bool(readEnvironmentVariable('AGENT_PE_CREATE_STORAGE_PRIVATE_ENDPOINT'))
+param storagePrivateEndpointId = readEnvironmentVariable('AGENT_PE_STORAGE_PRIVATE_ENDPOINT_ID', '')
+param createKeyVaultPrivateEndpoint = bool(readEnvironmentVariable('AGENT_PE_CREATE_KEY_VAULT_PRIVATE_ENDPOINT'))
+param keyVaultPrivateEndpointId = readEnvironmentVariable('AGENT_PE_KEY_VAULT_PRIVATE_ENDPOINT_ID', '')
+param createCosmosDBPrivateEndpoint = bool(readEnvironmentVariable('AGENT_PE_CREATE_COSMOS_DB_PRIVATE_ENDPOINT'))
+param cosmosDBPrivateEndpointId = readEnvironmentVariable('AGENT_PE_COSMOS_DB_PRIVATE_ENDPOINT_ID', '')
+param createAISearchPrivateEndpoint = bool(readEnvironmentVariable('AGENT_PE_CREATE_AI_SEARCH_PRIVATE_ENDPOINT'))
+param aiSearchPrivateEndpointId = readEnvironmentVariable('AGENT_PE_AI_SEARCH_PRIVATE_ENDPOINT_ID', '')
+
+param approvedAmplsPrivateEndpointId = readEnvironmentVariable('AGENT_PE_APPROVED_AMPLS_PRIVATE_ENDPOINT_ID', '<monitoring-owner-approved-ampls-private-endpoint-id>')
+param approvedAmplsResourceId = readEnvironmentVariable('AGENT_PE_APPROVED_AMPLS_RESOURCE_ID', '<monitoring-owner-approved-ampls-scope-id>')
+param tags = json(readEnvironmentVariable('AGENT_PE_TAGS', '{"phase1-agent-platform":"true","ProjectCode":"<approved-project-code>","ProjectID":"<approved-project-id>","Component":"<approved-private-endpoints-component>"}'))

@@ -22,6 +22,8 @@
 !**/brownfield-*.bicepparam.example
 **/agent-shared-services.customer.bicepparam
 !**/agent-shared-services.bicepparam.example
+**/agent-private-endpoints.customer.bicepparam
+!**/agent-private-endpoints.bicepparam.example
 **/foundry.customer.bicepparam
 **/apim.customer.bicepparam
 !**/apim.customer.example.bicepparam
