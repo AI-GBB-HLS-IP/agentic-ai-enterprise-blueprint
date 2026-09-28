@@ -51,11 +51,6 @@ if not isinstance(evidence, dict):
     print("BLOCKED: redacted Foundry caller evidence must be a JSON object.", file=sys.stderr)
     sys.exit(2)
 
-for forbidden in ("access_token", "authorization", "token"):
-    if forbidden in {key.lower() for key in evidence}:
-        print("BLOCKED: caller evidence must not contain a token or authorization field.", file=sys.stderr)
-        sys.exit(2)
-
 expected = {
     "tenant_id": os.environ["TOOL_API_TENANT_ID"],
     "issuer": os.environ["TOOL_API_ISSUER"],
@@ -64,6 +59,10 @@ expected = {
     "principal_id": os.environ["FOUNDRY_CALLER_PRINCIPAL_ID"],
     "token_type": "app",
 }
+if set(evidence) != set(expected):
+    print("BLOCKED: redacted Foundry caller evidence must contain only the six approved claims.", file=sys.stderr)
+    sys.exit(2)
+
 missing_claims = [claim for claim in expected if not isinstance(evidence.get(claim), str) or not evidence[claim].strip()]
 if missing_claims:
     print(

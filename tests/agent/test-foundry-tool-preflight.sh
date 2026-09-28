@@ -53,4 +53,28 @@ set -e
 grep -Fq 'BLOCKED: redacted Foundry caller evidence does not match approved input(s): audience.' <<<"$output" ||
   fail "an audience mismatch must be named without printing claim values"
 
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT
+python3 - "$EVIDENCE" "$workdir" <<'PY'
+import json
+import pathlib
+import sys
+
+evidence = json.loads(pathlib.Path(sys.argv[1]).read_text())
+for filename, extra in (
+    ("extra.json", {"unapproved_claim": "extra"}),
+    ("nested.json", {"metadata": {"authorization": "redacted"}}),
+):
+    pathlib.Path(sys.argv[2], filename).write_text(json.dumps({**evidence, **extra}))
+PY
+for filename in extra.json nested.json; do
+  set +e
+  output="$(env "${tool_inputs[@]}" FOUNDRY_CALLER_EVIDENCE_FILE="$workdir/$filename" "$PREFLIGHT" 2>&1)"
+  status=$?
+  set -e
+  [[ "$status" -eq 2 ]] || fail "$filename must fail closed on unapproved claims"
+  grep -Fq 'BLOCKED: redacted Foundry caller evidence must contain only the six approved claims.' <<<"$output" ||
+    fail "$filename must report the approved-claims boundary"
+done
+
 printf 'Foundry tool identity preflight contract tests passed.\n'

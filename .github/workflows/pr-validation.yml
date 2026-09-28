@@ -70,8 +70,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
-      - name: Run foundry test suite
-        run: ./tests/foundry/run-tests.sh
+      - name: Run foundry and agent test suites
+        run: |
+          ./tests/foundry/run-tests.sh
+          for test_script in tests/agent/test-*.sh; do
+            echo "==> $test_script"
+            "$test_script"
+          done
 
   script-lint:
     name: Shell script lint

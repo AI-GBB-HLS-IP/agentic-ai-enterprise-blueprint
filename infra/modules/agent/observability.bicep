@@ -17,14 +17,12 @@ param apimApplicationInsightsResourceId string
 
 @description('Approved Application Insights ingestion access mode.')
 @allowed([
-  'Enabled'
   'Disabled'
 ])
 param publicNetworkAccessForIngestion string
 
 @description('Approved Application Insights query access mode.')
 @allowed([
-  'Enabled'
   'Disabled'
 ])
 param publicNetworkAccessForQuery string

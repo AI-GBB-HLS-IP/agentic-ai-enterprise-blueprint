@@ -33,6 +33,10 @@ for name in (
     if "defaultValue" in parameters.get(name, {}):
         sys.exit(f"{name} must be required; no workspace or approval fallback is allowed")
 
+for name in ("publicNetworkAccessForIngestion", "publicNetworkAccessForQuery"):
+    if parameters.get(name, {}).get("allowedValues") != ["Disabled"]:
+        sys.exit(f"{name} must disallow public Application Insights access")
+
 deployments = [
     resource
     for resource in template.get("resources", [])
@@ -42,6 +46,9 @@ if len(deployments) != 1:
     sys.exit(f"expected one observability module deployment, found {len(deployments)}")
 
 nested = deployments[0].get("properties", {}).get("template", {})
+for name in ("publicNetworkAccessForIngestion", "publicNetworkAccessForQuery"):
+    if nested.get("parameters", {}).get(name, {}).get("allowedValues") != ["Disabled"]:
+        sys.exit(f"module {name} must disallow public Application Insights access")
 resources = nested.get("resources", [])
 components = [
     resource
