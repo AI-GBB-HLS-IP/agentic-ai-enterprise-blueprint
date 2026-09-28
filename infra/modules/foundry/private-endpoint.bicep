@@ -30,8 +30,11 @@ param createAISearchPrivateEndpoint bool = true
 @description('AI Search service resource ID. Required when createAISearchPrivateEndpoint is true.')
 param aiSearchServiceId string = ''
 
-@description('Tags to apply to every private endpoint created by this module.')
-param tags object = {}
+@description('Purpose-keyed tags for private endpoints created by this module. Accepted keys: foundry, storage, keyVault, cosmosDB, aiSearch.')
+param privateEndpointTags object = {}
+
+@description('Validated by the parent module so unknown logical resource keys fail before deployment.')
+param privateEndpointTagsValidated bool = true
 
 var _validateStoragePrivateEndpointInputs = createStoragePrivateEndpoint && empty(storageAccountId) ? fail('storageAccountId is required when createStoragePrivateEndpoint is true.') : true
 var _validateCosmosPrivateEndpointInputs = createCosmosDBPrivateEndpoint && empty(cosmosDBAccountId) ? fail('cosmosDBAccountId is required when createCosmosDBPrivateEndpoint is true.') : true
@@ -40,7 +43,7 @@ var _validateAISearchPrivateEndpointInputs = createAISearchPrivateEndpoint && em
 resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   name: 'pe-foundry'
   location: location
-  tags: tags
+  tags: privateEndpointTagsValidated ? (privateEndpointTags.?foundry ?? {}) : {}
   properties: {
     subnet: {
       id: privateEndpointSubnetId
@@ -60,7 +63,7 @@ resource foundryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' 
 resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createStoragePrivateEndpoint && _validateStoragePrivateEndpointInputs) {
   name: 'pe-foundry-storage'
   location: location
-  tags: tags
+  tags: privateEndpointTagsValidated ? (privateEndpointTags.?storage ?? {}) : {}
   properties: {
     subnet: {
       id: privateEndpointSubnetId
@@ -80,7 +83,7 @@ resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' 
 resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   name: 'pe-foundry-keyvault'
   location: location
-  tags: tags
+  tags: privateEndpointTagsValidated ? (privateEndpointTags.?keyVault ?? {}) : {}
   properties: {
     subnet: {
       id: privateEndpointSubnetId
@@ -100,7 +103,7 @@ resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01'
 resource cosmosDBPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createCosmosDBPrivateEndpoint && _validateCosmosPrivateEndpointInputs) {
   name: 'pe-foundry-cosmosdb'
   location: location
-  tags: tags
+  tags: privateEndpointTagsValidated ? (privateEndpointTags.?cosmosDB ?? {}) : {}
   properties: {
     subnet: {
       id: privateEndpointSubnetId
@@ -122,7 +125,7 @@ resource cosmosDBPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01'
 resource aiSearchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createAISearchPrivateEndpoint && _validateAISearchPrivateEndpointInputs) {
   name: 'pe-foundry-aisearch'
   location: location
-  tags: tags
+  tags: privateEndpointTagsValidated ? (privateEndpointTags.?aiSearch ?? {}) : {}
   properties: {
     subnet: {
       id: privateEndpointSubnetId

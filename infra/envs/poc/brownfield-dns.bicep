@@ -68,63 +68,87 @@ param privateDnsZoneNames object = {
   aiSearch: 'privatelink.search.windows.net'
 }
 
-module cognitiveServicesLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+@description('Purpose-keyed tags for blueprint-created VNet links. Accepted keys in vnet-link mode: cognitiveServices, azureOpenAI, keyVault, storageBlob, cosmosDB, aiSearch. Leave empty in zone-group mode.')
+param privateDnsVnetLinkTags object = {}
+
+var brownfieldDnsTagKeys = dnsIntegrationMode == 'vnet-link'
+  ? [
+      'cognitiveServices'
+      'azureOpenAI'
+      'keyVault'
+      'storageBlob'
+      'cosmosDB'
+      'aiSearch'
+    ]
+  : []
+var unsupportedBrownfieldDnsTagItems = filter(items(privateDnsVnetLinkTags), item => !contains(brownfieldDnsTagKeys, item.key))
+var brownfieldDnsTagsValidated = length(unsupportedBrownfieldDnsTagItems) == 0
+  ? true
+  : fail('privateDnsVnetLinkTags contains unsupported logical resource key: ${first(unsupportedBrownfieldDnsTagItems).?key ?? ''}')
+
+module cognitiveServicesLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link' && brownfieldDnsTagsValidated) {
   scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-cognitiveservices'
   params: {
     zoneName: privateDnsZoneNames.cognitiveServices
     vnetId: vnetId
     vnetName: vnetName
+    tags: privateDnsVnetLinkTags.?cognitiveServices ?? {}
   }
 }
 
-module azureOpenAILink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+module azureOpenAILink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link' && brownfieldDnsTagsValidated) {
   scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-openai'
   params: {
     zoneName: privateDnsZoneNames.azureOpenAI
     vnetId: vnetId
     vnetName: vnetName
+    tags: privateDnsVnetLinkTags.?azureOpenAI ?? {}
   }
 }
 
-module keyVaultLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+module keyVaultLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link' && brownfieldDnsTagsValidated) {
   scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-keyvault'
   params: {
     zoneName: privateDnsZoneNames.keyVault
     vnetId: vnetId
     vnetName: vnetName
+    tags: privateDnsVnetLinkTags.?keyVault ?? {}
   }
 }
 
-module storageBlobLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+module storageBlobLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link' && brownfieldDnsTagsValidated) {
   scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-blob'
   params: {
     zoneName: privateDnsZoneNames.storageBlob
     vnetId: vnetId
     vnetName: vnetName
+    tags: privateDnsVnetLinkTags.?storageBlob ?? {}
   }
 }
 
-module cosmosDBLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+module cosmosDBLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link' && brownfieldDnsTagsValidated) {
   scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-cosmosdb'
   params: {
     zoneName: privateDnsZoneNames.cosmosDB
     vnetId: vnetId
     vnetName: vnetName
+    tags: privateDnsVnetLinkTags.?cosmosDB ?? {}
   }
 }
 
-module aiSearchLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link') {
+module aiSearchLink '../../modules/network/private-dns-link.bicep' = if (dnsIntegrationMode == 'vnet-link' && brownfieldDnsTagsValidated) {
   scope: resourceGroup(effectiveDnsSubscriptionId, effectiveDnsResourceGroupName)
   name: 'brownfield-link-aisearch'
   params: {
     zoneName: privateDnsZoneNames.aiSearch
     vnetId: vnetId
     vnetName: vnetName
+    tags: privateDnsVnetLinkTags.?aiSearch ?? {}
   }
 }
 

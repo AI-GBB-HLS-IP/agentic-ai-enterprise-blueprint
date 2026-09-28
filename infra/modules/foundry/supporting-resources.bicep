@@ -1,7 +1,7 @@
 // Storage is no longer created here: it is now BYO-capable (create-new-or-reuse-existing) and
 // is orchestrated from main.bicep via ./storage.bicep so it can be independently referenced
-// cross-subscription/cross-resource-group like AI Search and Cosmos DB. Key Vault remains
-// blueprint-owned only (not part of the customer BYO-dependent-resource set).
+// cross-subscription/cross-resource-group like AI Search and Cosmos DB. Key Vault can also be
+// created or referenced without changing tags on an existing vault.
 param location string
 param keyVaultName string
 param existingKeyVaultResourceId string = ''

@@ -36,6 +36,21 @@ param computeNsgName string = 'hybrid-nsg-agent-blueprint-eastus2-compute'
 @description('Private DNS zone names required for private endpoints.')
 param privateDnsZoneNames object
 
+@description('Tags for the blueprint-created virtual network.')
+param virtualNetworkTags object = {}
+
+@description('Tags for the blueprint-created APIM NSG.')
+param apimNsgTags object = {}
+
+@description('Tags for the blueprint-created compute NSG.')
+param computeNsgTags object = {}
+
+@description('Purpose-keyed tags for blueprint-created private DNS zones.')
+param privateDnsZoneTags object = {}
+
+@description('Purpose-keyed tags for blueprint-created private DNS virtual network links.')
+param privateDnsVnetLinkTags object = {}
+
 module nsg './nsg.bicep' = {
   name: '${vnetName}-nsg'
   params: {
@@ -43,12 +58,15 @@ module nsg './nsg.bicep' = {
     apimNsgName: apimNsgName
     computeNsgName: computeNsgName
     apimSubnetPrefix: apimSubnetPrefix
+    apimNsgTags: apimNsgTags
+    computeNsgTags: computeNsgTags
   }
 }
 
 resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
   name: vnetName
   location: location
+  tags: virtualNetworkTags
   properties: {
     addressSpace: {
       addressPrefixes: [
@@ -116,6 +134,8 @@ module privateDns './private-dns.bicep' = {
     vnetId: vnet.id
     vnetName: vnet.name
     privateDnsZoneNames: privateDnsZoneNames
+    privateDnsZoneTags: privateDnsZoneTags
+    privateDnsVnetLinkTags: privateDnsVnetLinkTags
   }
 }
 

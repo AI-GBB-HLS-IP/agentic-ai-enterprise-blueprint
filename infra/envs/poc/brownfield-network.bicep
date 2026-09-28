@@ -90,6 +90,12 @@ param apimNsgName string = 'hybrid-nsg-agent-blueprint-${toLower(replace(locatio
 @description('Compute NSG name, used only in blueprint-owned mode (sharedHybridNsgId empty and reuseExistingNsgs false).')
 param computeNsgName string = 'hybrid-nsg-agent-blueprint-${toLower(replace(location, ' ', ''))}-compute'
 
+@description('Tags for the blueprint-created APIM NSG. Ignored when an existing or shared NSG is referenced.')
+param apimNsgTags object = {}
+
+@description('Tags for the blueprint-created compute NSG. Ignored when an existing or shared NSG is referenced.')
+param computeNsgTags object = {}
+
 @description('Set true to reuse pre-approved per-purpose existing NSGs instead of creating new blueprint-owned ones. Ignored when sharedHybridNsgId is set. When true, existingApimNsgId and existingComputeNsgId must both be supplied and are associated as-is (this template never modifies a referenced existing NSG).')
 param reuseExistingNsgs bool = false
 
@@ -148,9 +154,17 @@ var _validateApimRouteTableId = empty(apimRouteTableId) || (startsWith(toLower(a
   ? true
   : fail('apimRouteTableId must be empty or a full ARM resource ID for Microsoft.Network/routeTables with no trailing slash, for example /subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.Network/routeTables/<name>.')
 
+var apimNsgTargetId = resourceId(subscription().subscriptionId, existingVnetResourceGroupName, 'Microsoft.Network/networkSecurityGroups', apimNsgName)
+var computeNsgTargetId = resourceId(subscription().subscriptionId, existingVnetResourceGroupName, 'Microsoft.Network/networkSecurityGroups', computeNsgName)
+var nsgOwnershipContradiction = !empty(sharedHybridNsgId) || reuseExistingNsgs
+  ? true
+  : (toLower(existingApimNsgId) == toLower(apimNsgTargetId) || toLower(existingApimNsgId) == toLower(computeNsgTargetId) || toLower(existingComputeNsgId) == toLower(apimNsgTargetId) || toLower(existingComputeNsgId) == toLower(computeNsgTargetId))
+    ? fail('existingApimNsgId or existingComputeNsgId identifies an active blueprint-created NSG target; select reuseExistingNsgs or change the supplied external IDs.')
+    : true
+
 // Threaded into useSharedHybridNsg so the guards are always evaluated; an unreferenced variable
 // would be eliminated and its fail() never raised.
-var nsgInputsValidated = _validateSharedHybridNsgId && _validateExistingApimNsgId && _validateExistingComputeNsgId && _validateReuseExistingNsgs && _validateApimRouteTableId
+var nsgInputsValidated = _validateSharedHybridNsgId && _validateExistingApimNsgId && _validateExistingComputeNsgId && _validateReuseExistingNsgs && _validateApimRouteTableId && nsgOwnershipContradiction
 
 var useSharedHybridNsg = nsgInputsValidated && !empty(sharedHybridNsgId)
 
@@ -162,6 +176,8 @@ module nsg '../../modules/network/nsg.bicep' = if (!useSharedHybridNsg && !reuse
     apimNsgName: apimNsgName
     computeNsgName: computeNsgName
     apimSubnetPrefix: apimSubnetPrefix
+    apimNsgTags: apimNsgTags
+    computeNsgTags: computeNsgTags
   }
 }
 
