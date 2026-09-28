@@ -44,7 +44,7 @@ json.dump({
         }
     }],
     "networkInterfaces": [{
-        "id": f"/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Network/networkInterfaces/nic-{label}"
+        "id": f"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/networkInterfaces/nic-{label}"
     }]
 }, sys.stdout)
 PY
@@ -59,14 +59,14 @@ MOCK_AZ
 chmod +x "$workdir/bin/az"
 export PATH="$workdir/bin:$PATH"
 
-export STORAGE_ACCOUNT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/storageexample
-export STORAGE_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-storage
-export KEY_VAULT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.KeyVault/vaults/kv-example
-export KEY_VAULT_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-keyvault
-export COSMOS_DB_ACCOUNT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-example
-export COSMOS_DB_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-cosmos
-export AI_SEARCH_SERVICE_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Search/searchServices/search-example
-export AI_SEARCH_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-search
+export STORAGE_ACCOUNT_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Storage/storageAccounts/storageexample
+export STORAGE_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-storage
+export KEY_VAULT_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.KeyVault/vaults/kv-example
+export KEY_VAULT_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-keyvault
+export COSMOS_DB_ACCOUNT_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-example
+export COSMOS_DB_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-cosmos
+export AI_SEARCH_SERVICE_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Search/searchServices/search-example
+export AI_SEARCH_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-search
 export MOCK_NIC_IP=10.0.1.4
 
 output="$(env -u AMPLS_RESOURCE_ID -u AMPLS_PRIVATE_ENDPOINT_ID "$VALIDATE")"

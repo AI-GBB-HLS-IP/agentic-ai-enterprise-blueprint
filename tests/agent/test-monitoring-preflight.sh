@@ -23,9 +23,9 @@ grep -Fq 'BLOCKED: APIM telemetry readiness requires monitoring-owner acceptance
   fail "APIM telemetry must remain explicitly blocked without owner acceptance and private route evidence"
 
 monitoring_inputs=(
-  MONITORING_WORKSPACE_RESOURCE_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law-example
-  MONITORING_AMPLS_RESOURCE_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Insights/privateLinkScopes/ampls-example
-  MONITORING_AMPLS_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-ampls-example
+  MONITORING_WORKSPACE_RESOURCE_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.OperationalInsights/workspaces/law-example
+  MONITORING_AMPLS_RESOURCE_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Insights/privateLinkScopes/ampls-example
+  MONITORING_AMPLS_PRIVATE_ENDPOINT_ID=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-example/providers/Microsoft.Network/privateEndpoints/pe-ampls-example
   MONITORING_PRIVATE_DNS_OWNER_REFERENCE=approval-example
   MONITORING_OWNER_APPROVAL_REFERENCE=approval-example
   MONITORING_WORKSPACE_ASSOCIATION_EVIDENCE=association-example
