@@ -44,6 +44,14 @@ for deployment_name, ownership_variable in expected_create_modules.items():
     if deployment.get("condition") != f"[not(variables('{ownership_variable}'))]":
         sys.exit(f"{deployment_name} must deploy only when the corresponding existing ID is empty")
 
+search_resources = deployments["phase1-agent-ai-search"].get("properties", {}).get("template", {}).get("resources", [])
+search_services = [resource for resource in search_resources if resource.get("type") == "Microsoft.Search/searchServices"]
+if len(search_services) != 1:
+    sys.exit("shared composition must define exactly one new AI Search service")
+search_properties = search_services[0].get("properties", {})
+if search_properties.get("disableLocalAuth") is not True or "authOptions" in search_properties:
+    sys.exit("AI Search must disable local authentication without incompatible authOptions")
+
 key_vault_module = deployments.get("phase1-agent-key-vault")
 if key_vault_module is None:
     sys.exit("shared composition is missing reusable Key Vault module")
