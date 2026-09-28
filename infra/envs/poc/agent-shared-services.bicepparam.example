@@ -2,27 +2,23 @@ using './agent-shared-services.bicep'
 
 // PLACEHOLDER VALUES ONLY. Copy this file to the ignored
 // `agent-shared-services.customer.bicepparam` and replace every placeholder with an
-// owner-approved value before running what-if or deployment. Do not commit customer-specific
-// values in this tracked example.
+// owner-approved value, or export the corresponding environment variables, before running
+// what-if or deployment. Do not commit customer-specific values in this tracked example.
 //
-// Empty existing-resource IDs mean CREATE a new resource. To reuse an existing resource, set
-// its ID to the full ARM resource ID and provide the matching name parameter as well.
+// Unset existing-resource ID variables default to '' and mean CREATE a new resource. To reuse an
+// existing resource, set its ID to the full ARM resource ID and provide the matching name parameter.
 // Review `az deployment group what-if` output before deploying; this stage can create shared
 // Storage, Key Vault, AI Search, and Cosmos DB resources. Tags apply to newly created resources
-// only; reused resources retain their existing tags. Replace tag values with approved values.
+// only; reused resources retain their existing tags. AGENT_SHARED_TAGS must contain a JSON object
+// with approved tag values when supplied.
 
-param location = '<approved-region>'
-param storageAccountName = '<globally-unique-storage-account-name>'
-param existingAzureStorageAccountResourceId = ''
-param keyVaultName = '<globally-unique-key-vault-name>'
-param existingKeyVaultResourceId = ''
-param aiSearchServiceName = '<globally-unique-ai-search-service-name>'
-param existingAISearchResourceId = ''
-param cosmosDBAccountName = '<globally-unique-cosmos-db-account-name>'
-param existingAzureCosmosDBAccountResourceId = ''
-param tags = {
-  'phase1-agent-platform': 'true'
-  ProjectCode: '<approved-project-code>'
-  ProjectID: '<approved-project-id>'
-  Component: '<approved-shared-services-component>'
-}
+param location = readEnvironmentVariable('AGENT_SHARED_LOCATION', '<approved-region>')
+param storageAccountName = readEnvironmentVariable('AGENT_SHARED_STORAGE_ACCOUNT_NAME', '<globally-unique-storage-account-name>')
+param existingAzureStorageAccountResourceId = readEnvironmentVariable('AGENT_SHARED_EXISTING_STORAGE_ACCOUNT_ID', '')
+param keyVaultName = readEnvironmentVariable('AGENT_SHARED_KEY_VAULT_NAME', '<globally-unique-key-vault-name>')
+param existingKeyVaultResourceId = readEnvironmentVariable('AGENT_SHARED_EXISTING_KEY_VAULT_ID', '')
+param aiSearchServiceName = readEnvironmentVariable('AGENT_SHARED_AI_SEARCH_SERVICE_NAME', '<globally-unique-ai-search-service-name>')
+param existingAISearchResourceId = readEnvironmentVariable('AGENT_SHARED_EXISTING_AI_SEARCH_SERVICE_ID', '')
+param cosmosDBAccountName = readEnvironmentVariable('AGENT_SHARED_COSMOS_DB_ACCOUNT_NAME', '<globally-unique-cosmos-db-account-name>')
+param existingAzureCosmosDBAccountResourceId = readEnvironmentVariable('AGENT_SHARED_EXISTING_COSMOS_DB_ACCOUNT_ID', '')
+param tags = json(readEnvironmentVariable('AGENT_SHARED_TAGS', '{"phase1-agent-platform":"true","ProjectCode":"<approved-project-code>","ProjectID":"<approved-project-id>","Component":"<approved-shared-services-component>"}'))
