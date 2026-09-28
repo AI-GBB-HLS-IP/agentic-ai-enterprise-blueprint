@@ -10,7 +10,9 @@ using './agent-shared-services.bicep'
 // Review `az deployment group what-if` output before deploying; this stage can create shared
 // Storage, Key Vault, AI Search, and Cosmos DB resources. Tags apply to newly created resources
 // only; reused resources retain their existing tags. AGENT_SHARED_TAGS must contain a JSON object
-// with approved tag values when supplied.
+// with approved tag values when supplied. New Key Vaults enable soft delete, purge protection,
+// and 90-day retention; purge protection cannot be turned off, and deleted vault names remain
+// unavailable during retention. Confirm this lifecycle with the resource owner before deployment.
 
 param location = readEnvironmentVariable('AGENT_SHARED_LOCATION', '<approved-region>')
 param storageAccountName = readEnvironmentVariable('AGENT_SHARED_STORAGE_ACCOUNT_NAME', '<globally-unique-storage-account-name>')

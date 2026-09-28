@@ -48,12 +48,23 @@ key_vault_module = deployments.get("phase1-agent-key-vault")
 if key_vault_module is None:
     sys.exit("shared composition is missing reusable Key Vault module")
 key_vault_resources = key_vault_module.get("properties", {}).get("template", {}).get("resources", [])
-if not any(
-    resource.get("type") == "Microsoft.KeyVault/vaults"
-    and resource.get("condition") == "[not(variables('keyVaultPassedIn'))]"
+new_key_vaults = [
+    resource
     for resource in key_vault_resources
-):
+    if resource.get("type") == "Microsoft.KeyVault/vaults"
+    and resource.get("condition") == "[not(variables('keyVaultPassedIn'))]"
+]
+if len(new_key_vaults) != 1:
     sys.exit("Key Vault creation must be disabled when an existing Key Vault ID is supplied")
+if not all(
+    new_key_vaults[0].get("properties", {}).get(key) == expected
+    for key, expected in (
+        ("enableSoftDelete", True),
+        ("enablePurgeProtection", True),
+        ("softDeleteRetentionInDays", 90),
+    )
+):
+    sys.exit("New Key Vault must enable soft delete, purge protection, and 90-day retention")
 
 def nested_resource_types(template):
     for resource in template.get("resources", []):

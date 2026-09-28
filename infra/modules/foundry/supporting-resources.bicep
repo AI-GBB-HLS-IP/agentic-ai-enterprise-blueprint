@@ -34,6 +34,9 @@ resource newKeyVault 'Microsoft.KeyVault/vaults@2023-07-01' = if (!keyVaultPasse
       name: 'standard'
     }
     enableRbacAuthorization: true
+    enableSoftDelete: true
+    enablePurgeProtection: true
+    softDeleteRetentionInDays: 90
     publicNetworkAccess: 'Disabled'
     networkAcls: {
       defaultAction: 'Deny'
