@@ -92,6 +92,8 @@ assert_contains "$network_param" "param computeSubnetPrefix = '10.0.1.80/28'" "w
 assert_not_contains "$network_param" "cicdAgentsSubnet" "CI/CD agents must use the merged compute subnet"
 assert_contains "$network_param" "param reuseExistingNsgs = false" "default NSG mode should be 3"
 assert_contains "$network_param" "param privateEndpointsNetworkPolicies = 'Disabled'" "wrong PE policy"
+assert_contains "$network_param" "param foundryServiceEndpoints = ['Microsoft.CognitiveServices']" \
+  "generated brownfield params must explicitly enable the Foundry Cognitive Services endpoint"
 assert_contains "$dns_param" "param dnsResourceGroupName = 'rg-placeholder'" "wrong dns rg"
 assert_contains "$dns_param" "param dnsIntegrationMode = 'vnet-link'" "wrong DNS integration mode"
 assert_contains "$dns_param" "param vnetName = 'vnet-placeholder'" "wrong dns vnet name"

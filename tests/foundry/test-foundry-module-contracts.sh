@@ -17,6 +17,7 @@ PRIVATE_ENDPOINT_DNS_MODULE="${REPO_ROOT}/infra/modules/foundry/private-endpoint
 FOUNDRY_DNS_ENV="${REPO_ROOT}/infra/envs/poc/foundry-dns.bicep"
 MAIN_MODULE="${REPO_ROOT}/infra/modules/foundry/main.bicep"
 FOUNDRY_ENV="${REPO_ROOT}/infra/envs/poc/foundry.bicep"
+STORAGE_RBAC_MODULE="${REPO_ROOT}/infra/modules/foundry/storage-rbac.bicep"
 
 command -v az >/dev/null 2>&1 || {
   echo "SKIP: az CLI not available; cannot run bicep build checks." >&2
@@ -50,6 +51,7 @@ build_bicep "$PRIVATE_ENDPOINT_DNS_MODULE" "$workdir/private-endpoint-dns.json"
 build_bicep "$FOUNDRY_DNS_ENV" "$workdir/foundry-dns.json"
 build_bicep "$MAIN_MODULE" "$workdir/main.json"
 build_bicep "$FOUNDRY_ENV" "$workdir/foundry-env.json"
+build_bicep "$STORAGE_RBAC_MODULE" "$workdir/storage-rbac.json"
 
 echo "==> private-endpoint.bicep creates bare endpoints and exposes IDs and names"
 python3 - "$workdir/private-endpoint.json" <<'PY'
@@ -301,6 +303,54 @@ if foundry_module is None:
 module_params = json.dumps(foundry_module.get("properties", {}).get("parameters", {}))
 if "existingKeyVaultPrivateEndpoint" not in module_params:
     sys.exit("envs/poc/foundry.bicep must forward existingKeyVaultPrivateEndpoint to the foundry module")
+PY
+
+echo "==> storage RBAC assigns Contributor account-wide and Owner with workspace-container ABAC"
+python3 - "$workdir/storage-rbac.json" <<'PY'
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+variables = arm.get("variables", {})
+resources = [
+    resource for resource in arm.get("resources", [])
+    if resource.get("type") == "Microsoft.Authorization/roleAssignments"
+]
+if len(resources) != 2:
+    sys.exit(f"storage-rbac.bicep must declare exactly two role assignments, found {len(resources)}")
+
+def assignment_for(role_id):
+    matches = [
+        resource for resource in resources
+        if role_id in str(resource.get("properties", {}).get("roleDefinitionId", ""))
+    ]
+    if len(matches) != 1:
+        sys.exit(f"expected exactly one assignment for built-in role {role_id}")
+    return matches[0]
+
+contributor_role_id = "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+owner_role_id = "b7e6dc6d-f1e8-4753-8033-0f276bb0955b"
+if contributor_role_id not in str(variables):
+    sys.exit("storage Blob Data Contributor built-in role ID is incorrect")
+if owner_role_id not in str(variables):
+    sys.exit("storage Blob Data Owner built-in role ID is incorrect")
+
+contributor = assignment_for("storageBlobDataContributorRoleId")
+if "condition" in contributor.get("properties", {}) or "conditionVersion" in contributor.get("properties", {}):
+    sys.exit("Storage Blob Data Contributor must be unconditional at the storage-account scope")
+
+owner = assignment_for("storageBlobDataOwnerRoleId")
+owner_properties = owner.get("properties", {})
+if owner_properties.get("conditionVersion") != "2.0":
+    sys.exit("Storage Blob Data Owner must use ABAC condition version 2.0")
+condition = str(owner_properties.get("condition", ""))
+for required in (
+    "projectWorkspaceIdGuid",
+    "StringStartsWithIgnoreCase",
+    "*-azureml-agent",
+):
+    if required not in condition:
+        sys.exit(f"Storage Blob Data Owner condition is missing {required}")
 PY
 
 echo "Foundry module contract tests passed."

@@ -23,6 +23,11 @@ command -v python3 >/dev/null 2>&1 || {
   exit 0
 }
 
+grep -Fq "param foundryServiceEndpoints = [" "$NETWORK_PARAM_EXAMPLE" \
+  || { echo "FAIL: brownfield-network.bicepparam.example must explicitly opt into the Foundry endpoint" >&2; exit 1; }
+grep -Fq "'Microsoft.CognitiveServices'" "$NETWORK_PARAM_EXAMPLE" \
+  || { echo "FAIL: brownfield-network.bicepparam.example must enable Microsoft.CognitiveServices" >&2; exit 1; }
+
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 
@@ -160,11 +165,12 @@ fi
 
 echo "==> .bicepparam.example files contain placeholders only"
 # Allowed on the right-hand side of a tracked .example param: an angle-bracket placeholder, an
-# empty string, a boolean, or a non-customer-identifying Azure enum literal from the allowlist
-# below. Anything else risks leaking a real deployment value into a tracked file.
+# empty string, a boolean, or a non-customer-identifying Azure literal from the allowlist below.
+# Anything else risks leaking a real deployment value into a tracked file.
 safe_enum_literals="Disabled|Enabled|NetworkSecurityGroupEnabled|RouteTableEnabled|vnet-link|zone-group"
 safe_environment_default_pattern="json\(readEnvironmentVariable\('[A-Z0-9_]+', '\{\}'\)\)"
-placeholder_pattern="^param [A-Za-z][A-Za-z0-9]* = ('<[^']*>'|''|true|false|'(${safe_enum_literals})'|${safe_environment_default_pattern})\$"
+safe_endpoint_list="\['Microsoft\.CognitiveServices'\]"
+placeholder_pattern="^param [A-Za-z][A-Za-z0-9]* = ('<[^']*>'|''|true|false|'(${safe_enum_literals})'|${safe_environment_default_pattern}|${safe_endpoint_list})\$"
 for example in "$NETWORK_PARAM_EXAMPLE" "$DNS_PARAM_EXAMPLE"; do
   while IFS= read -r line; do
     if [[ "$line" =~ ^param[[:space:]] ]] && ! [[ "$line" =~ $placeholder_pattern ]]; then

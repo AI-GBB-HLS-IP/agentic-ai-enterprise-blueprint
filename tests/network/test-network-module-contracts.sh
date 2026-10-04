@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 GREENFIELD_MODULE="${REPO_ROOT}/infra/modules/network/main.bicep"
+GREENFIELD_ENTRY="${REPO_ROOT}/infra/envs/poc/main.bicep"
 BROWNFIELD_ENTRY="${REPO_ROOT}/infra/envs/poc/brownfield-network.bicep"
 SUBNETS_MODULE="${REPO_ROOT}/infra/modules/network/subnets.bicep"
 
@@ -38,6 +39,9 @@ fail() {
 echo "==> az bicep build: modules/network/main.bicep"
 az bicep build --file "$GREENFIELD_MODULE" --stdout >"$workdir/greenfield.json" 2>"$workdir/greenfield.err" \
   || { cat "$workdir/greenfield.err" >&2; fail "az bicep build failed for modules/network/main.bicep"; }
+echo "==> az bicep build: envs/poc/main.bicep"
+az bicep build --file "$GREENFIELD_ENTRY" --stdout >"$workdir/greenfield-entry.json" 2>"$workdir/greenfield-entry.err" \
+  || { cat "$workdir/greenfield-entry.err" >&2; fail "az bicep build failed for envs/poc/main.bicep"; }
 
 echo "==> greenfield builds subnets through the shared module, not inline resources"
 grep -q "module subnets './subnets.bicep'" "$GREENFIELD_MODULE" \
@@ -117,6 +121,31 @@ for name in ("hybridsubnet-foundry", "hybridsubnet-privateendpoints", "AzureBast
 for key in ("vnetId", "subnetIds", "nsgIds", "privateDnsZoneIds"):
     if key not in arm.get("outputs", {}):
         sys.exit(f"greenfield output '{key}' was removed")
+PY
+
+echo "==> greenfield entry point forwards the opt-in Foundry endpoint parameter"
+python3 - "$workdir/greenfield-entry.json" <<'PY' || exit 1
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+parameter = arm.get("parameters", {}).get("foundryServiceEndpoints", {})
+if parameter.get("defaultValue") != []:
+    sys.exit("greenfield entry point foundryServiceEndpoints default must remain empty (FR-018a)")
+
+network_module = next(
+    (
+        r for r in arm.get("resources", [])
+        if r.get("type") == "Microsoft.Resources/deployments"
+        and "network-foundation" in str(r.get("name", ""))
+    ),
+    None,
+)
+if network_module is None:
+    sys.exit("greenfield entry point is missing the network-foundation deployment")
+module_params = network_module.get("properties", {}).get("parameters", {})
+if module_params.get("foundryServiceEndpoints", {}).get("value") != "[parameters('foundryServiceEndpoints')]":
+    sys.exit("greenfield entry point must forward foundryServiceEndpoints to the network module")
 PY
 
 echo "==> greenfield subnet writes are serialized"
