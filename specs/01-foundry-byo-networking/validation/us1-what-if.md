@@ -9,10 +9,13 @@ actually produced by Azure.
 Run:
 
 ```bash
+cp infra/envs/poc/foundry.bicepparam.example \
+   infra/envs/poc/foundry.customer.bicepparam
+
 az deployment group what-if \
   --resource-group rg-agent-factory-poc \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam.example
+  --parameters infra/envs/poc/foundry.customer.bicepparam
 ```
 
 Expected when rerun: the preview creates or updates the Foundry resources and bare

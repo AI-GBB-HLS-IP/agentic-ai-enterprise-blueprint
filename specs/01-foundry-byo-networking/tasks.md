@@ -48,7 +48,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 - [X] T015 [US1] Implement Foundry project creation as a child of the account in `infra/modules/foundry/main.bicep`, preserving account-before-project ordering
 - [X] T016 [US1] Compose `location`, existing resource IDs, workload flags, and account/project/supporting-resource outputs in `infra/envs/poc/foundry.bicep`; DNS inputs belong only to the later DNS-association deployment
 - [X] T017 [US1] Add account/project/supporting-resource/private-endpoint outputs to `infra/modules/foundry/main.bicep` according to the Foundry Bicep interface
-- [X] T018 [US1] Build the Foundry modules and run `az deployment group what-if` using `infra/envs/poc/foundry.bicepparam.example`, saving preview evidence to `specs/01-foundry-byo-networking/validation/us1-what-if.md`
+- [X] T018 [US1] Build the Foundry modules, copy `infra/envs/poc/foundry.bicepparam.example` to the ignored `infra/envs/poc/foundry.customer.bicepparam`, and run `az deployment group what-if` with that copy, saving preview evidence to `specs/01-foundry-byo-networking/validation/us1-what-if.md`
 - [X] T019 [US1] Validate the US1 independent test against the target resource group and record placement, public-network, resource-inventory, and conditional-SQL results in `specs/01-foundry-byo-networking/validation/us1-foundation.md`; report pending work rather than claiming deployment completion
 
 **Checkpoint**: US1 is independently reviewable when its preview and live inspection evidence pass; it does not imply private endpoint, DNS, or model readiness.

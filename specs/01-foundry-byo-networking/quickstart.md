@@ -19,15 +19,18 @@ az bicep build --file infra/envs/poc/foundry.bicep
 az bicep build --file infra/envs/poc/foundry-dns.bicep
 
 # Tenant Phase 2: main resources and bare private endpoints
+cp infra/envs/poc/foundry.bicepparam.example \
+   infra/envs/poc/foundry.customer.bicepparam
+
 az deployment group validate \
   --resource-group rg-agent-factory-poc \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam.example
+  --parameters infra/envs/poc/foundry.customer.bicepparam
 
 az deployment group what-if \
   --resource-group rg-agent-factory-poc \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam.example
+  --parameters infra/envs/poc/foundry.customer.bicepparam
 
 # Tenant Phase 3: later DNS association
 # First copy foundry-dns.bicepparam.example to an untracked parameter file and populate full

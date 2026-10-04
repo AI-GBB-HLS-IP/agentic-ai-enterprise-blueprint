@@ -77,15 +77,18 @@ az deployment group create \
   --parameters @infra/envs/poc/network.parameters.json
 
 # 2. Foundry (references the network RG's vnet/subnets/DNS zones)
+cp infra/envs/poc/foundry.bicepparam.example \
+   infra/envs/poc/foundry.customer.bicepparam
+
 az deployment group what-if \
   --resource-group "$FOUNDRY_RG" \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam.example
+  --parameters infra/envs/poc/foundry.customer.bicepparam
 
 az deployment group create \
   --resource-group "$FOUNDRY_RG" \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam.example
+  --parameters infra/envs/poc/foundry.customer.bicepparam
 
 # 3. APIM (references the network RG's vnet/subnet and the Foundry RG's account)
 az deployment group what-if \
