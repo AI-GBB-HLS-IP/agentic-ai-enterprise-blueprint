@@ -113,12 +113,13 @@ a requested name **already exists** in the target VNet:
 above), so a route table or service endpoints CAN be attached or preserved when the caller passes
 them explicitly. However, **omitting them still removes any pre-existing route table or service
 endpoints on a colliding subnet**, because the PUT still replaces the whole object — passing
-nothing is not the same as "leave unchanged." `infra/envs/poc/brownfield-network.bicep` currently
-only wires these two properties for the APIM subnet (`apimRouteTableId`/`apimServiceEndpoints`);
-Foundry, private-endpoints, and compute subnets have no env-level parameter for them yet, so a
-route table or service endpoints on those subnets are still silently dropped on collision. In a
-forced-tunneling environment, silently dropping a UDR can blackhole egress or bypass an inspection
-appliance.
+nothing is not the same as "leave unchanged." `infra/envs/poc/brownfield-network.bicep` wires
+`routeTableId`/`serviceEndpoints` for the APIM subnet (`apimRouteTableId`/`apimServiceEndpoints`,
+defaulting to the four endpoints FR-018a requires) and `serviceEndpoints` only (no route table)
+for the Foundry subnet (`foundryServiceEndpoints`, defaulting to an empty array per FR-018a);
+private-endpoints and compute subnets have no env-level parameter for them yet, so a route table or
+service endpoints on those subnets are still silently dropped on collision. In a forced-tunneling
+environment, silently dropping a UDR can blackhole egress or bypass an inspection appliance.
 
 The module also does not validate that CIDRs fall inside the VNet address space or avoid
 overlapping existing subnets; that is stated in the `subnets` parameter description and is

@@ -215,4 +215,92 @@ for path, display_name in zip(sys.argv[1:], ("main.bicep", "envs/poc/foundry.bic
             sys.exit(f"{display_name} is missing expected endpoint ID output: {output}")
 PY
 
+echo "==> private-endpoint.bicep guards Key Vault private-endpoint creation like Storage/Cosmos/AISearch"
+python3 - "$workdir/private-endpoint.json" <<'PY'
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+parameters = arm.get("parameters", {})
+resources = arm.get("resources", [])
+outputs = arm.get("outputs", {})
+
+if parameters.get("createKeyVaultPrivateEndpoint", {}).get("defaultValue") is not True:
+    sys.exit("private-endpoint.bicep: createKeyVaultPrivateEndpoint must default to true (unconditional creation unless the caller opts out)")
+
+key_vault_pe = next(
+    (
+        r for r in resources
+        if r.get("type") == "Microsoft.Network/privateEndpoints"
+        and "keyvault" in str(r.get("name", "")).lower()
+    ),
+    None,
+)
+if key_vault_pe is None:
+    sys.exit("private-endpoint.bicep is missing the Key Vault private endpoint resource")
+condition = str(key_vault_pe.get("condition", ""))
+if "parameters('createKeyVaultPrivateEndpoint')" not in condition:
+    sys.exit("the Key Vault private endpoint resource must be conditional on createKeyVaultPrivateEndpoint, like Storage/Cosmos/AISearch")
+
+for output_name in ("keyVaultPrivateEndpointId", "keyVaultPrivateEndpointName"):
+    output_value = str(outputs.get(output_name, {}).get("value", ""))
+    if "parameters('createKeyVaultPrivateEndpoint')" not in output_value:
+        sys.exit(f"{output_name} must be conditional on createKeyVaultPrivateEndpoint so it is safe to read when the resource is skipped")
+PY
+
+echo "==> main.bicep forwards the Key Vault reuse decision and rejects an invalid flag/resource-ID combination"
+python3 - "$workdir/main.json" <<'PY'
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+parameters = arm.get("parameters", {})
+
+if "existingKeyVaultPrivateEndpoint" not in parameters:
+    sys.exit("main.bicep is missing the existingKeyVaultPrivateEndpoint parameter")
+if parameters["existingKeyVaultPrivateEndpoint"].get("defaultValue") is not False:
+    sys.exit("main.bicep: existingKeyVaultPrivateEndpoint must default to false")
+
+compiled = json.dumps(arm)
+if "existingKeyVaultPrivateEndpoint can only be true when existingKeyVaultResourceId is set." not in compiled:
+    sys.exit("main.bicep must reject existingKeyVaultPrivateEndpoint=true without existingKeyVaultResourceId")
+
+private_endpoints_module = next(
+    (
+        r for r in arm.get("resources", [])
+        if r.get("type") == "Microsoft.Resources/deployments" and "private-endpoint" in str(r.get("name", "")).lower()
+    ),
+    None,
+)
+if private_endpoints_module is None:
+    sys.exit("main.bicep is missing the private-endpoints module deployment")
+module_params = json.dumps(private_endpoints_module.get("properties", {}).get("parameters", {}))
+if "createKeyVaultPrivateEndpoint" not in module_params:
+    sys.exit("main.bicep must forward a createKeyVaultPrivateEndpoint decision to the private-endpoints module")
+PY
+
+echo "==> envs/poc/foundry.bicep forwards existingKeyVaultPrivateEndpoint to the foundry module"
+python3 - "$workdir/foundry-env.json" <<'PY'
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+parameters = arm.get("parameters", {})
+if "existingKeyVaultPrivateEndpoint" not in parameters:
+    sys.exit("envs/poc/foundry.bicep is missing the existingKeyVaultPrivateEndpoint parameter")
+
+foundry_module = next(
+    (
+        r for r in arm.get("resources", [])
+        if r.get("type") == "Microsoft.Resources/deployments"
+    ),
+    None,
+)
+if foundry_module is None:
+    sys.exit("envs/poc/foundry.bicep is missing the inner foundry module deployment")
+module_params = json.dumps(foundry_module.get("properties", {}).get("parameters", {}))
+if "existingKeyVaultPrivateEndpoint" not in module_params:
+    sys.exit("envs/poc/foundry.bicep must forward existingKeyVaultPrivateEndpoint to the foundry module")
+PY
+
 echo "Foundry module contract tests passed."

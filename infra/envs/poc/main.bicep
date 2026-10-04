@@ -15,6 +15,12 @@ param apimSubnetPrefix string = '10.0.1.0/24'
 @description('Foundry subnet CIDR.')
 param foundrySubnetPrefix string = '10.0.2.0/24'
 
+@description('''Service endpoints to enable on the Foundry agent subnet. Defaults to none,
+matching FR-018a (no service endpoints except on the APIM-purpose subnet); pass
+`['Microsoft.CognitiveServices']` explicitly where an enterprise network-governance policy
+requires it.''')
+param foundryServiceEndpoints array = []
+
 @description('Compute subnet CIDR.')
 param computeSubnetPrefix string = '10.0.3.0/24'
 
@@ -65,6 +71,7 @@ module network '../../modules/network/main.bicep' = {
     vnetAddressSpace: vnetAddressSpace
     apimSubnetPrefix: apimSubnetPrefix
     foundrySubnetPrefix: foundrySubnetPrefix
+    foundryServiceEndpoints: foundryServiceEndpoints
     computeSubnetPrefix: computeSubnetPrefix
     privateEndpointsSubnetPrefix: privateEndpointsSubnetPrefix
     cicdAgentsSubnetPrefix: cicdAgentsSubnetPrefix

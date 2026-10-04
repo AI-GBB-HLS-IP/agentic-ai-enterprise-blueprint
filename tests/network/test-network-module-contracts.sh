@@ -94,6 +94,15 @@ if [entry["name"] for entry in subnets] != expected:
 if by_name["hybridsubnet-foundry"].get("delegationServiceName") != "Microsoft.App/environments":
     sys.exit("foundry subnet lost its Microsoft.App/environments delegation")
 
+foundry_service_endpoints = by_name["hybridsubnet-foundry"].get("serviceEndpoints")
+if foundry_service_endpoints != "[parameters('foundryServiceEndpoints')]":
+    sys.exit(
+        "greenfield hybridsubnet-foundry must wire serviceEndpoints to the foundryServiceEndpoints "
+        f"parameter, got: {foundry_service_endpoints}"
+    )
+if arm["parameters"]["foundryServiceEndpoints"]["defaultValue"] != []:
+    sys.exit("greenfield foundryServiceEndpoints default value must be an empty array (FR-018a)")
+
 if by_name["hybridsubnet-privateendpoints"].get("privateEndpointNetworkPolicies") != "Disabled":
     sys.exit("private endpoints subnet must keep privateEndpointNetworkPolicies = Disabled")
 
@@ -255,10 +264,16 @@ if compute is not None:
     if "serviceEndpoints" in compute:
         sys.exit("hybridsubnet-compute must not receive serviceEndpoints in brownfield mode; APIM-only")
 
-# Foundry/private-endpoints entries compile to union() expression strings. The foundry subnet is
-# allowed its own serviceEndpoints (foundryServiceEndpoints, defaulting to Microsoft.CognitiveServices
-# per the live-deployment network-policy fix) but never routeTableId; all other such expressions
-# (e.g. private-endpoints subnet) must reference neither.
+# Foundry/private-endpoints entries compile to union() expression strings. The foundry subnet
+# must reference its own foundryServiceEndpoints parameter (so a regression that drops the
+# wiring is caught) but never routeTableId; all other such expressions (e.g. private-endpoints
+# subnet) must reference neither.
+foundry_entry = next((e for e in subnets if isinstance(e, str) and "foundrySubnetName" in e), None)
+if foundry_entry is None:
+    sys.exit("could not find the foundry subnet's compiled union() expression")
+if "parameters('foundryServiceEndpoints')" not in foundry_entry:
+    sys.exit(f"the foundry subnet expression must wire serviceEndpoints to foundryServiceEndpoints, got: {foundry_entry}")
+
 for entry in subnets:
     if not isinstance(entry, str):
         continue
@@ -267,13 +282,13 @@ for entry in subnets:
     if "serviceEndpoints" in entry and "foundrySubnetName" not in entry:
         sys.exit(f"a non-APIM, non-foundry subnet expression unexpectedly references serviceEndpoints: {entry}")
 
-# The compiled default for foundryServiceEndpoints must be exactly Microsoft.CognitiveServices,
-# matching the live-deployment subnet network-policy requirement this fix addresses.
-expected_foundry_default_endpoints = ["Microsoft.CognitiveServices"]
+# The compiled default for foundryServiceEndpoints must be an empty array, matching FR-018a (no
+# service endpoints except on the APIM-purpose subnet); callers opt in explicitly per deployment.
+expected_foundry_default_endpoints = []
 actual_foundry_default_endpoints = arm["parameters"]["foundryServiceEndpoints"]["defaultValue"]
 if actual_foundry_default_endpoints != expected_foundry_default_endpoints:
     sys.exit(
-        "foundryServiceEndpoints default value does not match the required endpoint: "
+        "foundryServiceEndpoints default value does not match FR-018a: "
         f"expected {expected_foundry_default_endpoints}, got {actual_foundry_default_endpoints}"
     )
 PY
