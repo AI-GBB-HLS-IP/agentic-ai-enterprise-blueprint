@@ -21,9 +21,12 @@ Preflight is read-only. It validates the existing network foundation and model q
 ## What-if
 
 ```bash
+cp infra/envs/poc/foundry.bicepparam.example \
+   infra/envs/poc/foundry.customer.bicepparam
+
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
-PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
+PARAMETER_FILE=infra/envs/poc/foundry.customer.bicepparam \
 ./scripts/foundry/what-if.sh
 ```
 
@@ -34,9 +37,12 @@ What-if is read-only and must pass before deployment.
 Deployment requires the explicit `--execute` flag:
 
 ```bash
+cp infra/envs/poc/foundry.bicepparam.example \
+   infra/envs/poc/foundry.customer.bicepparam
+
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
-PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
+PARAMETER_FILE=infra/envs/poc/foundry.customer.bicepparam \
 ./scripts/foundry/deploy.sh --execute
 ```
 
@@ -55,13 +61,16 @@ for each phase in order, reusing the same generic scripts:
 
 ```bash
 # Tenant Phase 2: account/project/dependent resources/bare private endpoints
+cp infra/envs/poc/foundry.bicepparam.example \
+   infra/envs/poc/foundry.customer.bicepparam
+
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
-PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
+PARAMETER_FILE=infra/envs/poc/foundry.customer.bicepparam \
 ./scripts/foundry/what-if.sh
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
-PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
+PARAMETER_FILE=infra/envs/poc/foundry.customer.bicepparam \
 ./scripts/foundry/deploy.sh --execute
 
 # Tenant Phase 3: private DNS zone group association

@@ -47,9 +47,9 @@ override params you set:
 | Topology | RGs | How |
 |---|---|---|
 | Single RG | 1 | Deploy `main.bicep`, `foundry.bicep`, `apim.bicep` all into the same RG. Leave `networkResourceGroupName`/`foundryResourceGroupName` at their defaults. |
-| Network isolated | 2 | Network in its own RG; Foundry + APIM share a second RG. Set `networkResourceGroupName` on both `foundry.bicepparam` and `apim.bicepparam` to the network RG name; deploy `foundry.bicep` and `apim.bicep` into the shared second RG (`foundryResourceGroupName` on apim defaults correctly since it equals apim's own RG). |
-| Foundry isolated | 2 | Network + APIM share one RG; Foundry gets its own. Deploy `main.bicep` and `apim.bicep` into the shared RG (network default works); set `foundryResourceGroupName` on `apim.bicepparam` to the Foundry RG name, and `networkResourceGroupName` on `foundry.bicepparam` to the shared RG name. |
-| Fully separated | 3 | Network, Foundry, and APIM each in their own RG (example below). Set both override params on `foundry.bicepparam`/`apim.bicepparam`. |
+| Network isolated | 2 | Network in its own RG; Foundry + APIM share a second RG. Set `networkResourceGroupName` on both `foundry.customer.bicepparam` and `apim.bicepparam` to the network RG name; deploy `foundry.bicep` and `apim.bicep` into the shared second RG (`foundryResourceGroupName` on apim defaults correctly since it equals apim's own RG). |
+| Foundry isolated | 2 | Network + APIM share one RG; Foundry gets its own. Deploy `main.bicep` and `apim.bicep` into the shared RG (network default works); set `foundryResourceGroupName` on `apim.bicepparam` to the Foundry RG name, and `networkResourceGroupName` on `foundry.customer.bicepparam` to the shared RG name. |
+| Fully separated | 3 | Network, Foundry, and APIM each in their own RG (example below). Set both override params on `foundry.customer.bicepparam`/`apim.bicepparam`. |
 
 None of this requires touching the module code — only which RG name(s) you deploy each template
 into and which of the two override params you set in the `.bicepparam` files. The example below
@@ -77,15 +77,18 @@ az deployment group create \
   --parameters @infra/envs/poc/network.parameters.json
 
 # 2. Foundry (references the network RG's vnet/subnets/DNS zones)
+cp infra/envs/poc/foundry.bicepparam.example \
+   infra/envs/poc/foundry.customer.bicepparam
+
 az deployment group what-if \
   --resource-group "$FOUNDRY_RG" \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam
+  --parameters infra/envs/poc/foundry.customer.bicepparam
 
 az deployment group create \
   --resource-group "$FOUNDRY_RG" \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam
+  --parameters infra/envs/poc/foundry.customer.bicepparam
 
 # 3. APIM (references the network RG's vnet/subnet and the Foundry RG's account)
 az deployment group what-if \
