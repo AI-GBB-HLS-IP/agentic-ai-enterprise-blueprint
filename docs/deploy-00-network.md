@@ -713,7 +713,7 @@ private address ranges outside the blueprint's own plan.
 Never commit `what-if` output, discovery output, or customer-specific `.bicepparam` files.
 `.gitignore` excludes `**/brownfield-*.bicepparam`, `**/foundry.customer.bicepparam`,
 `**/foundry-dns.bicepparam`, and `**/foundry-dns.customer.bicepparam`; the tracked
-`foundry.bicepparam` and `foundry-dns.bicepparam.example` remain generic examples.
+`foundry.bicepparam.example` and `foundry-dns.bicepparam.example` remain generic examples.
 
 ---
 

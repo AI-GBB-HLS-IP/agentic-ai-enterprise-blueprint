@@ -16,7 +16,7 @@ description: "Dependency-ordered implementation and validation tasks for Chapter
 **Purpose**: Establish the implementation and evidence structure without changing the existing network foundation.
 
 - [X] T001 Create the planned Foundry module and POC environment paths in `infra/modules/foundry/` and `infra/envs/poc/` without modifying `infra/modules/network/`
-- [X] T002 [P] Record target subscription, resource group, region, resource names, and existing network/DNS resource IDs in `infra/envs/poc/foundry.bicepparam.example`
+- [X] T002 [P] Record target subscription, resource group, region, resource names, and existing network/DNS resource IDs in the ignored `infra/envs/poc/foundry.customer.bicepparam`, keeping `infra/envs/poc/foundry.bicepparam.example` generic
 - [X] T003 [P] Create the Chapter 01 validation evidence directory and command runner at `specs/01-foundry-byo-networking/validation/README.md` and `specs/01-foundry-byo-networking/validation/validate.sh`
 - [X] T004 [P] Create the model approval and quota evidence template at `specs/01-foundry-byo-networking/validation/model-approval.md`, including model name, version, format, SKU, capacity, approver, and timestamp
 
