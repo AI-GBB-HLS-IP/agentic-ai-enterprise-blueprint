@@ -18,6 +18,9 @@ param keyVaultPrivateEndpointGroupIds array = [
 @description('Create a private endpoint for Storage. Set to false when an existing (BYO) storage account already has one.')
 param createStoragePrivateEndpoint bool = true
 
+@description('Create a private endpoint for Key Vault. Set to false when an existing (BYO) Key Vault already has one.')
+param createKeyVaultPrivateEndpoint bool = true
+
 @description('Create a private endpoint for Cosmos DB. Set to false when an existing (BYO) Cosmos DB account already has one.')
 param createCosmosDBPrivateEndpoint bool = true
 
@@ -37,6 +40,7 @@ param privateEndpointTags object = {}
 param privateEndpointTagsValidated bool = true
 
 var _validateStoragePrivateEndpointInputs = createStoragePrivateEndpoint && empty(storageAccountId) ? fail('storageAccountId is required when createStoragePrivateEndpoint is true.') : true
+var _validateKeyVaultPrivateEndpointInputs = createKeyVaultPrivateEndpoint && empty(keyVaultId) ? fail('keyVaultId is required when createKeyVaultPrivateEndpoint is true.') : true
 var _validateCosmosPrivateEndpointInputs = createCosmosDBPrivateEndpoint && empty(cosmosDBAccountId) ? fail('cosmosDBAccountId is required when createCosmosDBPrivateEndpoint is true.') : true
 var _validateAISearchPrivateEndpointInputs = createAISearchPrivateEndpoint && empty(aiSearchServiceId) ? fail('aiSearchServiceId is required when createAISearchPrivateEndpoint is true.') : true
 
@@ -80,7 +84,7 @@ resource storagePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' 
   }
 }
 
-resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
+resource keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = if (createKeyVaultPrivateEndpoint && _validateKeyVaultPrivateEndpointInputs) {
   name: 'pe-foundry-keyvault'
   location: location
   tags: privateEndpointTagsValidated ? (privateEndpointTags.?keyVault ?? {}) : {}
@@ -147,14 +151,17 @@ resource aiSearchPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01'
 output foundryPrivateEndpointId string = foundryPrivateEndpoint.id
 output foundryPrivateEndpointName string = foundryPrivateEndpoint.name
 // The conditional resources above are guaranteed to exist when these outputs are read because
-// createStoragePrivateEndpoint/createCosmosDBPrivateEndpoint/createAISearchPrivateEndpoint gate
-// both the resource and any caller's use of the corresponding output.
+// createStoragePrivateEndpoint/createKeyVaultPrivateEndpoint/createCosmosDBPrivateEndpoint/
+// createAISearchPrivateEndpoint gate both the resource and any caller's use of the corresponding
+// output.
 #disable-next-line BCP318
 output storagePrivateEndpointId string = createStoragePrivateEndpoint ? storagePrivateEndpoint.id : ''
 #disable-next-line BCP318
 output storagePrivateEndpointName string = createStoragePrivateEndpoint ? storagePrivateEndpoint.name : ''
-output keyVaultPrivateEndpointId string = keyVaultPrivateEndpoint.id
-output keyVaultPrivateEndpointName string = keyVaultPrivateEndpoint.name
+#disable-next-line BCP318
+output keyVaultPrivateEndpointId string = createKeyVaultPrivateEndpoint ? keyVaultPrivateEndpoint.id : ''
+#disable-next-line BCP318
+output keyVaultPrivateEndpointName string = createKeyVaultPrivateEndpoint ? keyVaultPrivateEndpoint.name : ''
 #disable-next-line BCP318
 output cosmosDBPrivateEndpointId string = createCosmosDBPrivateEndpoint ? cosmosDBPrivateEndpoint.id : ''
 #disable-next-line BCP318

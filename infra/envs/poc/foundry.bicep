@@ -30,6 +30,9 @@ param existingStoragePrivateEndpoint bool = false
 @description('Existing Key Vault full ARM resource ID. Leave empty to create a new Key Vault.')
 param existingKeyVaultResourceId string = ''
 
+@description('Set to true if the existing (BYO) Key Vault already has a private endpoint configured.')
+param existingKeyVaultPrivateEndpoint bool = false
+
 @description('Existing AI Search service full ARM resource ID. Leave empty to create a new AI Search service.')
 param existingAISearchResourceId string = ''
 
@@ -103,6 +106,7 @@ module foundry '../../modules/foundry/main.bicep' = {
     storageAccountName: storageAccountName
     keyVaultName: keyVaultName
     existingKeyVaultResourceId: existingKeyVaultResourceId
+    existingKeyVaultPrivateEndpoint: existingKeyVaultPrivateEndpoint
     aiSearchServiceName: aiSearchServiceName
     cosmosDBAccountName: cosmosDBAccountName
     existingAzureStorageAccountResourceId: existingAzureStorageAccountResourceId

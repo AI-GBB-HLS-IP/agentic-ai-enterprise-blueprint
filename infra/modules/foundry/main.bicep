@@ -42,6 +42,9 @@ param existingAzureStorageAccountResourceId string = ''
 @description('Set to true if the existing (BYO) storage account already has a private endpoint configured; a new one will not be created.')
 param existingStoragePrivateEndpoint bool = false
 
+@description('Set to true if the existing (BYO) Key Vault already has a private endpoint configured; a new one will not be created.')
+param existingKeyVaultPrivateEndpoint bool = false
+
 @description('Existing AI Search service full ARM resource ID. Leave empty to create a new AI Search service.')
 param existingAISearchResourceId string = ''
 
@@ -196,6 +199,9 @@ var storageAccountNameResolved = (_validateStorageResourceId && _validateStorage
   ? (storagePassedIn ? storageParts[8] : storageAccountName)
   : ''
 
+var keyVaultPassedIn = !empty(existingKeyVaultResourceId)
+var _validateKeyVaultPrivateEndpointFlag = keyVaultPassedIn || !existingKeyVaultPrivateEndpoint ? true : fail('existingKeyVaultPrivateEndpoint can only be true when existingKeyVaultResourceId is set.')
+
 var searchPassedIn = !empty(existingAISearchResourceId)
 var searchParts = split(existingAISearchResourceId, '/')
 var _validateAISearchResourceId = !searchPassedIn || (((length(searchParts) == 9) || (length(searchParts) == 10 && empty(searchParts[9]))) && toLower(searchParts[1]) == 'subscriptions' && toLower(searchParts[3]) == 'resourcegroups' && toLower(searchParts[5]) == 'providers' && toLower(searchParts[6]) == 'microsoft.search' && toLower(searchParts[7]) == 'searchservices' && !empty(searchParts[8])) ? true : fail('existingAISearchResourceId must be a full ARM resource ID for Microsoft.Search/searchServices.')
@@ -292,6 +298,7 @@ module privateEndpoints './private-endpoint.bicep' = {
     storageAccountId: storageAccountIdResolved
     keyVaultId: keyVaultResources.outputs.keyVaultId
     createStoragePrivateEndpoint: !(storagePassedIn && existingStoragePrivateEndpoint)
+    createKeyVaultPrivateEndpoint: !(keyVaultPassedIn && existingKeyVaultPrivateEndpoint) && _validateKeyVaultPrivateEndpointFlag
     createCosmosDBPrivateEndpoint: !(cosmosPassedIn && existingCosmosDBPrivateEndpoint)
     cosmosDBAccountId: cosmosDBAccountIdResolved
     createAISearchPrivateEndpoint: !(searchPassedIn && existingAISearchPrivateEndpoint)

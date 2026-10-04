@@ -64,6 +64,15 @@ param apimServiceEndpoints array = [
   'Microsoft.Storage'
 ]
 
+@description('''Service endpoints to enable on the Foundry agent subnet. Defaults to
+`Microsoft.CognitiveServices`. Foundry connectivity itself is via private endpoints and does not
+require this service endpoint, but some enterprise network-governance policies require it on any
+subnet hosting a resource with a Cognitive Services private endpoint; pass an empty array to opt
+out where that policy does not apply.''')
+param foundryServiceEndpoints array = [
+  'Microsoft.CognitiveServices'
+]
+
 // ---------------------------------------------------------------------------------------------
 // NSG association. Three mutually exclusive modes, in precedence order:
 //
@@ -204,6 +213,7 @@ module subnets '../../modules/network/subnets.bicep' = {
         name: foundrySubnetName
         addressPrefix: foundrySubnetPrefix
         delegationServiceName: 'Microsoft.App/environments'
+        serviceEndpoints: foundryServiceEndpoints
       }, sharedNsgAssociation)
       {
         name: apimSubnetName

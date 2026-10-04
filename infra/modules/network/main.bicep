@@ -51,6 +51,15 @@ param privateDnsZoneTags object = {}
 @description('Purpose-keyed tags for blueprint-created private DNS virtual network links.')
 param privateDnsVnetLinkTags object = {}
 
+@description('''Service endpoints to enable on the Foundry agent subnet. Defaults to
+`Microsoft.CognitiveServices`. Foundry connectivity itself is via private endpoints and does not
+require this service endpoint, but some enterprise network-governance policies require it on any
+subnet hosting a resource with a Cognitive Services private endpoint; pass an empty array to opt
+out where that policy does not apply.''')
+param foundryServiceEndpoints array = [
+  'Microsoft.CognitiveServices'
+]
+
 module nsg './nsg.bicep' = {
   name: '${vnetName}-nsg'
   params: {
@@ -96,6 +105,7 @@ var subnetDefinitions = [
     addressPrefix: foundrySubnetPrefix
     privateEndpointNetworkPolicies: 'Enabled'
     delegationServiceName: 'Microsoft.App/environments'
+    serviceEndpoints: foundryServiceEndpoints
   }
   {
     name: 'hybridsubnet-compute'

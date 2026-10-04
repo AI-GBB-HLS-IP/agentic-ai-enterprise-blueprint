@@ -255,11 +255,27 @@ if compute is not None:
     if "serviceEndpoints" in compute:
         sys.exit("hybridsubnet-compute must not receive serviceEndpoints in brownfield mode; APIM-only")
 
-# Foundry/private-endpoints entries compile to union() expression strings; confirm those raw
-# expressions never reference routeTableId/serviceEndpoints either.
+# Foundry/private-endpoints entries compile to union() expression strings. The foundry subnet is
+# allowed its own serviceEndpoints (foundryServiceEndpoints, defaulting to Microsoft.CognitiveServices
+# per the live-deployment network-policy fix) but never routeTableId; all other such expressions
+# (e.g. private-endpoints subnet) must reference neither.
 for entry in subnets:
-    if isinstance(entry, str) and ("routeTableId" in entry or "serviceEndpoints" in entry):
-        sys.exit(f"a non-APIM subnet expression unexpectedly references routeTableId/serviceEndpoints: {entry}")
+    if not isinstance(entry, str):
+        continue
+    if "routeTableId" in entry:
+        sys.exit(f"a non-APIM subnet expression unexpectedly references routeTableId: {entry}")
+    if "serviceEndpoints" in entry and "foundrySubnetName" not in entry:
+        sys.exit(f"a non-APIM, non-foundry subnet expression unexpectedly references serviceEndpoints: {entry}")
+
+# The compiled default for foundryServiceEndpoints must be exactly Microsoft.CognitiveServices,
+# matching the live-deployment subnet network-policy requirement this fix addresses.
+expected_foundry_default_endpoints = ["Microsoft.CognitiveServices"]
+actual_foundry_default_endpoints = arm["parameters"]["foundryServiceEndpoints"]["defaultValue"]
+if actual_foundry_default_endpoints != expected_foundry_default_endpoints:
+    sys.exit(
+        "foundryServiceEndpoints default value does not match the required endpoint: "
+        f"expected {expected_foundry_default_endpoints}, got {actual_foundry_default_endpoints}"
+    )
 PY
 
 echo "Network module contract tests passed."
