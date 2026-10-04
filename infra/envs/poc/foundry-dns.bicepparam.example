@@ -12,16 +12,16 @@ using './foundry-dns.bicep'
 // dnsResourceGroupName must match networkResourceGroupName. In zone-group mode, set both values
 // to the explicit subscription and resource group that contain the existing private DNS zones.
 
-param networkResourceGroupName = '<network-resource-group>'
-param dnsIntegrationMode = 'vnet-link'
-param dnsSubscriptionId = '<dns-zone-subscription-id>'
-param dnsResourceGroupName = '<dns-zone-resource-group>'
-param vnetName = '<existing-vnet-name>'
-param foundryPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<foundry-private-endpoint-name>'
-param storagePrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<storage-private-endpoint-name>'
-param keyVaultPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<key-vault-private-endpoint-name>'
-param cosmosDBPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<cosmos-db-private-endpoint-name>'
-param aiSearchPrivateEndpointId = '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<ai-search-private-endpoint-name>'
+param networkResourceGroupName = readEnvironmentVariable('FOUNDRY_NETWORK_RESOURCE_GROUP', '<network-resource-group>')
+param dnsIntegrationMode = readEnvironmentVariable('FOUNDRY_DNS_INTEGRATION_MODE', 'vnet-link')
+param dnsSubscriptionId = readEnvironmentVariable('FOUNDRY_DNS_SUBSCRIPTION_ID', '<dns-zone-subscription-id>')
+param dnsResourceGroupName = readEnvironmentVariable('FOUNDRY_DNS_RESOURCE_GROUP', '<dns-zone-resource-group>')
+param vnetName = readEnvironmentVariable('FOUNDRY_VNET_NAME', '<existing-vnet-name>')
+param foundryPrivateEndpointId = readEnvironmentVariable('FOUNDRY_PRIVATE_ENDPOINT_ID', '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<foundry-private-endpoint-name>')
+param storagePrivateEndpointId = readEnvironmentVariable('FOUNDRY_STORAGE_PRIVATE_ENDPOINT_ID', '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<storage-private-endpoint-name>')
+param keyVaultPrivateEndpointId = readEnvironmentVariable('FOUNDRY_KEY_VAULT_PRIVATE_ENDPOINT_ID', '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<key-vault-private-endpoint-name>')
+param cosmosDBPrivateEndpointId = readEnvironmentVariable('FOUNDRY_COSMOS_DB_PRIVATE_ENDPOINT_ID', '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<cosmos-db-private-endpoint-name>')
+param aiSearchPrivateEndpointId = readEnvironmentVariable('FOUNDRY_AI_SEARCH_PRIVATE_ENDPOINT_ID', '/subscriptions/<workload-subscription-id>/resourceGroups/<foundry-resource-group>/providers/Microsoft.Network/privateEndpoints/<ai-search-private-endpoint-name>')
 param tags = json(readEnvironmentVariable('FOUNDRY_DNS_TAGS', '{"foundry-poc":"true"}'))
 param servicesAiPrivateDnsZoneTags = json(readEnvironmentVariable('FOUNDRY_SERVICES_AI_DNS_ZONE_TAGS', '{}'))
 param servicesAiPrivateDnsVnetLinkTags = json(readEnvironmentVariable('FOUNDRY_SERVICES_AI_DNS_LINK_TAGS', '{}'))
