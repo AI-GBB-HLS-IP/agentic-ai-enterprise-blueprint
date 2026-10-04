@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 
 GREENFIELD_MODULE="${REPO_ROOT}/infra/modules/network/main.bicep"
+GREENFIELD_ENTRY="${REPO_ROOT}/infra/envs/poc/main.bicep"
 BROWNFIELD_ENTRY="${REPO_ROOT}/infra/envs/poc/brownfield-network.bicep"
 SUBNETS_MODULE="${REPO_ROOT}/infra/modules/network/subnets.bicep"
 
@@ -38,6 +39,9 @@ fail() {
 echo "==> az bicep build: modules/network/main.bicep"
 az bicep build --file "$GREENFIELD_MODULE" --stdout >"$workdir/greenfield.json" 2>"$workdir/greenfield.err" \
   || { cat "$workdir/greenfield.err" >&2; fail "az bicep build failed for modules/network/main.bicep"; }
+echo "==> az bicep build: envs/poc/main.bicep"
+az bicep build --file "$GREENFIELD_ENTRY" --stdout >"$workdir/greenfield-entry.json" 2>"$workdir/greenfield-entry.err" \
+  || { cat "$workdir/greenfield-entry.err" >&2; fail "az bicep build failed for envs/poc/main.bicep"; }
 
 echo "==> greenfield builds subnets through the shared module, not inline resources"
 grep -q "module subnets './subnets.bicep'" "$GREENFIELD_MODULE" \
@@ -94,6 +98,15 @@ if [entry["name"] for entry in subnets] != expected:
 if by_name["hybridsubnet-foundry"].get("delegationServiceName") != "Microsoft.App/environments":
     sys.exit("foundry subnet lost its Microsoft.App/environments delegation")
 
+foundry_service_endpoints = by_name["hybridsubnet-foundry"].get("serviceEndpoints")
+if foundry_service_endpoints != "[parameters('foundryServiceEndpoints')]":
+    sys.exit(
+        "greenfield hybridsubnet-foundry must wire serviceEndpoints to the foundryServiceEndpoints "
+        f"parameter, got: {foundry_service_endpoints}"
+    )
+if arm["parameters"]["foundryServiceEndpoints"]["defaultValue"] != []:
+    sys.exit("greenfield foundryServiceEndpoints default value must be an empty array (FR-018a)")
+
 if by_name["hybridsubnet-privateendpoints"].get("privateEndpointNetworkPolicies") != "Disabled":
     sys.exit("private endpoints subnet must keep privateEndpointNetworkPolicies = Disabled")
 
@@ -108,6 +121,31 @@ for name in ("hybridsubnet-foundry", "hybridsubnet-privateendpoints", "AzureBast
 for key in ("vnetId", "subnetIds", "nsgIds", "privateDnsZoneIds"):
     if key not in arm.get("outputs", {}):
         sys.exit(f"greenfield output '{key}' was removed")
+PY
+
+echo "==> greenfield entry point forwards the opt-in Foundry endpoint parameter"
+python3 - "$workdir/greenfield-entry.json" <<'PY' || exit 1
+import json
+import sys
+
+arm = json.load(open(sys.argv[1]))
+parameter = arm.get("parameters", {}).get("foundryServiceEndpoints", {})
+if parameter.get("defaultValue") != []:
+    sys.exit("greenfield entry point foundryServiceEndpoints default must remain empty (FR-018a)")
+
+network_module = next(
+    (
+        r for r in arm.get("resources", [])
+        if r.get("type") == "Microsoft.Resources/deployments"
+        and "network-foundation" in str(r.get("name", ""))
+    ),
+    None,
+)
+if network_module is None:
+    sys.exit("greenfield entry point is missing the network-foundation deployment")
+module_params = network_module.get("properties", {}).get("parameters", {})
+if module_params.get("foundryServiceEndpoints", {}).get("value") != "[parameters('foundryServiceEndpoints')]":
+    sys.exit("greenfield entry point must forward foundryServiceEndpoints to the network module")
 PY
 
 echo "==> greenfield subnet writes are serialized"
@@ -255,11 +293,33 @@ if compute is not None:
     if "serviceEndpoints" in compute:
         sys.exit("hybridsubnet-compute must not receive serviceEndpoints in brownfield mode; APIM-only")
 
-# Foundry/private-endpoints entries compile to union() expression strings; confirm those raw
-# expressions never reference routeTableId/serviceEndpoints either.
+# Foundry/private-endpoints entries compile to union() expression strings. The foundry subnet
+# must reference its own foundryServiceEndpoints parameter (so a regression that drops the
+# wiring is caught) but never routeTableId; all other such expressions (e.g. private-endpoints
+# subnet) must reference neither.
+foundry_entry = next((e for e in subnets if isinstance(e, str) and "foundrySubnetName" in e), None)
+if foundry_entry is None:
+    sys.exit("could not find the foundry subnet's compiled union() expression")
+if "parameters('foundryServiceEndpoints')" not in foundry_entry:
+    sys.exit(f"the foundry subnet expression must wire serviceEndpoints to foundryServiceEndpoints, got: {foundry_entry}")
+
 for entry in subnets:
-    if isinstance(entry, str) and ("routeTableId" in entry or "serviceEndpoints" in entry):
-        sys.exit(f"a non-APIM subnet expression unexpectedly references routeTableId/serviceEndpoints: {entry}")
+    if not isinstance(entry, str):
+        continue
+    if "routeTableId" in entry:
+        sys.exit(f"a non-APIM subnet expression unexpectedly references routeTableId: {entry}")
+    if "serviceEndpoints" in entry and "foundrySubnetName" not in entry:
+        sys.exit(f"a non-APIM, non-foundry subnet expression unexpectedly references serviceEndpoints: {entry}")
+
+# The compiled default for foundryServiceEndpoints must be an empty array, matching FR-018a (no
+# service endpoints except on the APIM-purpose subnet); callers opt in explicitly per deployment.
+expected_foundry_default_endpoints = []
+actual_foundry_default_endpoints = arm["parameters"]["foundryServiceEndpoints"]["defaultValue"]
+if actual_foundry_default_endpoints != expected_foundry_default_endpoints:
+    sys.exit(
+        "foundryServiceEndpoints default value does not match FR-018a: "
+        f"expected {expected_foundry_default_endpoints}, got {actual_foundry_default_endpoints}"
+    )
 PY
 
 echo "Network module contract tests passed."

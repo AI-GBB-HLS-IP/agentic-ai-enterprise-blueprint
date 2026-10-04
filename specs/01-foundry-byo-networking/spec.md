@@ -153,9 +153,10 @@ the result is attributable to the intended model deployment.
   minimum built-in RBAC roles required by the Agent Service platform to auto-provision its
   Cosmos DB containers (`enterprise_memory` database: thread-message-store,
   system-thread-message-store, agent-entity-store) and Storage blob container
-  (`{workspaceId}*-azureml-agent`) before those child resources exist. The Storage role
-  assignment MUST use an ABAC condition scoping access to containers matching the project's
-  workspace ID pattern only.
+  (`{workspaceId}*-azureml-agent`) before those child resources exist. The Storage Blob Data
+  Contributor assignment MUST be unconditional at the storage-account scope. The Storage Blob
+  Data Owner assignment MUST use a version 2.0 ABAC condition restricting access to containers
+  matching the project's workspace ID pattern.
 - **FR-006**: The feature MUST create private endpoints for Foundry and each required supporting
   resource (Storage, Key Vault, Cosmos DB, AI Search), and each private endpoint MUST have an
   approved connection state before validation can pass. The main deployment MUST create the

@@ -64,6 +64,13 @@ param apimServiceEndpoints array = [
   'Microsoft.Storage'
 ]
 
+@description('''Service endpoints to enable on the Foundry agent subnet. Defaults to none, matching
+FR-018a (no service endpoints except on the APIM-purpose subnet). Foundry connectivity itself is
+via private endpoints and does not require any service endpoint; pass `['Microsoft.CognitiveServices']`
+explicitly where an enterprise network-governance policy requires it on any subnet hosting a
+resource with a Cognitive Services private endpoint.''')
+param foundryServiceEndpoints array = []
+
 // ---------------------------------------------------------------------------------------------
 // NSG association. Three mutually exclusive modes, in precedence order:
 //
@@ -204,6 +211,7 @@ module subnets '../../modules/network/subnets.bicep' = {
         name: foundrySubnetName
         addressPrefix: foundrySubnetPrefix
         delegationServiceName: 'Microsoft.App/environments'
+        serviceEndpoints: foundryServiceEndpoints
       }, sharedNsgAssociation)
       {
         name: apimSubnetName

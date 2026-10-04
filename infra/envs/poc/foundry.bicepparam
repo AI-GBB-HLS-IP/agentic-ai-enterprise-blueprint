@@ -35,6 +35,8 @@ param privateEndpointTags = json(readEnvironmentVariable('FOUNDRY_PRIVATE_ENDPOI
 // existing*PrivateEndpoint flag to true so this module does not create a duplicate.
 param existingAzureStorageAccountResourceId = readEnvironmentVariable('FOUNDRY_EXISTING_STORAGE_ACCOUNT_ID', '')
 param existingStoragePrivateEndpoint = bool(readEnvironmentVariable('FOUNDRY_EXISTING_STORAGE_PRIVATE_ENDPOINT', 'false'))
+param existingKeyVaultResourceId = readEnvironmentVariable('FOUNDRY_EXISTING_KEY_VAULT_ID', '')
+param existingKeyVaultPrivateEndpoint = bool(readEnvironmentVariable('FOUNDRY_EXISTING_KEY_VAULT_PRIVATE_ENDPOINT', 'false'))
 param existingAISearchResourceId = readEnvironmentVariable('FOUNDRY_EXISTING_AI_SEARCH_ID', '')
 param existingAISearchPrivateEndpoint = bool(readEnvironmentVariable('FOUNDRY_EXISTING_AI_SEARCH_PRIVATE_ENDPOINT', 'false'))
 param existingAzureCosmosDBAccountResourceId = readEnvironmentVariable('FOUNDRY_EXISTING_COSMOS_DB_ACCOUNT_ID', '')

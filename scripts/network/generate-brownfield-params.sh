@@ -501,6 +501,9 @@ lines.append("")
 lines.append("// APIM subnet route table (common brownfield-deployment network policy). Leave empty for no route table.")
 lines.append(f"param apimRouteTableId = {bicep_string(apim_route_table_id)}")
 lines.append("")
+lines.append("// Explicit opt-in for environments whose network policy requires the Foundry endpoint.")
+lines.append("param foundryServiceEndpoints = ['Microsoft.CognitiveServices']")
+lines.append("")
 lines.append(f"param privateEndpointsNetworkPolicies = {bicep_string(pe_policies)}")
 network_param_text = "\n".join(lines) + "\n"
 
