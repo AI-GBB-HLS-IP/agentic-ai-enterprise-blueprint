@@ -23,7 +23,7 @@ Preflight is read-only. It validates the existing network foundation and model q
 ```bash
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
-PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
+PARAMETER_FILE=infra/envs/poc/foundry.bicepparam.example \
 ./scripts/foundry/what-if.sh
 ```
 
@@ -36,7 +36,7 @@ Deployment requires the explicit `--execute` flag:
 ```bash
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
-PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
+PARAMETER_FILE=infra/envs/poc/foundry.bicepparam.example \
 ./scripts/foundry/deploy.sh --execute
 ```
 
@@ -57,11 +57,11 @@ for each phase in order, reusing the same generic scripts:
 # Tenant Phase 2: account/project/dependent resources/bare private endpoints
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
-PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
+PARAMETER_FILE=infra/envs/poc/foundry.bicepparam.example \
 ./scripts/foundry/what-if.sh
 RG_NAME=rg-agent-factory-poc \
 TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
-PARAMETER_FILE=infra/envs/poc/foundry.bicepparam \
+PARAMETER_FILE=infra/envs/poc/foundry.bicepparam.example \
 ./scripts/foundry/deploy.sh --execute
 
 # Tenant Phase 3: private DNS zone group association

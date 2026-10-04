@@ -12,7 +12,7 @@ Run:
 az deployment group what-if \
   --resource-group rg-agent-factory-poc \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam
+  --parameters infra/envs/poc/foundry.bicepparam.example
 ```
 
 Expected when rerun: the preview creates or updates the Foundry resources and bare

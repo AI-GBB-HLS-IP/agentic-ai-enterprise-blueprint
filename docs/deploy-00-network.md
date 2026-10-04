@@ -271,7 +271,7 @@ settings before deployment. Before the later DNS phase, populate the Foundry-DNS
 full `*PrivateEndpointId` outputs from the main Foundry deployment or with independently managed
 private endpoint ARM resource IDs. Any of these IDs may remain empty when that association must be
 skipped. Deploy the Foundry file first, then the Foundry-DNS file (see section 5.6). Alternatively,
-copy the tracked `infra/envs/poc/foundry.bicepparam` to a local, git-ignored
+copy the tracked `infra/envs/poc/foundry.bicepparam.example` to a local, git-ignored
 `infra/envs/poc/foundry.customer.bicepparam` and apply the same brownfield settings there. Add
 `--dry-run` to see the proposal without writing anything, and `--force` to overwrite a previous
 run.
@@ -572,12 +572,12 @@ hostnames will not resolve through the approved private DNS zones until then.
 Deploy Foundry into the resource group that owns the workload resources. For a brownfield VNet,
 use the generated `brownfield-foundry.bicepparam`/`brownfield-foundry-dns.bicepparam` pair (in
 place of `foundry.customer.bicepparam`/`foundry-dns.customer.bicepparam` below) or a separate
-local customer override copied from `foundry.bicepparam`; keep the tracked generic examples
+local customer override copied from `foundry.bicepparam.example`; keep the tracked generic examples
 unchanged.
 
 ```bash
 # Optional local override pattern:
-cp infra/envs/poc/foundry.bicepparam \
+cp infra/envs/poc/foundry.bicepparam.example \
    infra/envs/poc/foundry.customer.bicepparam
 # Edit the local copy with the approved location, networkResourceGroupName, vnetName, and
 # globally unique names.

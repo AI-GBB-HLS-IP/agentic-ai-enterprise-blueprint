@@ -22,12 +22,12 @@ az bicep build --file infra/envs/poc/foundry-dns.bicep
 az deployment group validate \
   --resource-group rg-agent-factory-poc \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam
+  --parameters infra/envs/poc/foundry.bicepparam.example
 
 az deployment group what-if \
   --resource-group rg-agent-factory-poc \
   --template-file infra/envs/poc/foundry.bicep \
-  --parameters infra/envs/poc/foundry.bicepparam
+  --parameters infra/envs/poc/foundry.bicepparam.example
 
 # Tenant Phase 3: later DNS association
 # First copy foundry-dns.bicepparam.example to an untracked parameter file and populate full

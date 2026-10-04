@@ -65,7 +65,7 @@ infra/
 ├── envs/poc/
 │   ├── main.bicep                 # existing network environment composition
 │   ├── foundry.bicep               # Foundry environment composition
-│   └── foundry.bicepparam          # Foundry environment parameters
+│   └── foundry.bicepparam.example  # Foundry environment parameters
 └── modules/foundry/
     ├── main.bicep                 # account/project orchestration
     ├── supporting-resources.bicep
