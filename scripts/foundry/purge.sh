@@ -42,12 +42,14 @@ elif [ "$live_state" = "Succeeded" ]; then
   echo "Live Cognitive Services account '$FOUNDRY_ACCOUNT_NAME' is healthy (provisioningState: Succeeded). Leaving it in place."
 else
   echo "Live Cognitive Services account '$FOUNDRY_ACCOUNT_NAME' exists with provisioningState: $live_state."
-  if [ "$EXECUTE" = true ]; then
+  if [ "$live_state" = "Failed" ] && [ "$EXECUTE" = true ]; then
     echo "Deleting Cognitive Services account '$FOUNDRY_ACCOUNT_NAME'..."
     az cognitiveservices account delete --resource-group "$RG_NAME" --name "$FOUNDRY_ACCOUNT_NAME"
     echo "Deleted. It may now appear as soft-deleted below; re-run this script to purge it."
+  elif [ "$EXECUTE" = true ]; then
+    echo "Provisioning state '$live_state' is not an explicitly allowed terminal failure state; leaving it in place."
   else
-    echo "Refusing to delete. Re-run with --execute after reviewing the resource above."
+    echo "Refusing to delete. Only a Failed-state account is eligible; re-run with --execute after reviewing the resource above."
   fi
 fi
 

@@ -70,8 +70,9 @@ PARAMETER_FILE=infra/envs/poc/foundry.customer.bicepparam \
 If a prior deployment failed partway (or was deleted) and a retry with the same account/Key
 Vault name fails, there are two kinds of leftovers that can block recreation:
 
-- A **live** Cognitive Services account stuck in a non-`Succeeded` provisioning state (e.g.
-  `Failed`) from a partial create.
+- A **live** Cognitive Services account in the terminal `Failed` provisioning state from a
+  partial create. With `--execute`, only this state is eligible for deletion; transient states
+  such as `Creating`, `Updating`, or `Deleting`, and unknown states, are reported and left in place.
 - A **soft-deleted** copy of the account and/or Key Vault, which Azure creates on delete
   (including the delete step below) and which blocks recreation with the same name until purged.
 
