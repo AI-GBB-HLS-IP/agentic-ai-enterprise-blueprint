@@ -82,16 +82,16 @@ soft-deleted Key Vault), lists/reports findings by default, and only deletes/pur
 ```bash
 # Dry run (list/report only)
 LOCATION=eastus \
-RG_NAME=AZR-133-AIFoundry-POC \
-FOUNDRY_ACCOUNT_NAME=azr-133-faf-poc01 \
-FOUNDRY_KEY_VAULT_NAME=kv-azr133-poc \
+RG_NAME=rg-agent-factory-poc \
+FOUNDRY_ACCOUNT_NAME=foundry-agent-factory-poc \
+FOUNDRY_KEY_VAULT_NAME=kv-agent-factory-poc \
 ./scripts/foundry/purge.sh
 
 # Delete/purge after reviewing the findings above
 LOCATION=eastus \
-RG_NAME=AZR-133-AIFoundry-POC \
-FOUNDRY_ACCOUNT_NAME=azr-133-faf-poc01 \
-FOUNDRY_KEY_VAULT_NAME=kv-azr133-poc \
+RG_NAME=rg-agent-factory-poc \
+FOUNDRY_ACCOUNT_NAME=foundry-agent-factory-poc \
+FOUNDRY_KEY_VAULT_NAME=kv-agent-factory-poc \
 ./scripts/foundry/purge.sh --execute
 ```
 
@@ -100,8 +100,6 @@ again with `--execute`) to purge that soft-deleted copy as well. Before purging,
 governance/retention tags (e.g. an extended-delete-by tag) on the reported resource — a purge may
 be denied by policy, which is a separate remediation path (request a retention exception) rather
 than a script issue.
-
-```
 
 `FOUNDRY_KEY_VAULT_NAME` is optional; omit it to only check/purge the Cognitive Services account.
 `LOCATION` must match the region the failed resources were created in, and `RG_NAME` must match

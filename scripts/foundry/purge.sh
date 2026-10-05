@@ -20,7 +20,21 @@ if [ "${1:-}" = "--execute" ]; then
 fi
 
 echo "Checking for a live Cognitive Services account: $FOUNDRY_ACCOUNT_NAME in $RG_NAME"
-live_state="$(az cognitiveservices account show --resource-group "$RG_NAME" --name "$FOUNDRY_ACCOUNT_NAME" --query "properties.provisioningState" -o tsv 2>/dev/null | tr -d '[:space:]')" || true
+if live_output="$(az cognitiveservices account show --resource-group "$RG_NAME" --name "$FOUNDRY_ACCOUNT_NAME" --query "properties.provisioningState" -o tsv 2>&1)"; then
+  live_state="$(printf '%s' "$live_output" | tr -d '[:space:]')"
+  if [ -z "$live_state" ]; then
+    echo "Could not determine the provisioning state of '$FOUNDRY_ACCOUNT_NAME'; refusing to continue." >&2
+    exit 1
+  fi
+else
+  lookup_status=$?
+  if [[ "$live_output" =~ (^|[^[:alnum:]_])ResourceNotFound([^[:alnum:]_]|$) ]]; then
+    live_state=""
+  else
+    printf "Failed to look up live Cognitive Services account '%s': %s\n" "$FOUNDRY_ACCOUNT_NAME" "$live_output" >&2
+    exit "$lookup_status"
+  fi
+fi
 
 if [ -z "$live_state" ]; then
   echo "No live Cognitive Services account named '$FOUNDRY_ACCOUNT_NAME' found in $RG_NAME."

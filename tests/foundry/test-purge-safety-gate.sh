@@ -5,10 +5,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 PURGE_SCRIPT="$REPO_ROOT/scripts/foundry/purge.sh"
 
-command -v az >/dev/null 2>&1 || { echo "SKIP: az CLI not available."; exit 0; }
-
 # Stub out az so the test never touches a live subscription; it only exercises the script's
-# required-env-var checks and its default (no --execute) dry-run gate.
+# required-env-var checks and safety gates.
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
 cat >"$workdir/az" <<'STUB'
@@ -113,6 +111,29 @@ chmod +x "$workdir3/az"
 output3="$(LOCATION=eastus2 RG_NAME=rg-agent-factory-poc FOUNDRY_ACCOUNT_NAME=foundry-agent-factory-poc PATH="$workdir3:$PATH" "$PURGE_SCRIPT")"
 echo "$output3" | grep -q "Refusing to delete" || {
   echo "FAIL: purge.sh did not report a detected live Failed-state account" >&2
+  exit 1
+}
+
+# Lookup failures other than an explicit not-found response must fail closed.
+workdir4="$(mktemp -d)"
+trap 'rm -rf "$workdir" "$workdir2" "$workdir3" "$workdir4"' EXIT
+cat >"$workdir4/az" <<'STUB'
+#!/usr/bin/env bash
+if [ "$1" = "cognitiveservices" ] && [ "$2" = "account" ] && [ "$3" = "show" ]; then
+  echo "ERROR: (AuthorizationFailed) The client is not authorized." >&2
+  exit 1
+fi
+echo "Unexpected az invocation after lookup failure: $*" >&2
+exit 1
+STUB
+chmod +x "$workdir4/az"
+
+if failure_output="$(LOCATION=eastus2 RG_NAME=rg-agent-factory-poc FOUNDRY_ACCOUNT_NAME=foundry-agent-factory-poc PATH="$workdir4:$PATH" "$PURGE_SCRIPT" 2>&1)"; then
+  echo "FAIL: purge.sh should fail when account lookup is unauthorized" >&2
+  exit 1
+fi
+echo "$failure_output" | grep -q "Failed to look up live Cognitive Services account" || {
+  echo "FAIL: purge.sh did not report the account lookup failure" >&2
   exit 1
 }
 
