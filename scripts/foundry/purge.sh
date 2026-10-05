@@ -18,12 +18,12 @@ if [ "${1:-}" = "--execute" ]; then
 fi
 
 echo "Checking for soft-deleted Cognitive Services account: $FOUNDRY_ACCOUNT_NAME (location: $LOCATION)"
-deleted_account_json="$(az cognitiveservices account list-deleted --query "[?name=='$FOUNDRY_ACCOUNT_NAME']" -o json)"
+account_count="$(az cognitiveservices account list-deleted --query "length([?name=='$FOUNDRY_ACCOUNT_NAME'])" -o tsv | tr -d '[:space:]')"
 
-if [ "$deleted_account_json" = "[]" ]; then
+if [ "$account_count" = "0" ] || [ -z "$account_count" ]; then
   echo "No soft-deleted Cognitive Services account named '$FOUNDRY_ACCOUNT_NAME' found."
 else
-  echo "$deleted_account_json"
+  az cognitiveservices account list-deleted --query "[?name=='$FOUNDRY_ACCOUNT_NAME']" -o json
   if [ "$EXECUTE" = true ]; then
     echo "Purging Cognitive Services account '$FOUNDRY_ACCOUNT_NAME'..."
     az cognitiveservices account purge \
@@ -38,12 +38,12 @@ fi
 
 if [ -n "$FOUNDRY_KEY_VAULT_NAME" ]; then
   echo "Checking for soft-deleted Key Vault: $FOUNDRY_KEY_VAULT_NAME (location: $LOCATION)"
-  deleted_vault_json="$(az keyvault list-deleted --query "[?name=='$FOUNDRY_KEY_VAULT_NAME']" -o json)"
+  vault_count="$(az keyvault list-deleted --query "length([?name=='$FOUNDRY_KEY_VAULT_NAME'])" -o tsv | tr -d '[:space:]')"
 
-  if [ "$deleted_vault_json" = "[]" ]; then
+  if [ "$vault_count" = "0" ] || [ -z "$vault_count" ]; then
     echo "No soft-deleted Key Vault named '$FOUNDRY_KEY_VAULT_NAME' found."
   else
-    echo "$deleted_vault_json"
+    az keyvault list-deleted --query "[?name=='$FOUNDRY_KEY_VAULT_NAME']" -o json
     if [ "$EXECUTE" = true ]; then
       echo "Purging Key Vault '$FOUNDRY_KEY_VAULT_NAME'..."
       az keyvault purge --name "$FOUNDRY_KEY_VAULT_NAME" --location "$LOCATION"
