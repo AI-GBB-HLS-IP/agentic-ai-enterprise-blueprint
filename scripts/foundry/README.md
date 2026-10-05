@@ -50,6 +50,49 @@ Authentication, approval, and environment protection are owned by the caller. Th
 never contain credentials and do not infer a subscription; Azure CLI's active subscription must
 be selected by the caller.
 
+### Account/project only, no model deployment
+
+`enableModelDeployment` defaults to `false` in `foundry.bicep` itself, but
+`foundry.customer.bicepparam` reads it from `FOUNDRY_ENABLE_MODEL_DEPLOYMENT`, which defaults to
+`'true'`. To deploy only the account, project, dependent resources, and bare private endpoints
+(no model deployment), set it explicitly:
+
+```bash
+FOUNDRY_ENABLE_MODEL_DEPLOYMENT=false \
+RG_NAME=rg-agent-factory-poc \
+TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
+PARAMETER_FILE=infra/envs/poc/foundry.customer.bicepparam \
+./scripts/foundry/deploy.sh --execute
+```
+
+## Purge leftovers
+
+If a prior deployment failed partway (or was deleted) and a retry with the same account/Key
+Vault name fails, Azure may have soft-deleted those resources; a soft-deleted resource with the
+same name blocks recreation until purged. `purge.sh` lists soft-deleted matches by default and
+only purges with `--execute`:
+
+```bash
+# Dry run (list only)
+LOCATION=eastus \
+RG_NAME=AZR-133-AIFoundry-POC \
+FOUNDRY_ACCOUNT_NAME=azr-133-faf-poc01 \
+FOUNDRY_KEY_VAULT_NAME=kv-azr133-poc \
+./scripts/foundry/purge.sh
+
+# Purge after reviewing the listed resources
+LOCATION=eastus \
+RG_NAME=AZR-133-AIFoundry-POC \
+FOUNDRY_ACCOUNT_NAME=azr-133-faf-poc01 \
+FOUNDRY_KEY_VAULT_NAME=kv-azr133-poc \
+./scripts/foundry/purge.sh --execute
+```
+
+`FOUNDRY_KEY_VAULT_NAME` is optional; omit it to only check/purge the Cognitive Services account.
+`LOCATION` must match the region the failed resources were created in, and `RG_NAME` must match
+their original resource group (Cognitive Services purge is resource-group-scoped even though the
+soft-deleted resource no longer appears in that group).
+
 ### Staged deployment (tenant Phase 2, then Phase 3)
 
 Tenant Phase 2 runs `foundry.bicep`, which creates the account, project, dependent resources, and
