@@ -68,24 +68,39 @@ PARAMETER_FILE=infra/envs/poc/foundry.customer.bicepparam \
 ## Purge leftovers
 
 If a prior deployment failed partway (or was deleted) and a retry with the same account/Key
-Vault name fails, Azure may have soft-deleted those resources; a soft-deleted resource with the
-same name blocks recreation until purged. `purge.sh` lists soft-deleted matches by default and
-only purges with `--execute`:
+Vault name fails, there are two kinds of leftovers that can block recreation:
+
+- A **live** Cognitive Services account stuck in a non-`Succeeded` provisioning state (e.g.
+  `Failed`) from a partial create.
+- A **soft-deleted** copy of the account and/or Key Vault, which Azure creates on delete
+  (including the delete step below) and which blocks recreation with the same name until purged.
+
+`purge.sh` checks both, in order (live account first, then soft-deleted account, then
+soft-deleted Key Vault), lists/reports findings by default, and only deletes/purges with
+`--execute`:
 
 ```bash
-# Dry run (list only)
+# Dry run (list/report only)
 LOCATION=eastus \
 RG_NAME=AZR-133-AIFoundry-POC \
 FOUNDRY_ACCOUNT_NAME=azr-133-faf-poc01 \
 FOUNDRY_KEY_VAULT_NAME=kv-azr133-poc \
 ./scripts/foundry/purge.sh
 
-# Purge after reviewing the listed resources
+# Delete/purge after reviewing the findings above
 LOCATION=eastus \
 RG_NAME=AZR-133-AIFoundry-POC \
 FOUNDRY_ACCOUNT_NAME=azr-133-faf-poc01 \
 FOUNDRY_KEY_VAULT_NAME=kv-azr133-poc \
 ./scripts/foundry/purge.sh --execute
+```
+
+Deleting a live Failed-state account typically soft-deletes it; re-run the script (or run it
+again with `--execute`) to purge that soft-deleted copy as well. Before purging, review any
+governance/retention tags (e.g. an extended-delete-by tag) on the reported resource — a purge may
+be denied by policy, which is a separate remediation path (request a retention exception) rather
+than a script issue.
+
 ```
 
 `FOUNDRY_KEY_VAULT_NAME` is optional; omit it to only check/purge the Cognitive Services account.

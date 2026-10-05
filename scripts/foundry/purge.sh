@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Lists (default) or purges (--execute) soft-deleted Foundry leftovers for a failed/retried
-# deployment: the Cognitive Services (AIServices) account and, optionally, the Key Vault. Azure
-# soft-deletes these resource types on delete/failed-create cleanup; a soft-deleted resource with
-# the same name blocks recreation until it is purged. This script never infers a subscription;
+# Lists (default) or purges/deletes (--execute) Foundry leftovers for a failed/retried
+# deployment: a live Cognitive Services (AIServices) account stuck in a non-Succeeded
+# provisioning state, and soft-deleted copies of the account and/or Key Vault. Azure soft-deletes
+# these resource types on delete/failed-create cleanup; a soft-deleted resource with the same
+# name blocks recreation until it is purged, and a live resource stuck in a Failed state can
+# likewise block a clean redeploy until it is deleted. This script never infers a subscription;
 # Azure CLI's active subscription must be selected by the caller.
 
 : "${LOCATION:?LOCATION is required (the region the failed resources were created in)}"
@@ -15,6 +17,24 @@ set -euo pipefail
 EXECUTE=false
 if [ "${1:-}" = "--execute" ]; then
   EXECUTE=true
+fi
+
+echo "Checking for a live Cognitive Services account: $FOUNDRY_ACCOUNT_NAME in $RG_NAME"
+live_state="$(az cognitiveservices account show --resource-group "$RG_NAME" --name "$FOUNDRY_ACCOUNT_NAME" --query "properties.provisioningState" -o tsv 2>/dev/null | tr -d '[:space:]')" || true
+
+if [ -z "$live_state" ]; then
+  echo "No live Cognitive Services account named '$FOUNDRY_ACCOUNT_NAME' found in $RG_NAME."
+elif [ "$live_state" = "Succeeded" ]; then
+  echo "Live Cognitive Services account '$FOUNDRY_ACCOUNT_NAME' is healthy (provisioningState: Succeeded). Leaving it in place."
+else
+  echo "Live Cognitive Services account '$FOUNDRY_ACCOUNT_NAME' exists with provisioningState: $live_state."
+  if [ "$EXECUTE" = true ]; then
+    echo "Deleting Cognitive Services account '$FOUNDRY_ACCOUNT_NAME'..."
+    az cognitiveservices account delete --resource-group "$RG_NAME" --name "$FOUNDRY_ACCOUNT_NAME"
+    echo "Deleted. It may now appear as soft-deleted below; re-run this script to purge it."
+  else
+    echo "Refusing to delete. Re-run with --execute after reviewing the resource above."
+  fi
 fi
 
 echo "Checking for soft-deleted Cognitive Services account: $FOUNDRY_ACCOUNT_NAME (location: $LOCATION)"
