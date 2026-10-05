@@ -46,6 +46,9 @@ param existingAzureCosmosDBAccountResourceId string = ''
 param existingCosmosDBPrivateEndpoint bool = false
 
 param enableModelDeployment bool = false
+
+@description('Enable Standard Agent service network injection (subnet-delegated agent networking) on the Foundry account, in addition to its private endpoint. Set to false to use private-endpoint-only connectivity for the account.')
+param enableNetworkInjection bool = true
 param modelDeploymentName string = 'gpt4.1-mini-poc'
 param modelName string = 'gpt4.1-mini'
 param modelVersion string = '__PENDING_APPROVAL__'
@@ -103,6 +106,7 @@ module foundry '../../modules/foundry/main.bicep' = {
     projectDisplayName: projectDisplayName
     foundrySubnetId: foundrySubnet.id
     privateEndpointSubnetId: privateEndpointSubnet.id
+    enableNetworkInjection: enableNetworkInjection
     storageAccountName: storageAccountName
     keyVaultName: keyVaultName
     existingKeyVaultResourceId: existingKeyVaultResourceId

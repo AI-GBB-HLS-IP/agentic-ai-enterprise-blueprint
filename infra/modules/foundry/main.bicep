@@ -18,6 +18,9 @@ param location string
 @description('Existing delegated Foundry subnet resource ID.')
 param foundrySubnetId string
 
+@description('Enable Standard Agent service network injection (subnet-delegated agent networking) on the Foundry account, in addition to its private endpoint. Set to false to use private-endpoint-only connectivity for the account.')
+param enableNetworkInjection bool = true
+
 @description('Existing private endpoint subnet resource ID.')
 param privateEndpointSubnetId string
 
@@ -144,13 +147,15 @@ resource account 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
       bypass: 'AzureServices'
     }
     publicNetworkAccess: 'Disabled'
-    networkInjections: [
-      {
-        scenario: 'agent'
-        subnetArmId: foundrySubnetId
-        useMicrosoftManagedNetwork: false
-      }
-    ]
+    networkInjections: enableNetworkInjection
+      ? [
+          {
+            scenario: 'agent'
+            subnetArmId: foundrySubnetId
+            useMicrosoftManagedNetwork: false
+          }
+        ]
+      : null
     disableLocalAuth: true
   }
 }

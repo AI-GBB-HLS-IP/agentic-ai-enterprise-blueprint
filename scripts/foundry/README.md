@@ -95,6 +95,26 @@ permissions at every endpoint resource group. In cross-subscription `zone-group`
 needs the separately granted central DNS-zone read/join permission; DNS RBAC and endpoint-scope
 RBAC are distinct.
 
+### Account networking: private endpoint vs. Standard Agent network injection
+
+By default `foundry.bicep` configures the Foundry account with **both** a bare private endpoint
+and subnet-delegated "Standard Agent service network injection" (`networkInjections` with
+`scenario: 'agent'`). Set `FOUNDRY_ENABLE_NETWORK_INJECTION=false` to deploy with
+private-endpoint-only connectivity (no subnet delegation on the account):
+
+```bash
+FOUNDRY_ENABLE_NETWORK_INJECTION=false \
+RG_NAME=rg-agent-factory-poc \
+TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
+PARAMETER_FILE=infra/envs/poc/foundry.customer.bicepparam \
+./scripts/foundry/deploy.sh --execute
+```
+
+If account creation hangs indefinitely in a `Creating` provisioning state (not an outright
+`DeploymentFailed`), try this flag disabled first before escalating to Azure support — running
+both connectivity mechanisms on the same account simultaneously is valid per Azure docs but is a
+newer, less-common combination.
+
 ## Bitbucket adapter
 
 Bitbucket can call the same scripts after `az login` or workload-identity setup:
