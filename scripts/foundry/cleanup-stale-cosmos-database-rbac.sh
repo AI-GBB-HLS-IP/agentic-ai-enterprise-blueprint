@@ -16,33 +16,40 @@ set -euo pipefail
 # by the current Bicep are never touched.
 #
 # Usage:
-#   COSMOS_ACCOUNT_NAME=<name> RG_NAME=<rg> ./cleanup-stale-cosmos-database-rbac.sh
-#   COSMOS_ACCOUNT_NAME=<name> RG_NAME=<rg> PRINCIPAL_ID=<project-identity-guid> ./cleanup-stale-cosmos-database-rbac.sh --execute
+#   COSMOS_ACCOUNT_ID=<full-account-resource-id> ./cleanup-stale-cosmos-database-rbac.sh
+#   COSMOS_ACCOUNT_ID=<full-account-resource-id> PRINCIPAL_ID=<project-identity-guid> ./cleanup-stale-cosmos-database-rbac.sh --execute
 #
 # PRINCIPAL_ID is optional; omit it to report/remove the stale grant for every principal still
 # holding it (useful when multiple projects share the Cosmos account). Dry-run by default; pass
 # --execute to actually delete.
 
-: "${COSMOS_ACCOUNT_NAME:?COSMOS_ACCOUNT_NAME is required}"
-: "${RG_NAME:?RG_NAME is required}"
+: "${COSMOS_ACCOUNT_ID:?COSMOS_ACCOUNT_ID must be the full Cosmos DB account resource ID}"
+if [[ ! "$COSMOS_ACCOUNT_ID" =~ ^/subscriptions/([^/]+)/resourceGroups/([^/]+)/providers/Microsoft\.DocumentDB/databaseAccounts/([^/]+)$ ]]; then
+  echo "COSMOS_ACCOUNT_ID must be a full /subscriptions/.../resourceGroups/.../providers/Microsoft.DocumentDB/databaseAccounts/... resource ID." >&2
+  exit 1
+fi
+COSMOS_SUBSCRIPTION_ID="${BASH_REMATCH[1]}"
+RG_NAME="${BASH_REMATCH[2]}"
+COSMOS_ACCOUNT_NAME="${BASH_REMATCH[3]}"
 PRINCIPAL_ID="${PRINCIPAL_ID:-}"
 EXECUTE=false
 [ "${1:-}" = "--execute" ] && EXECUTE=true
 
 echo "=== Stale Cosmos database-scope RBAC cleanup (dry-run=$([ "$EXECUTE" = true ] && echo false || echo true)) ==="
-echo "Cosmos account: $COSMOS_ACCOUNT_NAME"
+echo "Cosmos account: $COSMOS_ACCOUNT_ID"
 echo "Resource group: $RG_NAME"
 [ -n "$PRINCIPAL_ID" ] && echo "Principal filter: $PRINCIPAL_ID"
 echo
 
-QUERY="[?scope=='/dbs/enterprise_memory' || ends_with(scope, '/dbs/enterprise_memory')]"
+QUERY="[?(scope=='/dbs/enterprise_memory' || ends_with(scope, '/dbs/enterprise_memory')) && ends_with(roleDefinitionId, '00000000-0000-0000-0000-000000000002')]"
 if [ -n "$PRINCIPAL_ID" ]; then
-  QUERY="[?(scope=='/dbs/enterprise_memory' || ends_with(scope, '/dbs/enterprise_memory')) && principalId=='${PRINCIPAL_ID}']"
+  QUERY="[?(scope=='/dbs/enterprise_memory' || ends_with(scope, '/dbs/enterprise_memory')) && ends_with(roleDefinitionId, '00000000-0000-0000-0000-000000000002') && principalId=='${PRINCIPAL_ID}']"
 fi
 
 STALE_JSON=$(az cosmosdb sql role assignment list \
   --account-name "$COSMOS_ACCOUNT_NAME" \
   --resource-group "$RG_NAME" \
+  --subscription "$COSMOS_SUBSCRIPTION_ID" \
   --query "$QUERY" -o json)
 
 STALE_COUNT=$(echo "$STALE_JSON" | jq 'length')
@@ -61,6 +68,7 @@ echo "$STALE_JSON" | jq -r '.[].id' | while IFS= read -r ASSIGNMENT_ID; do
     az cosmosdb sql role assignment delete \
       --account-name "$COSMOS_ACCOUNT_NAME" \
       --resource-group "$RG_NAME" \
+      --subscription "$COSMOS_SUBSCRIPTION_ID" \
       --role-assignment-id "$ASSIGNMENT_ID" \
       --yes
   else
@@ -74,4 +82,4 @@ if [ "$EXECUTE" = true ]; then
 else
   echo "Dry-run complete. Re-run with --execute to apply. Verify afterwards with:"
 fi
-echo "  az cosmosdb sql role assignment list --account-name '$COSMOS_ACCOUNT_NAME' --resource-group '$RG_NAME' --query \"$QUERY\" -o table"
+echo "  az cosmosdb sql role assignment list --account-name '$COSMOS_ACCOUNT_NAME' --resource-group '$RG_NAME' --subscription '$COSMOS_SUBSCRIPTION_ID' --query \"$QUERY\" -o table"

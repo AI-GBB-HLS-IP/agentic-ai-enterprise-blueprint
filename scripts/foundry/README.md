@@ -120,20 +120,20 @@ cleanup, against any such pre-existing deployment:
 
 ```bash
 # Dry run (list only)
-COSMOS_ACCOUNT_NAME=<cosmos-account> \
-RG_NAME=<resource-group> \
+COSMOS_ACCOUNT_ID=/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-account> \
 ./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh
 
 # Remove the stale database-scoped assignment(s)
-COSMOS_ACCOUNT_NAME=<cosmos-account> \
-RG_NAME=<resource-group> \
+COSMOS_ACCOUNT_ID=/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-account> \
 ./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh --execute
 ```
 
 Optionally set `PRINCIPAL_ID=<project-identity-guid>` to target one project's identity; omit it to
 report/remove the stale grant for every principal that still holds it. The script only ever
-matches assignments scoped at exactly `/dbs/enterprise_memory` (no container suffix), so
-container-scoped assignments created by the current Bicep are never touched.
+matches the built-in Cosmos DB Data Contributor role at exactly `/dbs/enterprise_memory` (no
+container suffix), so custom/read-only database roles and container-scoped assignments created by
+the current Bicep are never touched. The full account resource ID selects the account and its
+subscription explicitly for listing, deletion, and verification.
 
 ## Bitbucket adapter
 
