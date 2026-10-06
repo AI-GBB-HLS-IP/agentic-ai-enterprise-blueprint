@@ -152,6 +152,78 @@ permissions at every endpoint resource group. In cross-subscription `zone-group`
 needs the separately granted central DNS-zone read/join permission; DNS RBAC and endpoint-scope
 RBAC are distinct.
 
+## BYO deployment audit
+
+`audit-byo-deployment.sh` is a **read-only**, fully standalone diagnostic for an already-deployed
+BYO-VNet Foundry account/project -- it only runs `az`/`jq` commands against the live environment
+and does not require a checkout of this repo (bicep paths in its hints are informational
+references to the approved pattern, not files it reads). It does not apply to greenfield
+deployments created end-to-end by `foundry.bicep` in this repo (those already satisfy every check
+by construction); it targets customer environments deployed by hand, by a different tool, or
+partially remediated out-of-band, where drift from the approved pattern is possible. This repo's
+approved reference pattern always configures subnet delegation (`networkInjections` --
+`infra/modules/foundry/main.bicep:146-153`); there is no supported private-endpoint-only
+alternative topology, so the script fails an account that lacks it. Private endpoints are an
+additional DNS/private-access mechanism that complements the required network-injected delegated
+subnet, not a substitute for it -- the script still checks for them (and their DNS zone group
+association) alongside the network-injection check, and uses the private endpoint's VNet purely
+as a diagnostic fallback for the zone-link comparisons below when no subnet was found.
+
+It checks every AIServices account/project it finds against the approved reference pattern in
+`infra/modules/foundry/*.bicep` -- required connections, Capability Host state, the required RBAC
+grants on the project's managed identity: Cosmos DB Operator (control-plane) on the Cosmos
+account, Cosmos DB Built-in Data Contributor (data-plane) scoped separately to each of the three
+project-workspace-prefixed containers (`thread-message-store`, `system-thread-message-store`,
+`agent-entity-store`), AI Search Index Data Contributor + Search Service Contributor on the AI
+Search service, and Storage Blob Data Contributor + scoped Storage Blob Data Owner on the storage
+account -- plus private DNS zone VNet links, and -- for the Foundry
+account itself plus each project's Cosmos DB/Storage/AI Search connections -- that each
+resource's own private endpoint has a `privateDnsZoneGroups` association for the correct zone
+(`infra/modules/foundry/private-endpoint-dns.bicep`). It prints a `PASS`/`WARN`/`FAIL` verdict
+per check (with ✅/⚠️/❌ icons) and a pointer to the bicep module that encodes the expected state.
+
+A zone being linked to the VNet only enables DNS *queries* from that VNet; the zone-group
+association on each resource's private endpoint is what actually creates that resource's A
+record. A missing zone-group association is a common root cause of the Agents-tab
+"customer-managed downstream dependency returned an error" failure even when the zone itself is
+present and correctly linked -- which is why both are checked separately.
+
+Private DNS zones and private endpoints commonly live in a separate hub subscription/resource
+group rather than the Foundry account's own RG. The script attempts to install and probe the
+`resource-graph` az extension itself (a local CLI config change only -- it touches nothing in the
+customer's Azure environment) so it can search every subscription you have access to for each
+required zone and private endpoint, giving a definitive `PASS`/`FAIL` regardless of which
+subscription they live in. If the extension can't be installed or used (including when an
+organization's policy denies installing CLI extensions), the script prints the exact reason `az`
+reported and continues in a degraded mode: those specific zone/private-endpoint checks report
+`WARN` (manual verification needed) instead of `PASS`/`FAIL`, while every other check (RBAC,
+connections, Capability Host) is unaffected.
+
+Set `SKIP_EXTENSION_INSTALL=1` to opt out of the automatic `az extension add --name
+resource-graph` attempt entirely -- useful behind restricted egress, in locked-down CI runners,
+or anywhere auto-installing CLI extensions is undesirable. The script then goes straight to the
+same degraded `WARN` mode described above instead of attempting the install, with a clear message
+pointing to `az extension add --name resource-graph` if you want the stronger checks later.
+
+```bash
+# SUBSCRIPTION_ID accepts either a subscription GUID or display name.
+SUBSCRIPTION_ID=<sub-id-or-name> ./scripts/foundry/audit-byo-deployment.sh
+
+# Narrow to resource groups whose name contains a substring:
+SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./scripts/foundry/audit-byo-deployment.sh
+
+# Assert the hub/spoke VNet this deployment is supposed to be private-linked into. [1] then
+# FAILs loudly if the account's actual VNet doesn't match, and [3]'s zone-link checks fall back
+# to it when no VNet could be auto-detected at all (instead of defaulting every zone to WARN).
+SUBSCRIPTION_ID=<sub-id-or-name> EXPECTED_VNET_ID=<vnet-resource-id> ./scripts/foundry/audit-byo-deployment.sh
+
+# Skip the automatic "resource-graph" extension install (e.g. restricted egress or CI runners):
+SUBSCRIPTION_ID=<sub-id-or-name> SKIP_EXTENSION_INSTALL=1 ./scripts/foundry/audit-byo-deployment.sh
+```
+
+Exits non-zero if any check reports `FAIL`. `WARN` findings (e.g. DNS zone checks running
+without the `resource-graph` extension) need human judgement and do not fail the run.
+
 ## Bitbucket adapter
 
 Bitbucket can call the same scripts after `az login` or workload-identity setup:
