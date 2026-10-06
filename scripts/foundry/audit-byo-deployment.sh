@@ -23,12 +23,19 @@ export AZURE_CORE_NO_PROGRESS=true
 #   SUBSCRIPTION_ID=<sub-id-or-name> ./audit-byo-deployment.sh
 #   SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./audit-byo-deployment.sh
 #   SUBSCRIPTION_ID=<sub-id-or-name> EXPECTED_VNET_ID=<hub/spoke VNet resource ID> ./audit-byo-deployment.sh
+#   SUBSCRIPTION_ID=<sub-id-or-name> DNS_INTEGRATION_MODE=zone-group ./audit-byo-deployment.sh
 #
 # EXPECTED_VNET_ID (optional) asserts which VNet this deployment is supposed to be private-linked
 # into. When set, [1] fails loudly if the account's actual VNet (from networkInjections or its
 # private endpoint) doesn't match it, and [3]'s zone-link checks use it as a fallback target when
 # no VNet could be auto-detected at all -- instead of silently downgrading every zone-link check
 # to a WARN. Omit it to rely on auto-detection only.
+#
+# DNS_INTEGRATION_MODE (optional, defaults to "vnet-link") selects which brownfield DNS
+# integration contract [3] validates against (infra/envs/poc/foundry-dns.bicep:10-20,120-143):
+# "vnet-link" expects each required private DNS zone to be directly linked to the workload VNet;
+# "zone-group" is for an existing/central DNS zone attached only via each resource's
+# private-endpoint DNS zone group (no direct VNet link expected or required).
 #
 # Requires: az CLI (logged in), jq. Optional: the "resource-graph" az extension
 # (az extension add --name resource-graph) -- without it, DNS zone VNet-link checks in [3]
@@ -45,6 +52,21 @@ export AZURE_CORE_NO_PROGRESS=true
 SUBSCRIPTION_ID="$(printf '%s' "$SUBSCRIPTION_ID" | tr -d '\r' | xargs)"
 RG_FILTER="$(printf '%s' "${RG_FILTER:-}" | tr -d '\r' | xargs)"
 EXPECTED_VNET_ID="$(printf '%s' "${EXPECTED_VNET_ID:-}" | tr -d '\r' | xargs)"
+# Per this repo's DNS-mode contract (infra/envs/poc/foundry-dns.bicep:10-20,120-143), brownfield
+# DNS integration is explicitly either "vnet-link" (zones in the workload subscription, linked
+# directly to the workload VNet) or "zone-group" (existing central/hub zones attached only via
+# each private endpoint's privateDnsZoneGroup association, with NO direct VNet link). The [3]
+# zone-link checks below used to unconditionally FAIL any deployment lacking a direct VNet link,
+# which incorrectly rejects a valid zone-group deployment. Default to vnet-link (this script's
+# original/most common assumption) and require an explicit, validated value otherwise.
+DNS_INTEGRATION_MODE="$(printf '%s' "${DNS_INTEGRATION_MODE:-vnet-link}" | tr -d '\r' | xargs)"
+case "$DNS_INTEGRATION_MODE" in
+  vnet-link|zone-group) ;;
+  *)
+    echo "ABORT: DNS_INTEGRATION_MODE must be 'vnet-link' or 'zone-group' (got: '$DNS_INTEGRATION_MODE')" >&2
+    exit 1
+    ;;
+esac
 API_VERSION="2025-04-01-preview"
 
 PASS_COUNT=0
@@ -79,16 +101,47 @@ echo "🔎 Subscription: $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
 [ -n "$RG_FILTER" ] && echo "🔎 Resource group filter: $RG_FILTER"
 echo
 
+ACCOUNTS_ERR="$(mktemp)"
 if [ -n "$RG_FILTER" ]; then
-  ACCOUNTS=$(az cognitiveservices account list --query "[?kind=='AIServices' && contains(resourceGroup, '${RG_FILTER}')].{name:name, rg:resourceGroup}" -o tsv)
+  ACCOUNTS=$(az cognitiveservices account list --query "[?kind=='AIServices' && contains(resourceGroup, '${RG_FILTER}')].{name:name, rg:resourceGroup}" -o tsv 2>"$ACCOUNTS_ERR")
 else
-  ACCOUNTS=$(az cognitiveservices account list --query "[?kind=='AIServices'].{name:name, rg:resourceGroup}" -o tsv)
+  ACCOUNTS=$(az cognitiveservices account list --query "[?kind=='AIServices'].{name:name, rg:resourceGroup}" -o tsv 2>"$ACCOUNTS_ERR")
 fi
+ACCOUNTS_EXIT=$?
+# A failed account-list call (bad auth, wrong API version, network error, throttling, ...) must
+# never be treated the same as "this subscription legitimately has zero accounts" -- with
+# errexit disabled (see set -uo pipefail above; -e is intentionally off so a single failed az
+# call inside the per-account/project loop can be handled as a FAIL instead of killing the whole
+# audit), a bare $(...) capture on its own can't tell those two cases apart, so the exit status
+# must be checked explicitly here.
+if [ "$ACCOUNTS_EXIT" -ne 0 ]; then
+  echo "ABORT: 'az cognitiveservices account list' failed (exit $ACCOUNTS_EXIT):" >&2
+  cat "$ACCOUNTS_ERR" >&2
+  rm -f "$ACCOUNTS_ERR"
+  exit 1
+fi
+rm -f "$ACCOUNTS_ERR"
 
 if [ -z "$ACCOUNTS" ]; then
   echo "No AIServices accounts found."
   exit 0
 fi
+
+# Runs an "az rest --method get" call and captures stdout/exit status/stderr separately so
+# callers can tell "the API call failed" apart from "the API call succeeded and returned no/empty
+# data" -- the two look identical through a plain $(...) capture, but only the latter is safe to
+# treat as "nothing found" in a PASS/WARN/FAIL verdict. Sets AZ_REST_OUT, AZ_REST_EXIT, AZ_REST_ERR;
+# does not print a verdict itself so callers can choose FAIL text appropriate to what was being
+# fetched.
+az_rest_get() {
+  local url="$1" err_file
+  err_file="$(mktemp)"
+  AZ_REST_OUT=$(az rest --method get --url "$url" -o json 2>"$err_file")
+  AZ_REST_EXIT=$?
+  AZ_REST_ERR="$(head -3 "$err_file")"
+  rm -f "$err_file"
+  return "$AZ_REST_EXIT"
+}
 
 # Finds a connection of the given category at project scope first, falling back to the
 # account-level connection (inherited by every project). Echoes "name|scope|resourceId".
@@ -110,6 +163,22 @@ has_role_assignment() {
   count=$(az role assignment list --scope "$scope" \
     --query "[?principalId=='${principal_id}' && roleDefinitionId.ends_with(@, '${role_guid}')] | length(@)" \
     -o tsv 2>/dev/null || echo 0)
+  [ "${count:-0}" -ge 1 ]
+}
+
+# Storage Blob Data Owner is approved only as a conditional, project-scoped grant restricted to
+# this project's own {workspaceId}-azureml-agent container (infra/modules/foundry/storage-rbac.bicep:32-40,
+# conditionVersion 2.0 ABAC condition). The role-definition GUID alone can't distinguish that from
+# an unconditional, account-wide grant of the same role -- the latter gives the project full blob
+# ownership over every other project's containers in the same storage account too, so it must not
+# be reported as "scoped". Checks that an assignment's condition text references both this
+# project's workspace GUID and the azureml-agent container suffix.
+has_scoped_storage_owner_assignment() {
+  local scope="$1" principal_id="$2" workspace_guid="$3"
+  local json count
+  json=$(az role assignment list --scope "$scope" --query "[?principalId=='${principal_id}' && roleDefinitionId.ends_with(@, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]" -o json 2>/dev/null)
+  count=$(echo "${json:-[]}" | jq --arg wg "$workspace_guid" \
+    '[.[] | select(.conditionVersion=="2.0" and (.condition // "" | test($wg; "i")) and (.condition // "" | test("azureml-agent"; "i")))] | length')
   [ "${count:-0}" -ge 1 ]
 }
 
@@ -210,7 +279,12 @@ if [ "$GRAPH_AVAILABLE" != true ]; then
   echo
 fi
 
-mapfile -t ACCOUNT_LINES <<< "$ACCOUNTS"
+# mapfile/readarray is Bash-4+ only and breaks under macOS's default Bash 3.2; build the array
+# with a portable read loop instead (repo convention, see .specify/scripts/bash/create-new-feature.sh).
+ACCOUNT_LINES=()
+while IFS= read -r ACCOUNT_LINE; do
+  [ -n "$ACCOUNT_LINE" ] && ACCOUNT_LINES+=("$ACCOUNT_LINE")
+done <<< "$ACCOUNTS"
 for LINE in "${ACCOUNT_LINES[@]}"; do
   IFS=$'\t' read -r NAME RG <<< "$LINE"
   echo "=============================================================="
@@ -218,11 +292,19 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
   echo "=============================================================="
 
   ACCT_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME?api-version=$API_VERSION"
-  ACCT_JSON=$(az rest --method get --url "$ACCT_URL" -o json 2>/dev/null)
+  if ! az_rest_get "$ACCT_URL"; then
+    verdict FAIL "could not fetch account resource (az rest exit $AZ_REST_EXIT)" "$AZ_REST_ERR"
+    echo
+    continue
+  fi
+  ACCT_JSON="$AZ_REST_OUT"
 
   echo "--- [1] 🌐 Network injection / public network access ---"
   PNA=$(echo "$ACCT_JSON" | jq -r '.properties.publicNetworkAccess // "Unknown"')
-  SUBNET=$(echo "$ACCT_JSON" | jq -r '.properties.networkInjections[0].subnetArnResourceId // empty')
+  # Property name is "subnetArmId", not "subnetArnResourceId" -- see
+  # infra/modules/foundry/main.bicep:147-152. The wrong name silently reads as empty for every
+  # correctly network-injected account, which misreports it as having no network injection.
+  SUBNET=$(echo "$ACCT_JSON" | jq -r '.properties.networkInjections[0].subnetArmId // empty')
   ACCOUNT_RESOURCE_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME"
   PE_ONLY_VNET_ID=""
   if [ -n "$SUBNET" ]; then
@@ -235,6 +317,15 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
       verdict WARN "no networkInjections subnet and no private endpoint VNet could be resolved (publicNetworkAccess=$PNA)" \
         "both subnet-delegated and private-endpoint-only connectivity are valid BYO-VNet patterns (infra/modules/foundry/main.bicep, infra/modules/foundry/private-endpoint-dns.bicep in the agentic-ai-enterprise-blueprint repo -- informational reference only, not required to run this script); if this account truly has no VNet connectivity, publicNetworkAccess should be Enabled instead"
     fi
+  fi
+  # publicNetworkAccess is read above (PNA) for display, but was never enforced: a
+  # network-injected (or private-endpoint-only) account that still allows public network access
+  # used to earn PASS regardless. specs/01-foundry-byo-networking/spec.md:132-135 requires
+  # publicNetworkAccess=Disabled for a BYO-VNet deployment -- this applies to both connectivity
+  # branches above, so check it unconditionally rather than inside either branch.
+  if [ "$PNA" != "Disabled" ]; then
+    verdict FAIL "publicNetworkAccess=$PNA (expected Disabled for a BYO-VNet deployment)" \
+      "specs/01-foundry-byo-networking/spec.md:132-135 -- set publicNetworkAccess to Disabled regardless of network-injected vs private-endpoint-only connectivity"
   fi
   DETECTED_VNET_ID=""
   [ -n "$SUBNET" ] && DETECTED_VNET_ID="${SUBNET%/subnets/*}"
@@ -257,13 +348,29 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
   # (not just "<project>"), unlike most ARM child-resource listings. Strip everything up to the
   # last "/" so $PROJ is the bare project name -- otherwise concatenating "$NAME/$PROJ" below
   # builds an invalid double-qualified URL that 404s.
+  # pipefail (set above) makes ${PIPESTATUS[0]} reflect the "az rest" call's own exit status
+  # rather than the trailing sed's -- a failed list call (auth/API-version/network error) must
+  # be recorded as a FAIL, not treated the same as "this account legitimately has zero projects"
+  # which previously let it dodge every project/RBAC check below without any recorded failure.
   PROJECTS=$(az rest --method get --url "$PROJECTS_URL" --query "value[].name" -o tsv 2>/dev/null | sed 's#.*/##')
+  PROJECTS_EXIT="${PIPESTATUS[0]}"
+  if [ "$PROJECTS_EXIT" -ne 0 ]; then
+    verdict FAIL "could not list projects (az rest exit $PROJECTS_EXIT)" \
+      "verify API version $API_VERSION and that you have Reader access on this account"
+    echo
+    continue
+  fi
   if [ -z "$PROJECTS" ]; then
     echo "  (no projects found)"
   fi
 
   ACCT_CONN_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/connections?api-version=$API_VERSION"
-  ACCT_CONN_JSON=$(az rest --method get --url "$ACCT_CONN_URL" -o json 2>/dev/null)
+  if ! az_rest_get "$ACCT_CONN_URL"; then
+    verdict FAIL "could not fetch account-level connections (az rest exit $AZ_REST_EXIT)" "$AZ_REST_ERR"
+    ACCT_CONN_JSON='{"value":[]}'
+  else
+    ACCT_CONN_JSON="$AZ_REST_OUT"
+  fi
 
   for PROJ in $PROJECTS; do
     echo "  --- 🧩 Project: $PROJ ---"
@@ -287,8 +394,26 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
       continue
     fi
 
+    # The Foundry Agent Service platform formats the project's internalId (a raw 32-char hex
+    # GUID) into standard dashed-GUID form to derive the project-specific Cosmos container names
+    # ({workspaceId}-thread-message-store, {workspaceId}-system-thread-message-store,
+    # {workspaceId}-agent-entity-store) and the Storage container name
+    # ({workspaceId}-azureml-agent) -- see infra/modules/foundry/main.bicep:172-175 and
+    # capability-host.bicep:47-55. Needed below for the per-container Cosmos RBAC check and the
+    # Storage Blob Data Owner ABAC-condition check.
+    PROJ_INTERNAL_ID=$(echo "$PROJ_JSON" | jq -r '.properties.internalId // empty')
+    PROJECT_WORKSPACE_GUID=""
+    if [ "${#PROJ_INTERNAL_ID}" -eq 32 ]; then
+      PROJECT_WORKSPACE_GUID="${PROJ_INTERNAL_ID:0:8}-${PROJ_INTERNAL_ID:8:4}-${PROJ_INTERNAL_ID:12:4}-${PROJ_INTERNAL_ID:16:4}-${PROJ_INTERNAL_ID:20:12}"
+    fi
+
     PROJ_CONN_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/projects/$PROJ/connections?api-version=$API_VERSION"
-    PROJ_CONN_JSON=$(az rest --method get --url "$PROJ_CONN_URL" -o json 2>/dev/null)
+    if ! az_rest_get "$PROJ_CONN_URL"; then
+      verdict FAIL "could not fetch project-level connections (az rest exit $AZ_REST_EXIT)" "$AZ_REST_ERR"
+      PROJ_CONN_JSON='{"value":[]}'
+    else
+      PROJ_CONN_JSON="$AZ_REST_OUT"
+    fi
 
     COSMOS_ROW=$(find_connection "CosmosDB" "$PROJ_CONN_JSON" "$ACCT_CONN_JSON")
     STORAGE_ROW=$(find_connection "AzureStorageAccount" "$PROJ_CONN_JSON" "$ACCT_CONN_JSON")
@@ -325,17 +450,32 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
 
     echo "  [2] 🏠 Capability Host:"
     CAP_HOSTS_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/projects/$PROJ/capabilityHosts?api-version=$API_VERSION"
-    CAP_HOSTS_JSON=$(az rest --method get --url "$CAP_HOSTS_URL" -o json 2>/dev/null)
+    if ! az_rest_get "$CAP_HOSTS_URL"; then
+      verdict FAIL "could not fetch Capability Host resource (az rest exit $AZ_REST_EXIT)" "$AZ_REST_ERR"
+      CAP_HOSTS_JSON='{"value":[]}'
+    else
+      CAP_HOSTS_JSON="$AZ_REST_OUT"
+    fi
     CAP_HOST_NAME=$(echo "$CAP_HOSTS_JSON" | jq -r '.value[0].name // empty')
     CAP_HOST_STATE=""
     if [ -n "$CAP_HOST_NAME" ]; then
       CAP_HOST_STATE=$(echo "$CAP_HOSTS_JSON" | jq -r '.value[0].properties.provisioningState // "Unknown"')
-      if [ "$CAP_HOST_STATE" = "Succeeded" ]; then
-        verdict PASS "Capability Host '$CAP_HOST_NAME' provisioningState=Succeeded"
-      else
-        verdict WARN "Capability Host '$CAP_HOST_NAME' provisioningState=$CAP_HOST_STATE" \
-          "infra/modules/foundry/capability-host.bicep"
-      fi
+      case "$CAP_HOST_STATE" in
+        Succeeded)
+          verdict PASS "Capability Host '$CAP_HOST_NAME' provisioningState=Succeeded"
+          ;;
+        Failed|Canceled)
+          # Terminal failure states -- these will never self-resolve, unlike the transient
+          # in-progress states below, so they must count as a hard failure, not a WARN.
+          verdict FAIL "Capability Host '$CAP_HOST_NAME' provisioningState=$CAP_HOST_STATE" \
+            "infra/modules/foundry/capability-host.bicep -- this is a terminal state; re-deploy or inspect the deployment error, it will not resolve on its own"
+          ;;
+        *)
+          # Transient/in-progress states (Creating, Updating, Accepted, ...) may still resolve.
+          verdict WARN "Capability Host '$CAP_HOST_NAME' provisioningState=$CAP_HOST_STATE" \
+            "infra/modules/foundry/capability-host.bicep"
+          ;;
+      esac
     else
       verdict FAIL "no Capability Host found" "infra/modules/foundry/capability-host.bicep (depends on cosmosDBRbac, storageRbac, aiSearchRbac)"
     fi
@@ -354,16 +494,40 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
       fi
       COSMOS_ACCT_NAME=$(basename "$COSMOS_CHECK_RESID")
       COSMOS_RG=$(echo "$COSMOS_CHECK_RESID" | sed -n 's#.*/resourceGroups/\([^/]*\)/.*#\1#p')
-      if [ "$CAP_HOST_STATE" = "Succeeded" ]; then
-        DATA_ROLE_COUNT=$(az cosmosdb sql role assignment list --account-name "$COSMOS_ACCT_NAME" --resource-group "$COSMOS_RG" \
-          --query "[?principalId=='${PRINCIPAL_ID}' && roleDefinitionId.ends_with(@, '0000-0000-0000-0000-000000000002') && contains(scope, '/dbs/enterprise_memory')] | length(@)" -o tsv 2>/dev/null || echo 0)
-        if [ "${DATA_ROLE_COUNT:-0}" -ge 1 ]; then
-          verdict PASS "Cosmos DB Data Contributor (data-plane) scoped to enterprise_memory"
+      # The Cosmos connection's ResourceId can point to an account in a subscription different
+      # from the one currently active via "az account set" above -- this blueprint explicitly
+      # supports a project connecting to a Cosmos account in another subscription (see
+      # infra/modules/foundry/main.bicep:215-219,400-402). Parse the subscription ID straight out
+      # of the resource ID and pass it explicitly rather than relying on whatever subscription
+      # happens to be active, so the query below targets the right one.
+      COSMOS_SUBSCRIPTION_ID=$(echo "$COSMOS_CHECK_RESID" | sed -n 's#^/subscriptions/\([^/]*\)/.*#\1#p')
+      [ -z "$COSMOS_SUBSCRIPTION_ID" ] && COSMOS_SUBSCRIPTION_ID="$SUBSCRIPTION_ID"
+      if [ -n "$PROJECT_WORKSPACE_GUID" ]; then
+        # cosmos-data-rbac.bicep creates THREE project-specific container-scoped Cosmos DB Data
+        # Contributor assignments ({workspaceId}-thread-message-store,
+        # {workspaceId}-system-thread-message-store, {workspaceId}-agent-entity-store), not one
+        # account-wide grant. Previously a single match on any one of them was enough to PASS;
+        # require all three. This check is intentionally NOT gated on Capability Host state:
+        # these assignments are created after the Capability Host activates, so skipping the
+        # check until it's already Succeeded hides exactly the diagnostic signal needed when the
+        # host is missing or failed.
+        DATA_PLANE_JSON=$(az cosmosdb sql role assignment list --account-name "$COSMOS_ACCT_NAME" --resource-group "$COSMOS_RG" --subscription "$COSMOS_SUBSCRIPTION_ID" -o json 2>/dev/null)
+        MISSING_CONTAINERS=()
+        for CONTAINER_SUFFIX in thread-message-store system-thread-message-store agent-entity-store; do
+          CONTAINER_NAME="${PROJECT_WORKSPACE_GUID}-${CONTAINER_SUFFIX}"
+          MATCH_COUNT=$(echo "${DATA_PLANE_JSON:-[]}" | jq --arg pid "$PRINCIPAL_ID" --arg c "$CONTAINER_NAME" \
+            '[.[]? | select(.principalId==$pid and (.roleDefinitionId | endswith("0000-0000-0000-0000-000000000002")) and (.scope | endswith("/colls/" + $c)))] | length')
+          [ "${MATCH_COUNT:-0}" -ge 1 ] || MISSING_CONTAINERS+=("$CONTAINER_NAME")
+        done
+        if [ "${#MISSING_CONTAINERS[@]}" -eq 0 ]; then
+          verdict PASS "Cosmos DB Data Contributor (data-plane) present on all 3 project containers (thread-message-store, system-thread-message-store, agent-entity-store)"
         else
-          verdict FAIL "missing Cosmos DB Data Contributor on enterprise_memory database" "infra/modules/foundry/cosmos-data-rbac.bicep (must run AFTER Capability Host activates)"
+          MISSING_LIST=$(IFS=,; echo "${MISSING_CONTAINERS[*]}")
+          verdict FAIL "missing Cosmos DB Data Contributor on: $MISSING_LIST" \
+            "infra/modules/foundry/cosmos-data-rbac.bicep (created after Capability Host activates)"
         fi
       else
-        verdict WARN "skipped Cosmos data-plane RBAC check (Capability Host not yet Succeeded -- the enterprise_memory database doesn't exist until it activates)"
+        verdict WARN "cannot verify per-container Cosmos RBAC: could not derive project workspace ID from properties.internalId"
       fi
     else
       verdict WARN "cannot check Cosmos RBAC: no connection and no single Cosmos account resolved in $RG" \
@@ -391,8 +555,13 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
       else
         verdict FAIL "missing Storage Blob Data Contributor" "infra/modules/foundry/storage-rbac.bicep"
       fi
-      if has_role_assignment "$STORAGE_RESID" "$PRINCIPAL_ID" "b7e6dc6d-f1e8-4753-8033-0f276bb0955b"; then
+      if [ -z "$PROJECT_WORKSPACE_GUID" ]; then
+        verdict WARN "cannot verify Storage Blob Data Owner scoping: could not derive project workspace ID from properties.internalId"
+      elif has_scoped_storage_owner_assignment "$STORAGE_RESID" "$PRINCIPAL_ID" "$PROJECT_WORKSPACE_GUID"; then
         verdict PASS "Storage Blob Data Owner (scoped) on storage account"
+      elif has_role_assignment "$STORAGE_RESID" "$PRINCIPAL_ID" "b7e6dc6d-f1e8-4753-8033-0f276bb0955b"; then
+        verdict FAIL "Storage Blob Data Owner is assigned but not scoped by condition to this project's container" \
+          "infra/modules/foundry/storage-rbac.bicep:32-40 -- expected conditionVersion=2.0 with an ABAC condition restricted to ${PROJECT_WORKSPACE_GUID}*-azureml-agent; an unconditional, account-wide grant gives this project blob ownership over every other project's data too"
       else
         verdict FAIL "missing Storage Blob Data Owner" "infra/modules/foundry/storage-rbac.bicep"
       fi
@@ -420,6 +589,11 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
 
   for ZONE in privatelink.cognitiveservices.azure.com privatelink.openai.azure.com privatelink.services.ai.azure.com privatelink.search.windows.net privatelink.documents.azure.com privatelink.blob.core.windows.net privatelink.vaultcore.azure.net; do
     if [ "$GRAPH_AVAILABLE" != true ]; then
+      if [ "$DNS_INTEGRATION_MODE" = "zone-group" ]; then
+        verdict WARN "cannot check $ZONE without the resource-graph extension in zone-group mode" \
+          "run: az extension add --name resource-graph -- or rely on the private-endpoint DNS zone-group checks above for connectivity proof"
+        continue
+      fi
       LINKED=$(az network private-dns link vnet list --zone-name "$ZONE" --resource-group "$RG" --query "[].virtualNetwork.id" -o tsv 2>/dev/null)
       if [ -n "$LINKED" ]; then
         verdict PASS "$ZONE linked to $(echo "$LINKED" | wc -l | tr -d ' ') VNet(s) in $RG"
@@ -435,7 +609,18 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
 
     if [ "${ZONE_COUNT:-0}" -eq 0 ]; then
       verdict FAIL "$ZONE not found in any subscription you have access to" \
-        "zone must exist and be linked to the account's VNet -- see infra/modules/network/private-dns.bicep"
+        "zone must exist -- see infra/modules/network/private-dns.bicep"
+      continue
+    fi
+
+    if [ "$DNS_INTEGRATION_MODE" = "zone-group" ]; then
+      # zone-group mode (infra/envs/poc/foundry-dns.bicep:120-143) is for an existing/central DNS
+      # zone attached only through each resource's private-endpoint zone-group association, with
+      # no direct link from this zone to the workload VNet expected or required. Don't demand one;
+      # the per-resource check_pe_dns_group calls in [1]/[4] above are the authoritative proof of
+      # connectivity in this mode.
+      ZONE_LOCATIONS=$(echo "$ZONE_HITS" | jq -r '.[] | "\(.subscriptionId)/\(.resourceGroup)"' | paste -sd, -)
+      verdict PASS "$ZONE exists ($ZONE_LOCATIONS) -- zone-group mode: no direct VNet link required, see the private-endpoint DNS zone-group checks above for the authoritative connectivity proof"
       continue
     fi
 
