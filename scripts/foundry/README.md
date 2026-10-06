@@ -119,21 +119,34 @@ assignment in Azure even after redeploying the current Bicep. Run the read-only 
 cleanup, against any such pre-existing deployment:
 
 ```bash
-# Dry run (list only)
+# Dry run (list only) -- no principal/assignment scoping required for discovery.
 COSMOS_ACCOUNT_ID=/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-account> \
 ./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh
 
-# Remove the stale database-scoped assignment(s)
+# Remove the stale database-scoped assignment(s) for one known-stale project identity.
 COSMOS_ACCOUNT_ID=/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-account> \
+PRINCIPAL_ID=<project-identity-guid> \
 ./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh --execute
+
+# ... or remove only the exact assignment id(s) identified from the dry-run output above.
+COSMOS_ACCOUNT_ID=/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-account> \
+./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh --execute --assignment-ids=<id1>,<id2>
 ```
 
-Optionally set `PRINCIPAL_ID=<project-identity-guid>` to target one project's identity; omit it to
-report/remove the stale grant for every principal that still holds it. The script only ever
-matches the built-in Cosmos DB Data Contributor role at exactly `/dbs/enterprise_memory` (no
-container suffix), so custom/read-only database roles and container-scoped assignments created by
-the current Bicep are never touched. The full account resource ID selects the account and its
-subscription explicitly for listing, deletion, and verification.
+The script only ever matches the built-in Cosmos DB Data Contributor role at exactly
+`/dbs/enterprise_memory` (no container suffix), so custom/read-only database roles and
+container-scoped assignments created by the current Bicep are never touched. The full account
+resource ID selects the account and its subscription explicitly for listing, deletion, and
+verification.
+
+This role+scope filtering alone does not prove a matching assignment is the stale one: because
+this blueprint supports shared/BYO Cosmos accounts, a database-scoped Built-in Data Contributor
+grant can also be a legitimate assignment owned by a different workload on the same account.
+`--execute` therefore **requires** either `PRINCIPAL_ID`/`--principal-id=<guid>` (the stale
+project's managed identity) or `ASSIGNMENT_IDS`/`--assignment-ids=<id1,id2,...>` (assignment ids
+copied from a prior dry-run review); `--execute` without one of these is refused with a non-zero
+exit. Dry-run listing (the default, no `--execute`) remains unrestricted for discovery/visibility
+and does not require either.
 
 ## Bitbucket adapter
 
