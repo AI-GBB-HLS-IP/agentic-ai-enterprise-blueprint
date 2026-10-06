@@ -79,6 +79,11 @@ if [ "$EXECUTE" = true ] && [ -z "$PRINCIPAL_ID" ] && [ -z "$ASSIGNMENT_IDS" ]; 
   exit 1
 fi
 
+if [ -n "$PRINCIPAL_ID" ] && [[ ! "$PRINCIPAL_ID" =~ ^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}$ ]]; then
+  echo "ERROR: PRINCIPAL_ID must be a GUID." >&2
+  exit 1
+fi
+
 echo "=== Stale Cosmos database-scope RBAC cleanup (dry-run=$([ "$EXECUTE" = true ] && echo false || echo true)) ==="
 echo "Cosmos account: $COSMOS_ACCOUNT_ID"
 echo "Resource group: $RG_NAME"

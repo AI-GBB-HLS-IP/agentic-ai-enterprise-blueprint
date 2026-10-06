@@ -70,7 +70,8 @@ if [ "$1" = "cosmosdb" ] && [ "$2" = "sql" ] && [ "$3" = "role" ] && [ "$4" = "a
   esac
   principal=""
   if [[ "$query" == *"principalId=="* ]]; then
-    principal=$(printf '%s' "$query" | grep -oP "principalId=='\K[^']+")
+    principal="${query#*principalId==\'}"
+    principal="${principal%%\'*}"
   fi
   jq --arg p "$principal" '
     [.[] | select(.scope == "/dbs/enterprise_memory")
@@ -108,7 +109,7 @@ export AZ_DELETE_LOG="$delete_log"
 export PATH="$workdir:$PATH"
 
 run_cleanup() {
-  COSMOS_ACCOUNT_ID="$ACCOUNT_ID" bash "$SCRIPT" "$@"
+  COSMOS_ACCOUNT_ID="$ACCOUNT_ID" "$SCRIPT" "$@"
 }
 
 fail() {
@@ -129,14 +130,25 @@ echo "PASS: dry-run without principal lists all matching assignments and deletes
 # 2. --execute without PRINCIPAL_ID or ASSIGNMENT_IDS must be refused with a non-zero exit, and
 #    must not delete anything.
 : >"$delete_log"
-if COSMOS_ACCOUNT_ID="$ACCOUNT_ID" bash "$SCRIPT" --execute >/dev/null 2>"$workdir/stderr.txt"; then
+if COSMOS_ACCOUNT_ID="$ACCOUNT_ID" "$SCRIPT" --execute >/dev/null 2>"$workdir/stderr.txt"; then
   fail "--execute without principal/assignment-ids unexpectedly succeeded"
 fi
 grep -qi "requires either" "$workdir/stderr.txt" || fail "refusal error message missing expected guidance"
 [ -s "$delete_log" ] && fail "refused --execute must not delete anything"
 echo "PASS: --execute without principal/assignment-ids is refused"
 
-# 3. --execute with PRINCIPAL_ID must delete only that principal's assignment(s), not the other
+# 3. PRINCIPAL_ID must be a GUID before it is interpolated into the JMESPath query.
+: >"$AZ_CALL_LOG"
+: >"$delete_log"
+if run_cleanup --execute "--principal-id=${PRINCIPAL_STALE}' || true || principalId=='${PRINCIPAL_OTHER}" >/dev/null 2>"$workdir/stderr.txt"; then
+  fail "malformed PRINCIPAL_ID unexpectedly succeeded"
+fi
+grep -qi "PRINCIPAL_ID must be a GUID" "$workdir/stderr.txt" || fail "malformed principal refusal missing expected guidance"
+[ -s "$AZ_CALL_LOG" ] && fail "malformed PRINCIPAL_ID must be rejected before invoking az"
+[ -s "$delete_log" ] && fail "malformed PRINCIPAL_ID must not delete anything"
+echo "PASS: malformed PRINCIPAL_ID is rejected before querying Azure"
+
+# 4. --execute with PRINCIPAL_ID must delete only that principal's assignment(s), not the other
 #    workload's assignment matching the same role+scope.
 : >"$delete_log"
 run_cleanup --execute "--principal-id=${PRINCIPAL_STALE}" >/dev/null
@@ -144,15 +156,15 @@ grep -q "obsolete-assignment-stale" "$delete_log" || fail "expected deletion of 
 grep -q "legit-assignment-other-workload" "$delete_log" && fail "deletion must not touch a different principal's grant"
 echo "PASS: --execute with PRINCIPAL_ID deletes only the targeted principal's assignment(s)"
 
-# 4. --execute with --assignment-ids must delete only the listed id(s).
+# 5. --execute with --assignment-ids must delete only the listed id(s).
 : >"$delete_log"
 run_cleanup --execute "--assignment-ids=legit-assignment-other-workload" >/dev/null
 grep -q "legit-assignment-other-workload" "$delete_log" || fail "expected deletion via --assignment-ids did not happen"
 grep -q "obsolete-assignment-stale" "$delete_log" && fail "deletion must not touch an assignment not listed via --assignment-ids"
 echo "PASS: --execute with --assignment-ids deletes only the listed assignment(s)"
 
-# 5. A malformed COSMOS_ACCOUNT_ID must still be rejected (regression guard for existing check).
-if COSMOS_ACCOUNT_ID=shared-cosmos bash "$SCRIPT" >/dev/null 2>&1; then
+# 6. A malformed COSMOS_ACCOUNT_ID must still be rejected (regression guard for existing check).
+if COSMOS_ACCOUNT_ID=shared-cosmos "$SCRIPT" >/dev/null 2>&1; then
   fail "expected malformed account resource ID to be rejected"
 fi
 echo "PASS: malformed COSMOS_ACCOUNT_ID is rejected"
