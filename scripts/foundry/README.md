@@ -50,6 +50,63 @@ Authentication, approval, and environment protection are owned by the caller. Th
 never contain credentials and do not infer a subscription; Azure CLI's active subscription must
 be selected by the caller.
 
+### Account/project only, no model deployment
+
+`enableModelDeployment` defaults to `false` in `foundry.bicep` itself, but
+`foundry.customer.bicepparam` reads it from `FOUNDRY_ENABLE_MODEL_DEPLOYMENT`, which defaults to
+`'true'`. To deploy only the account, project, dependent resources, and bare private endpoints
+(no model deployment), set it explicitly:
+
+```bash
+FOUNDRY_ENABLE_MODEL_DEPLOYMENT=false \
+RG_NAME=rg-agent-factory-poc \
+TEMPLATE_FILE=infra/envs/poc/foundry.bicep \
+PARAMETER_FILE=infra/envs/poc/foundry.customer.bicepparam \
+./scripts/foundry/deploy.sh --execute
+```
+
+## Purge leftovers
+
+If a prior deployment failed partway (or was deleted) and a retry with the same account/Key
+Vault name fails, there are two kinds of leftovers that can block recreation:
+
+- A **live** Cognitive Services account in the terminal `Failed` provisioning state from a
+  partial create. With `--execute`, only this state is eligible for deletion; transient states
+  such as `Creating`, `Updating`, or `Deleting`, and unknown states, are reported and left in place.
+- A **soft-deleted** copy of the account and/or Key Vault, which Azure creates on delete
+  (including the delete step below) and which blocks recreation with the same name until purged.
+
+`purge.sh` checks both, in order (live account first, then soft-deleted account, then
+soft-deleted Key Vault), lists/reports findings by default, and only deletes/purges with
+`--execute`:
+
+```bash
+# Dry run (list/report only)
+LOCATION=eastus \
+RG_NAME=rg-agent-factory-poc \
+FOUNDRY_ACCOUNT_NAME=foundry-agent-factory-poc \
+FOUNDRY_KEY_VAULT_NAME=kv-agent-factory-poc \
+./scripts/foundry/purge.sh
+
+# Delete/purge after reviewing the findings above
+LOCATION=eastus \
+RG_NAME=rg-agent-factory-poc \
+FOUNDRY_ACCOUNT_NAME=foundry-agent-factory-poc \
+FOUNDRY_KEY_VAULT_NAME=kv-agent-factory-poc \
+./scripts/foundry/purge.sh --execute
+```
+
+Deleting a live Failed-state account typically soft-deletes it; re-run the script (or run it
+again with `--execute`) to purge that soft-deleted copy as well. Before purging, review any
+governance/retention tags (e.g. an extended-delete-by tag) on the reported resource — a purge may
+be denied by policy, which is a separate remediation path (request a retention exception) rather
+than a script issue.
+
+`FOUNDRY_KEY_VAULT_NAME` is optional; omit it to only check/purge the Cognitive Services account.
+`LOCATION` must match the region the failed resources were created in, and `RG_NAME` must match
+their original resource group (Cognitive Services purge is resource-group-scoped even though the
+soft-deleted resource no longer appears in that group).
+
 ### Staged deployment (tenant Phase 2, then Phase 3)
 
 Tenant Phase 2 runs `foundry.bicep`, which creates the account, project, dependent resources, and
