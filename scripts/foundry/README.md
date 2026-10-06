@@ -167,15 +167,24 @@ RBAC grants on the project's managed identity (Cosmos DB Operator, Cosmos DB Dat
 Data Contributor + scoped Data Owner), and private DNS zone links -- and prints a `PASS`/`WARN`/
 `FAIL` verdict per check with a pointer to the bicep module that encodes the expected state.
 
+Private DNS zones commonly live in a separate hub subscription/resource group rather than the
+Foundry account's own RG. With the `resource-graph` az extension installed
+(`az extension add --name resource-graph`), the script searches every subscription you have
+access to for each required zone and verifies it's actually linked to the account's injected
+VNet, giving a definitive `PASS`/`FAIL` regardless of which subscription the zone lives in.
+Without that extension, zone checks are limited to the account's own RG and report `WARN`
+instead of `FAIL` when a zone isn't found there (since that doesn't prove it's missing elsewhere).
+
 ```bash
-SUBSCRIPTION_ID=<sub-id> ./scripts/foundry/audit-byo-deployment.sh
+# SUBSCRIPTION_ID accepts either a subscription GUID or display name.
+SUBSCRIPTION_ID=<sub-id-or-name> ./scripts/foundry/audit-byo-deployment.sh
 
 # Narrow to resource groups whose name contains a substring:
-SUBSCRIPTION_ID=<sub-id> RG_FILTER=<resource-group-substring> ./scripts/foundry/audit-byo-deployment.sh
+SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./scripts/foundry/audit-byo-deployment.sh
 ```
 
-Exits non-zero if any check reports `FAIL`. `WARN` findings (e.g. a private DNS zone that
-intentionally lives in a hub subscription) need human judgement and do not fail the run.
+Exits non-zero if any check reports `FAIL`. `WARN` findings (e.g. DNS zone checks running
+without the `resource-graph` extension) need human judgement and do not fail the run.
 
 ## Bitbucket adapter
 

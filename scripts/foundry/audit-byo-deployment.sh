@@ -17,7 +17,10 @@ set -uo pipefail
 #   SUBSCRIPTION_ID=<sub-id-or-name> ./audit-byo-deployment.sh
 #   SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./audit-byo-deployment.sh
 #
-# Requires: az CLI (logged in), jq.
+# Requires: az CLI (logged in), jq. Optional: the "resource-graph" az extension
+# (az extension add --name resource-graph) -- without it, DNS zone checks in [3] can only
+# look within each account's own resource group and fall back to a WARN instead of a
+# definitive PASS/FAIL for zones that live in a different subscription (e.g. a hub).
 
 : "${SUBSCRIPTION_ID:?SUBSCRIPTION_ID is required}"
 # Strip CR/whitespace that commonly survives a copy/paste from Windows terminals or docs;
@@ -234,13 +237,62 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
     fi
   done
 
-  echo "--- [3] Private DNS zone links (RG-scoped) ---"
+  echo "--- [3] Private DNS zone links ---"
+  # Zones routinely live in a hub subscription/RG different from the Foundry account's. Use
+  # Azure Resource Graph (searches every subscription the caller can see, not just $RG) to find
+  # the zone wherever it is, then check whether it's actually linked to *this* account's VNet --
+  # not just linked to something. Falls back to the old RG-scoped check (as a WARN, since it
+  # can't prove a negative across subscriptions) if the resource-graph extension isn't available.
+  GRAPH_AVAILABLE=true
+  az extension show --name resource-graph >/dev/null 2>&1 || GRAPH_AVAILABLE=false
+  VNET_ID=""
+  [ -n "$SUBNET" ] && VNET_ID="${SUBNET%/subnets/*}"
+
   for ZONE in privatelink.cognitiveservices.azure.com privatelink.openai.azure.com privatelink.search.windows.net privatelink.documents.azure.com privatelink.blob.core.windows.net privatelink.vaultcore.azure.net; do
-    LINKED=$(az network private-dns link vnet list --zone-name "$ZONE" --resource-group "$RG" --query "[].virtualNetwork.id" -o tsv 2>/dev/null)
-    if [ -n "$LINKED" ]; then
-      verdict PASS "$ZONE linked to $(echo "$LINKED" | wc -l | tr -d ' ') VNet(s)"
+    if [ "$GRAPH_AVAILABLE" != true ]; then
+      LINKED=$(az network private-dns link vnet list --zone-name "$ZONE" --resource-group "$RG" --query "[].virtualNetwork.id" -o tsv 2>/dev/null)
+      if [ -n "$LINKED" ]; then
+        verdict PASS "$ZONE linked to $(echo "$LINKED" | wc -l | tr -d ' ') VNet(s) in $RG"
+      else
+        verdict WARN "$ZONE not found/linked in $RG" \
+          "cannot search other subscriptions without the resource-graph extension -- run 'az extension add --name resource-graph' and re-run this script for a definitive answer"
+      fi
+      continue
+    fi
+
+    ZONE_HITS=$(az graph query -q "Resources | where type =~ 'microsoft.network/privatednszones' and name =~ '$ZONE' | project resourceGroup, subscriptionId" --query data -o json 2>/dev/null)
+    ZONE_COUNT=$(echo "${ZONE_HITS:-[]}" | jq 'length')
+
+    if [ "${ZONE_COUNT:-0}" -eq 0 ]; then
+      verdict FAIL "$ZONE not found in any subscription you have access to" \
+        "zone must exist and be linked to the account's VNet -- see infra/modules/network/private-dns.bicep"
+      continue
+    fi
+
+    if [ -z "$VNET_ID" ]; then
+      verdict WARN "$ZONE exists ($ZONE_COUNT match(es)) but account has no networkInjections subnet to compare against" \
+        "see [1] above -- cannot confirm the link targets the right VNet without a known subnet"
+      continue
+    fi
+
+    FOUND_LINK=false
+    FOUND_WHERE=""
+    while IFS=$'\t' read -r ZONE_RG ZONE_SUB; do
+      [ -z "$ZONE_RG" ] && continue
+      LINK_IDS=$(az network private-dns link vnet list --zone-name "$ZONE" --resource-group "$ZONE_RG" --subscription "$ZONE_SUB" --query "[].virtualNetwork.id" -o tsv 2>/dev/null)
+      if echo "$LINK_IDS" | grep -qix "$VNET_ID"; then
+        FOUND_LINK=true
+        FOUND_WHERE="$ZONE_SUB/$ZONE_RG"
+        break
+      fi
+    done < <(echo "$ZONE_HITS" | jq -r '.[] | "\(.resourceGroup)\t\(.subscriptionId)"')
+
+    if [ "$FOUND_LINK" = true ]; then
+      verdict PASS "$ZONE linked to this VNet (zone in $FOUND_WHERE)"
     else
-      verdict WARN "$ZONE has no VNet link in $RG" "verify the zone lives in a different RG/subscription (hub) before treating as FAIL"
+      ZONE_LOCATIONS=$(echo "$ZONE_HITS" | jq -r '.[] | "\(.subscriptionId)/\(.resourceGroup)"' | paste -sd, -)
+      verdict FAIL "$ZONE exists ($ZONE_LOCATIONS) but has no VNet link to $VNET_ID" \
+        "link the zone to this VNet, or confirm hub-VNet peering + DNS forwarding provides resolution instead"
     fi
   done
   echo
