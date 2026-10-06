@@ -152,6 +152,31 @@ permissions at every endpoint resource group. In cross-subscription `zone-group`
 needs the separately granted central DNS-zone read/join permission; DNS RBAC and endpoint-scope
 RBAC are distinct.
 
+## BYO deployment audit
+
+`audit-byo-deployment.sh` is a **read-only** diagnostic for an already-deployed, network-injected
+(BYO-VNet) Foundry account/project. It does not apply to greenfield deployments created
+end-to-end by `foundry.bicep` in this repo (those already satisfy every check by construction);
+it targets customer environments deployed by hand, by a different tool, or partially remediated
+out-of-band, where drift from the approved pattern is possible.
+
+It checks every AIServices account/project it finds against the approved reference pattern in
+`infra/modules/foundry/*.bicep` -- required connections, Capability Host state, the five required
+RBAC grants on the project's managed identity (Cosmos DB Operator, Cosmos DB Data Contributor on
+`enterprise_memory`, AI Search Index Data Contributor + Search Service Contributor, Storage Blob
+Data Contributor + scoped Data Owner), and private DNS zone links -- and prints a `PASS`/`WARN`/
+`FAIL` verdict per check with a pointer to the bicep module that encodes the expected state.
+
+```bash
+SUBSCRIPTION_ID=<sub-id> ./scripts/foundry/audit-byo-deployment.sh
+
+# Narrow to resource groups whose name contains a substring:
+SUBSCRIPTION_ID=<sub-id> RG_FILTER=<resource-group-substring> ./scripts/foundry/audit-byo-deployment.sh
+```
+
+Exits non-zero if any check reports `FAIL`. `WARN` findings (e.g. a private DNS zone that
+intentionally lives in a hub subscription) need human judgement and do not fail the run.
+
 ## Bitbucket adapter
 
 Bitbucket can call the same scripts after `az login` or workload-identity setup:
