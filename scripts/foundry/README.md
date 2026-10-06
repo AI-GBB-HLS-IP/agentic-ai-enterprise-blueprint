@@ -166,10 +166,13 @@ only (`publicNetworkAccess=Disabled` with no delegation) -- both are valid per t
 pattern, and the script auto-detects which one an account uses.
 
 It checks every AIServices account/project it finds against the approved reference pattern in
-`infra/modules/foundry/*.bicep` -- required connections, Capability Host state, the five required
-RBAC grants on the project's managed identity (Cosmos DB Operator, Cosmos DB Data Contributor on
-`enterprise_memory`, AI Search Index Data Contributor + Search Service Contributor, Storage Blob
-Data Contributor + scoped Data Owner), private DNS zone VNet links, and -- for the Foundry
+`infra/modules/foundry/*.bicep` -- required connections, Capability Host state, the required RBAC
+grants on the project's managed identity: Cosmos DB Operator (control-plane) on the Cosmos
+account, Cosmos DB Built-in Data Contributor (data-plane) scoped separately to each of the three
+project-workspace-prefixed containers (`thread-message-store`, `system-thread-message-store`,
+`agent-entity-store`), AI Search Index Data Contributor + Search Service Contributor on the AI
+Search service, and Storage Blob Data Contributor + scoped Storage Blob Data Owner on the storage
+account -- plus private DNS zone VNet links, and -- for the Foundry
 account itself plus each project's Cosmos DB/Storage/AI Search connections -- that each
 resource's own private endpoint has a `privateDnsZoneGroups` association for the correct zone
 (`infra/modules/foundry/private-endpoint-dns.bicep`). It prints a `PASS`/`WARN`/`FAIL` verdict
