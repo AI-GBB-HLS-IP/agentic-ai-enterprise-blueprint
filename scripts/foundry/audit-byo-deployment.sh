@@ -199,21 +199,22 @@ has_role_assignment() {
 # conditionVersion 2.0 ABAC condition). The role-definition GUID alone can't distinguish that from
 # an unconditional, account-wide grant of the same role -- the latter gives the project full blob
 # ownership over every other project's containers in the same storage account too, so it must not
-# be reported as "scoped". A loose substring match on just the workspace GUID and the literal text
-# "azureml-agent" anywhere in the condition string can be satisfied by a crafted/malformed
-# condition (e.g. one with a negated clause or an always-true OR branch, or one that matches an
-# unrelated attribute that merely happens to contain those substrings) while still granting
-# account-wide access -- so instead require the exact predicate structure the reference bicep
-# generates: StringStartsWithIgnoreCase on the workspace GUID AND StringLikeIgnoreCase on
-# '*-azureml-agent', both against the Resource:name attribute, joined by AND (not OR).
+# be reported as "scoped". An unanchored substring/regex search for the expected predicates is
+# still satisfiable by a crafted condition that wraps an unrelated, always-true OR branch around
+# the expected clause (e.g. "<always-true predicate> OR (<expected predicates>)"), which still
+# grants account-wide access while matching the search. Instead, compare the FULL condition
+# string for exact equality against the canonical expression storage-rbac.bicep:40 generates
+# (including its required ABAC "escape hatch" NOT-ActionMatches OR branch -- Azure requires this
+# exact OR structure for conditional role assignments; it is not itself the vulnerability the
+# unanchored-substring match above), substituting only the project's workspace GUID.
 has_scoped_storage_owner_assignment() {
   local scope="$1" principal_id="$2" workspace_guid="$3"
   local json count
   json=$(az role assignment list --scope "$scope" --query "[?principalId=='${principal_id}' && ends_with(roleDefinitionId, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]" -o json 2>/dev/null)
-  local attr_ref='@Resource\[Microsoft\.Storage/storageAccounts/blobServices/containers:name\]'
-  local pattern="${attr_ref}[[:space:]]+StringStartsWithIgnoreCase[[:space:]]+'${workspace_guid}'[[:space:]]+AND[[:space:]]+${attr_ref}[[:space:]]+StringLikeIgnoreCase[[:space:]]+'\\*-azureml-agent'"
-  count=$(echo "${json:-[]}" | jq --arg pat "$pattern" \
-    '[.[] | select(.conditionVersion=="2.0" and ((.condition // "") | test($pat)))] | length')
+  local expected_condition
+  expected_condition="((!(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags/read'}) AND !(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/filter/action'}) AND !(ActionMatches{'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags/write'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringStartsWithIgnoreCase '${workspace_guid}' AND @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringLikeIgnoreCase '*-azureml-agent'))"
+  count=$(echo "${json:-[]}" | jq --arg cond "$expected_condition" \
+    '[.[] | select(.conditionVersion=="2.0" and ((.condition // "") == $cond))] | length')
   [ "${count:-0}" -ge 1 ]
 }
 
