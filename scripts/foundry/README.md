@@ -160,10 +160,14 @@ and does not require a checkout of this repo (bicep paths in its hints are infor
 references to the approved pattern, not files it reads). It does not apply to greenfield
 deployments created end-to-end by `foundry.bicep` in this repo (those already satisfy every check
 by construction); it targets customer environments deployed by hand, by a different tool, or
-partially remediated out-of-band, where drift from the approved pattern is possible. It supports
-both BYO-VNet connectivity models: subnet delegation (`networkInjections`) and private-endpoint-
-only (`publicNetworkAccess=Disabled` with no delegation) -- both are valid per this repo's own
-pattern, and the script auto-detects which one an account uses.
+partially remediated out-of-band, where drift from the approved pattern is possible. This repo's
+approved reference pattern always configures subnet delegation (`networkInjections` --
+`infra/modules/foundry/main.bicep:146-153`); there is no supported private-endpoint-only
+alternative topology, so the script fails an account that lacks it. Private endpoints are an
+additional DNS/private-access mechanism that complements the required network-injected delegated
+subnet, not a substitute for it -- the script still checks for them (and their DNS zone group
+association) alongside the network-injection check, and uses the private endpoint's VNet purely
+as a diagnostic fallback for the zone-link comparisons below when no subnet was found.
 
 It checks every AIServices account/project it finds against the approved reference pattern in
 `infra/modules/foundry/*.bicep` -- required connections, Capability Host state, the required RBAC

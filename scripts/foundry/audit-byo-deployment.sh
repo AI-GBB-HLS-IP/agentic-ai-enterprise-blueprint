@@ -49,9 +49,14 @@ export AZURE_CORE_NO_PROGRESS=true
 # Strip CR/whitespace that commonly survives a copy/paste from Windows terminals or docs;
 # az CLI treats a trailing \r as part of the identifier and fails to resolve it, which (without
 # this trim) silently left the previous subscription active instead of erroring clearly.
-SUBSCRIPTION_ID="$(printf '%s' "$SUBSCRIPTION_ID" | tr -d '\r' | xargs)"
-RG_FILTER="$(printf '%s' "${RG_FILTER:-}" | tr -d '\r' | xargs)"
-EXPECTED_VNET_ID="$(printf '%s' "${EXPECTED_VNET_ID:-}" | tr -d '\r' | xargs)"
+# Trimmed with sed rather than "xargs" (no arguments): xargs re-splits/re-quotes its input with
+# shell-style word-parsing rules, so a legitimate value containing a single quote (e.g. a
+# subscription display name like "Team's Subscription") raises "unmatched single quote" and
+# yields an empty/wrong result instead of just trimming whitespace.
+trim() { printf '%s' "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
+SUBSCRIPTION_ID="$(trim "$(printf '%s' "$SUBSCRIPTION_ID" | tr -d '\r')")"
+RG_FILTER="$(trim "$(printf '%s' "${RG_FILTER:-}" | tr -d '\r')")"
+EXPECTED_VNET_ID="$(trim "$(printf '%s' "${EXPECTED_VNET_ID:-}" | tr -d '\r')")"
 # Per this repo's DNS-mode contract (infra/envs/poc/foundry-dns.bicep:10-20,120-143), brownfield
 # DNS integration is explicitly either "vnet-link" (zones in the workload subscription, linked
 # directly to the workload VNet) or "zone-group" (existing central/hub zones attached only via
@@ -59,7 +64,7 @@ EXPECTED_VNET_ID="$(printf '%s' "${EXPECTED_VNET_ID:-}" | tr -d '\r' | xargs)"
 # zone-link checks below used to unconditionally FAIL any deployment lacking a direct VNet link,
 # which incorrectly rejects a valid zone-group deployment. Default to vnet-link (this script's
 # original/most common assumption) and require an explicit, validated value otherwise.
-DNS_INTEGRATION_MODE="$(printf '%s' "${DNS_INTEGRATION_MODE:-vnet-link}" | tr -d '\r' | xargs)"
+DNS_INTEGRATION_MODE="$(trim "$(printf '%s' "${DNS_INTEGRATION_MODE:-vnet-link}" | tr -d '\r')")"
 case "$DNS_INTEGRATION_MODE" in
   vnet-link|zone-group) ;;
   *)
@@ -157,11 +162,16 @@ find_connection() {
 }
 
 # Checks whether PRINCIPAL_ID has ROLE_GUID assigned at SCOPE (management-plane RBAC).
+# JMESPath's ends_with is a function, not a method -- "roleDefinitionId.ends_with(@, ...)" is not
+# valid JMESPath/az-CLI query syntax and makes the whole --query argument error out at parse time;
+# with "|| echo 0" catching that error, every call silently returned 0 and every management-plane
+# RBAC check falsely reported the role as missing. The correct call form is
+# ends_with(roleDefinitionId, '...').
 has_role_assignment() {
   local scope="$1" principal_id="$2" role_guid="$3"
   local count
   count=$(az role assignment list --scope "$scope" \
-    --query "[?principalId=='${principal_id}' && roleDefinitionId.ends_with(@, '${role_guid}')] | length(@)" \
+    --query "[?principalId=='${principal_id}' && ends_with(roleDefinitionId, '${role_guid}')] | length(@)" \
     -o tsv 2>/dev/null || echo 0)
   [ "${count:-0}" -ge 1 ]
 }
@@ -171,14 +181,21 @@ has_role_assignment() {
 # conditionVersion 2.0 ABAC condition). The role-definition GUID alone can't distinguish that from
 # an unconditional, account-wide grant of the same role -- the latter gives the project full blob
 # ownership over every other project's containers in the same storage account too, so it must not
-# be reported as "scoped". Checks that an assignment's condition text references both this
-# project's workspace GUID and the azureml-agent container suffix.
+# be reported as "scoped". A loose substring match on just the workspace GUID and the literal text
+# "azureml-agent" anywhere in the condition string can be satisfied by a crafted/malformed
+# condition (e.g. one with a negated clause or an always-true OR branch, or one that matches an
+# unrelated attribute that merely happens to contain those substrings) while still granting
+# account-wide access -- so instead require the exact predicate structure the reference bicep
+# generates: StringStartsWithIgnoreCase on the workspace GUID AND StringLikeIgnoreCase on
+# '*-azureml-agent', both against the Resource:name attribute, joined by AND (not OR).
 has_scoped_storage_owner_assignment() {
   local scope="$1" principal_id="$2" workspace_guid="$3"
   local json count
-  json=$(az role assignment list --scope "$scope" --query "[?principalId=='${principal_id}' && roleDefinitionId.ends_with(@, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]" -o json 2>/dev/null)
-  count=$(echo "${json:-[]}" | jq --arg wg "$workspace_guid" \
-    '[.[] | select(.conditionVersion=="2.0" and (.condition // "" | test($wg; "i")) and (.condition // "" | test("azureml-agent"; "i")))] | length')
+  json=$(az role assignment list --scope "$scope" --query "[?principalId=='${principal_id}' && ends_with(roleDefinitionId, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]" -o json 2>/dev/null)
+  local attr_ref='@Resource\[Microsoft\.Storage/storageAccounts/blobServices/containers:name\]'
+  local pattern="${attr_ref}[[:space:]]+StringStartsWithIgnoreCase[[:space:]]+'${workspace_guid}'[[:space:]]+AND[[:space:]]+${attr_ref}[[:space:]]+StringLikeIgnoreCase[[:space:]]+'\\*-azureml-agent'"
+  count=$(echo "${json:-[]}" | jq --arg pat "$pattern" \
+    '[.[] | select(.conditionVersion=="2.0" and ((.condition // "") | test($pat)))] | length')
   [ "${count:-0}" -ge 1 ]
 }
 
@@ -223,13 +240,13 @@ check_pe_dns_group() {
   fi
 }
 
-# BYO-VNet Foundry accounts can be connected to a VNet two different ways: subnet delegation
-# (properties.networkInjections, checked above) or private-endpoint-only connectivity with
-# publicNetworkAccess=Disabled and no delegation. Both are valid per this repo's own pattern
-# (infra/modules/foundry/private-endpoint-dns.bicep doesn't require network injection). When
-# there's no networkInjections subnet, fall back to resolving the VNet from the account's own
-# private endpoint so the [3] zone-link checks still get a real VNet to compare against instead
-# of defaulting to WARN for every zone.
+# This repo's approved reference contract always configures subnet delegation
+# (properties.networkInjections -- infra/modules/foundry/main.bicep:146-153, FR-003/FR-005a in
+# specs/01-foundry-byo-networking/spec.md); there is no supported private-endpoint-only
+# alternative topology. When there's no networkInjections subnet, still resolve the VNet from the
+# account's own private endpoint (if one exists) purely for diagnostic display/[3] zone-link
+# comparison purposes -- it must not be treated as an equally-valid substitute for the required
+# network injection.
 resolve_vnet_via_private_endpoint() {
   local resource_id="$1"
   [ "$GRAPH_AVAILABLE" != true ] && return
@@ -310,28 +327,39 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
   if [ -n "$SUBNET" ]; then
     verdict PASS "network-injected (subnet: $SUBNET)"
   else
+    # No networkInjections subnet -- still derive the VNet via the account's own private
+    # endpoint, if any, purely so the [3] zone-link checks below have a real VNet to compare
+    # against instead of degrading to WARN. This is diagnostic only: per the approved reference
+    # contract (infra/modules/foundry/main.bicep:146-153, FR-003/FR-005a in
+    # specs/01-foundry-byo-networking/spec.md), network injection is always required -- a
+    # private-endpoint-only account is not a supported alternative topology, so its absence
+    # must FAIL rather than PASS even when a private endpoint is present.
     PE_ONLY_VNET_ID=$(resolve_vnet_via_private_endpoint "$ACCOUNT_RESOURCE_ID")
     if [ -n "$PE_ONLY_VNET_ID" ]; then
-      verdict PASS "no subnet delegation (publicNetworkAccess=$PNA) -- using private-endpoint-only connectivity, VNet resolved via account's private endpoint: $PE_ONLY_VNET_ID"
+      verdict FAIL "no subnet delegation (publicNetworkAccess=$PNA) -- found a private endpoint (VNet: $PE_ONLY_VNET_ID) but no networkInjections subnet" \
+        "infra/modules/foundry/main.bicep:146-153 -- network injection is always required by this repo's approved pattern; private endpoints are an additional DNS/private-access mechanism, not a substitute for the network-injected delegated subnet"
     else
-      verdict WARN "no networkInjections subnet and no private endpoint VNet could be resolved (publicNetworkAccess=$PNA)" \
-        "both subnet-delegated and private-endpoint-only connectivity are valid BYO-VNet patterns (infra/modules/foundry/main.bicep, infra/modules/foundry/private-endpoint-dns.bicep in the agentic-ai-enterprise-blueprint repo -- informational reference only, not required to run this script); if this account truly has no VNet connectivity, publicNetworkAccess should be Enabled instead"
+      verdict FAIL "no networkInjections subnet and no private endpoint VNet could be resolved (publicNetworkAccess=$PNA)" \
+        "infra/modules/foundry/main.bicep:146-153 -- network injection is always required by this repo's approved pattern"
     fi
   fi
   # publicNetworkAccess is read above (PNA) for display, but was never enforced: a
-  # network-injected (or private-endpoint-only) account that still allows public network access
-  # used to earn PASS regardless. specs/01-foundry-byo-networking/spec.md:132-135 requires
-  # publicNetworkAccess=Disabled for a BYO-VNet deployment -- this applies to both connectivity
-  # branches above, so check it unconditionally rather than inside either branch.
+  # network-injected account that still allows public network access used to earn PASS
+  # regardless. specs/01-foundry-byo-networking/spec.md:132-135 requires
+  # publicNetworkAccess=Disabled for a BYO-VNet deployment -- check it unconditionally.
   if [ "$PNA" != "Disabled" ]; then
     verdict FAIL "publicNetworkAccess=$PNA (expected Disabled for a BYO-VNet deployment)" \
-      "specs/01-foundry-byo-networking/spec.md:132-135 -- set publicNetworkAccess to Disabled regardless of network-injected vs private-endpoint-only connectivity"
+      "specs/01-foundry-byo-networking/spec.md:132-135 -- set publicNetworkAccess to Disabled"
   fi
   DETECTED_VNET_ID=""
   [ -n "$SUBNET" ] && DETECTED_VNET_ID="${SUBNET%/subnets/*}"
   [ -z "$DETECTED_VNET_ID" ] && DETECTED_VNET_ID="$PE_ONLY_VNET_ID"
   if [ -n "$EXPECTED_VNET_ID" ]; then
-    if [ -n "$DETECTED_VNET_ID" ] && [ "$DETECTED_VNET_ID" != "$EXPECTED_VNET_ID" ]; then
+    # ARM resource IDs are case-insensitive, so compare lowercased forms (same approach as the
+    # DNS zone-link check in [3] below, which already uses "grep -qix" for this reason) -- a
+    # direct case-sensitive comparison would false-FAIL a functionally identical VNet ID that
+    # merely differs in casing (e.g. "resourceGroups" vs "resourcegroups").
+    if [ -n "$DETECTED_VNET_ID" ] && [ "$(printf '%s' "$DETECTED_VNET_ID" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$EXPECTED_VNET_ID" | tr '[:upper:]' '[:lower:]')" ]; then
       verdict FAIL "account's VNet ($DETECTED_VNET_ID) does not match EXPECTED_VNET_ID ($EXPECTED_VNET_ID)" \
         "either EXPECTED_VNET_ID is wrong, or this account is private-linked into the wrong VNet"
     elif [ -n "$DETECTED_VNET_ID" ]; then
@@ -515,8 +543,12 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
         MISSING_CONTAINERS=()
         for CONTAINER_SUFFIX in thread-message-store system-thread-message-store agent-entity-store; do
           CONTAINER_NAME="${PROJECT_WORKSPACE_GUID}-${CONTAINER_SUFFIX}"
+          # infra/modules/foundry/cosmos-rbac.bicep:38-69 always scopes these assignments to
+          # ".../dbs/enterprise_memory/colls/<container-name>" specifically. Matching any scope
+          # ending in just "/colls/<container-name>" would also accept an assignment on a
+          # same-named container under an unrelated/wrong database, producing a false PASS.
           MATCH_COUNT=$(echo "${DATA_PLANE_JSON:-[]}" | jq --arg pid "$PRINCIPAL_ID" --arg c "$CONTAINER_NAME" \
-            '[.[]? | select(.principalId==$pid and (.roleDefinitionId | endswith("0000-0000-0000-0000-000000000002")) and (.scope | endswith("/colls/" + $c)))] | length')
+            '[.[]? | select(.principalId==$pid and (.roleDefinitionId | endswith("0000-0000-0000-0000-000000000002")) and (.scope | endswith("/dbs/enterprise_memory/colls/" + $c)))] | length')
           [ "${MATCH_COUNT:-0}" -ge 1 ] || MISSING_CONTAINERS+=("$CONTAINER_NAME")
         done
         if [ "${#MISSING_CONTAINERS[@]}" -eq 0 ]; then
