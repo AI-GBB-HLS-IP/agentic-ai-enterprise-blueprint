@@ -24,9 +24,6 @@ resource cosmosDBOperatorAssignment 'Microsoft.Authorization/roleAssignments@202
   }
 }
 
-// NOTE: the data-plane Cosmos DB SQL role assignment (Cosmos DB Built-in Data Contributor,
-// scoped to the `enterprise_memory` database) is handled by cosmos-data-rbac.bicep, which must
-// run *after* the Capability Host is created -- the platform auto-provisions the
-// `enterprise_memory` database (and its containers) during Capability Host activation, and
-// Cosmos DB SQL role assignments require the target database to already exist. See
-// infra/modules/foundry/main.bicep for the dependency ordering.
+// NOTE: the project-scoped data-plane Cosmos DB SQL role assignments are handled by
+// cosmos-data-rbac.bicep after the Capability Host creates the workspace-prefixed containers.
+// See infra/modules/foundry/main.bicep for the dependency ordering.

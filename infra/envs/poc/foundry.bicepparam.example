@@ -43,7 +43,6 @@ param existingAzureCosmosDBAccountResourceId = readEnvironmentVariable('FOUNDRY_
 param existingCosmosDBPrivateEndpoint = bool(readEnvironmentVariable('FOUNDRY_EXISTING_COSMOS_DB_PRIVATE_ENDPOINT', 'false'))
 
 param enableModelDeployment = bool(readEnvironmentVariable('FOUNDRY_ENABLE_MODEL_DEPLOYMENT', 'true'))
-param enableNetworkInjection = bool(readEnvironmentVariable('FOUNDRY_ENABLE_NETWORK_INJECTION', 'true'))
 param modelDeploymentName = readEnvironmentVariable('FOUNDRY_MODEL_DEPLOYMENT_NAME', 'gpt-4.1-mini')
 param modelName = readEnvironmentVariable('FOUNDRY_MODEL_NAME', 'gpt-4.1-mini')
 param modelVersion = readEnvironmentVariable('FOUNDRY_MODEL_VERSION', '2025-04-14')

@@ -18,9 +18,6 @@ param location string
 @description('Existing delegated Foundry subnet resource ID.')
 param foundrySubnetId string
 
-@description('Enable Standard Agent service network injection (subnet-delegated agent networking) on the Foundry account, in addition to its private endpoint. Set to false to use private-endpoint-only connectivity for the account.')
-param enableNetworkInjection bool = true
-
 @description('Existing private endpoint subnet resource ID.')
 param privateEndpointSubnetId string
 
@@ -147,15 +144,13 @@ resource account 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
       bypass: 'AzureServices'
     }
     publicNetworkAccess: 'Disabled'
-    networkInjections: enableNetworkInjection
-      ? [
-          {
-            scenario: 'agent'
-            subnetArmId: foundrySubnetId
-            useMicrosoftManagedNetwork: false
-          }
-        ]
-      : null
+    networkInjections: [
+      {
+        scenario: 'agent'
+        subnetArmId: foundrySubnetId
+        useMicrosoftManagedNetwork: false
+      }
+    ]
     disableLocalAuth: true
   }
 }
@@ -381,8 +376,8 @@ module storageRbac './storage-rbac.bicep' = {
 }
 
 // The capability host activates the Agent Service against the project connections. It must run
-// after every RBAC assignment, because the platform auto-provisions the Cosmos containers and the
-// blob container during activation using the project's managed identity.
+// after the pre-activation RBAC assignments; Cosmos SQL RBAC is applied afterward because the
+// platform creates the database and containers during activation using the project's identity.
 module capabilityHost './capability-host.bicep' = {
   name: 'foundry-capability-host'
   params: {
@@ -399,11 +394,9 @@ module capabilityHost './capability-host.bicep' = {
   ]
 }
 
-// The data-plane Cosmos DB role (Cosmos DB Built-in Data Contributor, scoped to the
-// `enterprise_memory` database) can only be assigned after the Capability Host has activated,
-// because that activation is what causes the platform to auto-provision the `enterprise_memory`
-// database. Assigning it earlier fails with "database ... could not be found" since Cosmos DB SQL
-// role assignments require the target database to already exist.
+// The Cosmos DB Built-in Data Contributor role is scoped to this project's three
+// `enterprise_memory` containers. Assign it after Capability Host activation creates those
+// containers; broader database-level access would let projects access one another's memory.
 module cosmosDataRbac './cosmos-data-rbac.bicep' = {
   name: 'foundry-cosmos-data-rbac'
   scope: resourceGroup(cosmosSubscriptionId, cosmosResourceGroupName)
