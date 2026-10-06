@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+# az CLI's animated spinner ("Running ...") writes carriage returns (\r) to redraw itself in
+# place; in some terminals/screenshot tools that leaves a stray leftover glyph at column 0 which
+# the next echo partially overwrites instead of clearing (e.g. "ACCOUNT:" rendering as
+# ")CCOUNT:"). Disable it so every line this script prints starts on a clean row.
+export AZURE_CORE_NO_PROGRESS=true
+
 # Read-only audit for an existing BYO-VNet Foundry deployment (Microsoft.CognitiveServices
 # kind=AIServices, network-injected). It checks every account/project found against the
 # approved reference pattern in infra/modules/foundry/*.bicep and prints a PASS/WARN/FAIL
@@ -38,9 +44,9 @@ FAIL_COUNT=0
 verdict() {
   local status="$1" message="$2" hint="${3:-}"
   case "$status" in
-    PASS) PASS_COUNT=$((PASS_COUNT + 1)); echo "    [PASS] $message" ;;
-    WARN) WARN_COUNT=$((WARN_COUNT + 1)); echo "    [WARN] $message"; [ -n "$hint" ] && echo "           -> $hint" ;;
-    FAIL) FAIL_COUNT=$((FAIL_COUNT + 1)); echo "    [FAIL] $message"; [ -n "$hint" ] && echo "           -> $hint" ;;
+    PASS) PASS_COUNT=$((PASS_COUNT + 1)); echo "    ✅ [PASS] $message" ;;
+    WARN) WARN_COUNT=$((WARN_COUNT + 1)); echo "    ⚠️  [WARN] $message"; [ -n "$hint" ] && echo "           -> $hint" ;;
+    FAIL) FAIL_COUNT=$((FAIL_COUNT + 1)); echo "    ❌ [FAIL] $message"; [ -n "$hint" ] && echo "           -> $hint" ;;
   esac
 }
 
@@ -59,8 +65,8 @@ fi
 SUBSCRIPTION_NAME="$(az account show --query name -o tsv)"
 SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
 
-echo "=== Subscription: $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID) ==="
-[ -n "$RG_FILTER" ] && echo "=== Resource group filter: $RG_FILTER ==="
+echo "🔎 Subscription: $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
+[ -n "$RG_FILTER" ] && echo "🔎 Resource group filter: $RG_FILTER"
 echo
 
 if [ -n "$RG_FILTER" ]; then
@@ -147,13 +153,13 @@ mapfile -t ACCOUNT_LINES <<< "$ACCOUNTS"
 for LINE in "${ACCOUNT_LINES[@]}"; do
   IFS=$'\t' read -r NAME RG <<< "$LINE"
   echo "=============================================================="
-  echo "ACCOUNT: $NAME   (RG: $RG)"
+  echo "📦 ACCOUNT: $NAME   (RG: $RG)"
   echo "=============================================================="
 
   ACCT_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME?api-version=$API_VERSION"
   ACCT_JSON=$(az rest --method get --url "$ACCT_URL" -o json 2>/dev/null)
 
-  echo "--- [1] Network injection / public network access ---"
+  echo "--- [1] 🌐 Network injection / public network access ---"
   PNA=$(echo "$ACCT_JSON" | jq -r '.properties.publicNetworkAccess // "Unknown"')
   SUBNET=$(echo "$ACCT_JSON" | jq -r '.properties.networkInjections[0].subnetArnResourceId // empty')
   if [ -n "$SUBNET" ]; then
@@ -167,7 +173,7 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
   check_pe_dns_group "Foundry account (openai)" "$ACCOUNT_RESOURCE_ID" "privatelink.openai.azure.com"
   check_pe_dns_group "Foundry account (services-ai)" "$ACCOUNT_RESOURCE_ID" "privatelink.services.ai.azure.com"
 
-  echo "--- [2] Projects ---"
+  echo "--- [2] 🗂️  Projects ---"
   PROJECTS_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/projects?api-version=$API_VERSION"
   # This list endpoint returns each project's "name" fully-qualified as "<account>/<project>"
   # (not just "<project>"), unlike most ARM child-resource listings. Strip everything up to the
@@ -182,7 +188,7 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
   ACCT_CONN_JSON=$(az rest --method get --url "$ACCT_CONN_URL" -o json 2>/dev/null)
 
   for PROJ in $PROJECTS; do
-    echo "  --- Project: $PROJ ---"
+    echo "  --- 🧩 Project: $PROJ ---"
     PROJ_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/projects/$PROJ?api-version=$API_VERSION"
     PROJ_REST_ERR="$(mktemp)"
     PROJ_JSON=$(az rest --method get --url "$PROJ_URL" -o json 2>"$PROJ_REST_ERR")
@@ -211,12 +217,12 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
     SEARCH_ROW=$(find_connection "CognitiveSearch" "$PROJ_CONN_JSON" "$ACCT_CONN_JSON")
     COSMOS_RESID="${COSMOS_ROW##*|}"; STORAGE_RESID="${STORAGE_ROW##*|}"; SEARCH_RESID="${SEARCH_ROW##*|}"
 
-    echo "  [1] Required connections (Cosmos DB / Storage / AI Search):"
+    echo "  [1] 🔌 Required connections (Cosmos DB / Storage / AI Search):"
     [ -n "$COSMOS_ROW" ] && verdict PASS "CosmosDB connection: ${COSMOS_ROW%%|*} (${COSMOS_ROW#*|})" || verdict FAIL "no CosmosDB connection" "infra/modules/foundry/project-connections.bicep"
     [ -n "$STORAGE_ROW" ] && verdict PASS "AzureStorageAccount connection: ${STORAGE_ROW%%|*} (${STORAGE_ROW#*|})" || verdict FAIL "no AzureStorageAccount connection" "infra/modules/foundry/project-connections.bicep"
     [ -n "$SEARCH_ROW" ] && verdict PASS "CognitiveSearch connection: ${SEARCH_ROW%%|*} (${SEARCH_ROW#*|})" || verdict FAIL "no CognitiveSearch connection" "infra/modules/foundry/project-connections.bicep"
 
-    echo "  [2] Capability Host:"
+    echo "  [2] 🏠 Capability Host:"
     CAP_HOSTS_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/projects/$PROJ/capabilityHosts?api-version=$API_VERSION"
     CAP_HOSTS_JSON=$(az rest --method get --url "$CAP_HOSTS_URL" -o json 2>/dev/null)
     CAP_HOST_NAME=$(echo "$CAP_HOSTS_JSON" | jq -r '.value[0].name // empty')
@@ -233,7 +239,7 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
       verdict FAIL "no Capability Host found" "infra/modules/foundry/capability-host.bicep (depends on cosmosDBRbac, storageRbac, aiSearchRbac)"
     fi
 
-    echo "  [3] RBAC on project managed identity ($PRINCIPAL_ID):"
+    echo "  [3] 🔐 RBAC on project managed identity ($PRINCIPAL_ID):"
     if [ -n "$COSMOS_RESID" ]; then
       if has_role_assignment "$COSMOS_RESID" "$PRINCIPAL_ID" "230815da-be43-4aae-9cb4-875f7bd000aa"; then
         verdict PASS "Cosmos DB Operator (mgmt-plane) on Cosmos account"
@@ -287,13 +293,13 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
       verdict WARN "cannot check Storage RBAC: connection has no metadata.ResourceId"
     fi
 
-    echo "  [4] Private endpoint DNS zone groups (Cosmos DB / Storage / AI Search):"
+    echo "  [4] 🧷 Private endpoint DNS zone groups (Cosmos DB / Storage / AI Search):"
     check_pe_dns_group "Cosmos DB" "$COSMOS_RESID" "privatelink.documents.azure.com"
     check_pe_dns_group "Storage" "$STORAGE_RESID" "privatelink.blob.core.windows.net"
     check_pe_dns_group "AI Search" "$SEARCH_RESID" "privatelink.search.windows.net"
   done
 
-  echo "--- [3] Private DNS zone links ---"
+  echo "--- [3] 🌐 Private DNS zone links ---"
   # Zones routinely live in a hub subscription/RG different from the Foundry account's. Use
   # Azure Resource Graph (searches every subscription the caller can see, not just $RG) to find
   # the zone wherever it is, then check whether it's actually linked to *this* account's VNet --
@@ -353,7 +359,14 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
 done
 
 echo "=============================================================="
-echo "SUMMARY: $PASS_COUNT passed, $WARN_COUNT warnings, $FAIL_COUNT failed"
+if [ "$FAIL_COUNT" -gt 0 ]; then
+  SUMMARY_ICON="❌"
+elif [ "$WARN_COUNT" -gt 0 ]; then
+  SUMMARY_ICON="⚠️ "
+else
+  SUMMARY_ICON="✅"
+fi
+echo "$SUMMARY_ICON SUMMARY: $PASS_COUNT passed, $WARN_COUNT warnings, $FAIL_COUNT failed"
 echo "=============================================================="
 [ "$FAIL_COUNT" -gt 0 ] && exit 1
 exit 0
