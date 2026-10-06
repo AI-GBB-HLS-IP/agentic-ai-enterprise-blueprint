@@ -6,8 +6,8 @@ param projectPrincipalId string
 @description('Cosmos DB account name (in this module\'s deployment scope).')
 param cosmosDBAccountName string
 
-// Built-in role: Cosmos DB Operator (management-plane; lets the project read connection strings
-// and metadata, but not data). This must be assigned before the Capability Host is created.
+// Built-in role: Cosmos DB Operator (management-plane account operations and metadata; does not
+// grant Cosmos DB data-plane access). This must be assigned before the Capability Host is created.
 var cosmosDBOperatorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '230815da-be43-4aae-9cb4-875f7bd000aa')
 
 resource cosmosDBAccount 'Microsoft.DocumentDB/databaseAccounts@2024-11-15' existing = {

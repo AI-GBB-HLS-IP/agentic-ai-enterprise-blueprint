@@ -151,13 +151,15 @@ the result is attributable to the intended model deployment.
   all projects under one Foundry account share the same delegated subnet.
 - **FR-005b**: When the Foundry Agent Service capability host is enabled, the feature MUST
   authorize the Foundry project's managed identity with project-scoped access to persistence
-  resources. Cosmos DB Built-in Data Contributor MUST be assigned only to that project's
-  workspace-prefixed `thread-message-store`, `system-thread-message-store`, and `agent-entity-store`
-  containers in the `enterprise_memory` database, after Capability Host activation creates them.
-  Storage Blob Data Contributor MUST be assigned unconditionally at the storage-account scope,
-  and Storage Blob Data Owner MUST use a version 2.0 ABAC condition restricting access to
-  containers matching the project's workspace ID pattern; these Storage assignments MUST be
-  established before Capability Host activation creates the blob container.
+  resources. The Cosmos DB Operator management-plane role and Storage Blob Data Contributor
+  MUST be assigned before Capability Host activation. Cosmos DB Built-in Data Contributor MUST
+  be assigned only to that project's workspace-prefixed `thread-message-store`,
+  `system-thread-message-store`, and `agent-entity-store` containers in the `enterprise_memory`
+  database, after Capability Host activation creates them. Storage Blob Data Contributor MUST
+  be assigned unconditionally at the storage-account scope, and Storage Blob Data Owner MUST use
+  a version 2.0 ABAC condition restricting access to containers matching the project's workspace
+  ID pattern; these Storage assignments MUST be established before Capability Host activation
+  creates the blob container.
 - **FR-006**: The feature MUST create private endpoints for Foundry and each required supporting
   resource (Storage, Key Vault, Cosmos DB, AI Search), and each private endpoint MUST have an
   approved connection state before validation can pass. The main deployment MUST create the

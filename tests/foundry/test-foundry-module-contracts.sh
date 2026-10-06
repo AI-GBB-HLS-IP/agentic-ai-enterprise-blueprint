@@ -256,6 +256,26 @@ for name, suffix in (
         sys.exit(f"Cosmos assignment scope is missing the {name} container")
 
 main = json.load(open(sys.argv[2]))
+pre_activation_rbac = next(
+    (
+        resource for resource in main.get("resources", [])
+        if resource.get("type") == "Microsoft.Resources/deployments"
+        and resource.get("name") == "foundry-cosmos-rbac"
+    ),
+    None,
+)
+if pre_activation_rbac is None:
+    sys.exit("main.bicep is missing the pre-activation Cosmos RBAC module")
+
+pre_activation_template = pre_activation_rbac.get("properties", {}).get("template", {})
+pre_activation_resources = pre_activation_template.get("resources", [])
+if any(
+    resource.get("type", "").lower()
+    == "microsoft.documentdb/databaseaccounts/sqlroleassignments"
+    for resource in pre_activation_resources
+):
+    sys.exit("pre-activation foundry-cosmos-rbac must not contain Cosmos SQL role assignments")
+
 data_assignment = next(
     (
         resource for resource in main.get("resources", [])

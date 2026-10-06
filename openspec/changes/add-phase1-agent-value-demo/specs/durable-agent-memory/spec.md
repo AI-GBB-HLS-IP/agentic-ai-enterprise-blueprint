@@ -8,11 +8,17 @@ AKS-hosted code-based agent using the shared Phase 1 Cosmos DB account.
 ### Requirement: Prompt-agent managed persistence
 The Foundry prompt agent SHALL use Standard Agent Setup project connections, project identity
 RBAC, and the Agents capability host so Foundry Agent Service can maintain its required thread,
-message, and agent-state data in Cosmos DB.
+message, and agent-state data in Cosmos DB. Before activation, the project identity SHALL receive
+the required Storage RBAC and Cosmos DB Operator management-plane role. After activation creates
+the project workspace's Cosmos containers, the project identity SHALL receive Cosmos DB Built-in
+Data Contributor only on its workspace-prefixed `thread-message-store`,
+`system-thread-message-store`, and `agent-entity-store` containers.
 
 #### Scenario: Activate Foundry-managed persistence
-- **WHEN** the project connections, pre-authorized RBAC assignments, and capability host are ready
-- **THEN** Foundry can create and use its managed persistence structures without account keys
+- **WHEN** the project connections and pre-activation Storage and Cosmos control-plane RBAC are
+  ready and the capability host is activated
+- **THEN** Foundry creates its managed persistence structures, after which Cosmos data-plane RBAC
+  is assigned only to that project's three workspace-prefixed containers without account keys
 
 #### Scenario: Avoid speculative Foundry structures
 - **WHEN** the Foundry project identity or capability host is not available
