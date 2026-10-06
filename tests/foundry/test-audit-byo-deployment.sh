@@ -72,7 +72,7 @@ case "$1 $2" in
   "account show")
     case "$*" in
       *"--query name"*) echo "${SUB_NAME:-Test Subscription}" ;;
-      *"--query id"*) echo "${SUB_ID:-11111111-1111-1111-1111-111111111111}" ;;
+      *"--query id"*) echo "${SUB_ID:-00000000-0000-0000-0000-000000000000}" ;;
     esac
     exit 0
     ;;
@@ -235,10 +235,10 @@ base_env() {
     EXT_SHOW_EXIT EXT_ADD_EXIT GRAPH_PROBE_EXIT GRAPH_PE_HITS \
     STORAGE_OWNER_JSON COSMOS_DATA_JSON DNS_ZONE_GROUP_OUT ZONE_HITS_DIR ZONE_HITS_DEFAULT \
     DNS_LINK_DIR 2>/dev/null
-  SUB_ID="11111111-1111-1111-1111-111111111111"
+  SUB_ID="00000000-0000-0000-0000-000000000000"
   SUB_NAME="Test Subscription"
   ACCOUNT_LIST_OUT=$'acct1\trg1'
-  ACCT_JSON='{"properties":{"publicNetworkAccess":"Disabled","networkInjections":[{"subnetArmId":"/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/snet1"}]}}'
+  ACCT_JSON='{"properties":{"publicNetworkAccess":"Disabled","networkInjections":[{"subnetArmId":"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/snet1"}]}}'
   EXT_SHOW_EXIT=1
   EXT_ADD_EXIT=1
   PROJECTS_OUT=""
@@ -251,7 +251,7 @@ base_env() {
 common_audit_env() {
   COMMON_AUDIT_ENV=(
     AZ_CALL_LOG="${AZ_CALL_LOG:-$WORKDIR/calls.log}"
-    SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-11111111-1111-1111-1111-111111111111}"
+    SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-00000000-0000-0000-0000-000000000000}"
     RG_FILTER="${RG_FILTER:-}" EXPECTED_VNET_ID="${EXPECTED_VNET_ID:-}"
     DNS_INTEGRATION_MODE="${DNS_INTEGRATION_MODE:-vnet-link}"
     SUB_ID="${SUB_ID:-}" SUB_NAME="${SUB_NAME:-}"
@@ -377,7 +377,7 @@ echo "==> [3] RBAC scope/condition checks"
 base_env
 PROJECTS_OUT="acct1/proj1"
 PROJ_JSON="$(good_project_json)"
-PROJ_CONN_JSON='{"value":[{"name":"storage-conn","properties":{"category":"AzureStorageAccount","metadata":{"ResourceId":"/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/st1"}}}]}'
+PROJ_CONN_JSON='{"value":[{"name":"storage-conn","properties":{"category":"AzureStorageAccount","metadata":{"ResourceId":"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/st1"}}}]}'
 STORAGE_OWNER_JSON='[]'
 ROLE_COUNT_b7e6dc6df1e8475380330f276bb0955b=1
 out="$(run_audit_with_roles ROLE_COUNT_b7e6dc6df1e8475380330f276bb0955b 2>&1)"
@@ -390,7 +390,7 @@ echo "$out" | grep -q "FAIL.*Storage Blob Data Owner is assigned but not scoped 
 base_env
 PROJECTS_OUT="acct1/proj1"
 PROJ_JSON="$(good_project_json)"
-PROJ_CONN_JSON='{"value":[{"name":"storage-conn","properties":{"category":"AzureStorageAccount","metadata":{"ResourceId":"/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/st1"}}}]}'
+PROJ_CONN_JSON='{"value":[{"name":"storage-conn","properties":{"category":"AzureStorageAccount","metadata":{"ResourceId":"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/st1"}}}]}'
 STORAGE_OWNER_JSON='[{"conditionVersion":"2.0","condition":"((!(ActionMatches{'"'"'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags/read'"'"'}) AND !(ActionMatches{'"'"'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/filter/action'"'"'}) AND !(ActionMatches{'"'"'Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags/write'"'"'})) OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringStartsWithIgnoreCase '"'"'abcdef01-2345-6789-abcd-ef0123456789'"'"' AND @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringLikeIgnoreCase '"'"'*-azureml-agent'"'"'))"}]'
 ROLE_COUNT_ba92f5b42d11453da403e96b0029c9fe=0
 out="$(run_audit_with_roles ROLE_COUNT_ba92f5b42d11453da403e96b0029c9fe 2>&1)"
@@ -404,7 +404,7 @@ echo "$out" | grep -q "PASS.*Storage Blob Data Owner (scoped)" || fail "properly
 base_env
 PROJECTS_OUT="acct1/proj1"
 PROJ_JSON="$(good_project_json)"
-PROJ_CONN_JSON='{"value":[{"name":"storage-conn","properties":{"category":"AzureStorageAccount","metadata":{"ResourceId":"/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/st1"}}}]}'
+PROJ_CONN_JSON='{"value":[{"name":"storage-conn","properties":{"category":"AzureStorageAccount","metadata":{"ResourceId":"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/st1"}}}]}'
 STORAGE_OWNER_JSON='[{"conditionVersion":"2.0","condition":"NOT (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringEquals '"'"'abcdef01-2345-6789-abcd-ef0123456789'"'"') OR @Request[comment] StringEquals '"'"'azureml-agent-unrelated'"'"'"}]'
 ROLE_COUNT_b7e6dc6df1e8475380330f276bb0955b=1
 out="$(run_audit_with_roles ROLE_COUNT_b7e6dc6df1e8475380330f276bb0955b 2>&1)"
@@ -417,7 +417,7 @@ echo "$out" | grep -q "FAIL.*Storage Blob Data Owner is assigned but not scoped 
 base_env
 PROJECTS_OUT="acct1/proj1"
 PROJ_JSON="$(good_project_json)"
-PROJ_CONN_JSON='{"value":[{"name":"storage-conn","properties":{"category":"AzureStorageAccount","metadata":{"ResourceId":"/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/st1"}}}]}'
+PROJ_CONN_JSON='{"value":[{"name":"storage-conn","properties":{"category":"AzureStorageAccount","metadata":{"ResourceId":"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg1/providers/Microsoft.Storage/storageAccounts/st1"}}}]}'
 STORAGE_OWNER_JSON='[{"conditionVersion":"2.0","condition":"(@Request[comment] StringEquals '"'"'always-true-bypass'"'"') OR (@Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringStartsWithIgnoreCase '"'"'abcdef01-2345-6789-abcd-ef0123456789'"'"' AND @Resource[Microsoft.Storage/storageAccounts/blobServices/containers:name] StringLikeIgnoreCase '"'"'*-azureml-agent'"'"')"}]'
 ROLE_COUNT_b7e6dc6df1e8475380330f276bb0955b=1
 out="$(run_audit_with_roles ROLE_COUNT_b7e6dc6df1e8475380330f276bb0955b 2>&1)"
@@ -429,7 +429,7 @@ WORKSPACE_GUID="abcdef01-2345-6789-abcd-ef0123456789"
 base_env
 PROJECTS_OUT="acct1/proj1"
 PROJ_JSON="$(good_project_json)"
-PROJ_CONN_JSON="$(jq -n --arg rid "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg1/providers/Microsoft.DocumentDB/databaseAccounts/cosmos1" \
+PROJ_CONN_JSON="$(jq -n --arg rid "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg1/providers/Microsoft.DocumentDB/databaseAccounts/cosmos1" \
   '{value:[{name:"cosmos-conn",properties:{category:"CosmosDB",metadata:{ResourceId:$rid}}}]}')"
 # Only "thread-message-store" has the role; the other two containers are missing it.
 COSMOS_DATA_JSON="$(jq -n --arg pid "33333333-3333-3333-3333-333333333333" --arg c "${WORKSPACE_GUID}-thread-message-store" \
@@ -444,7 +444,7 @@ echo "$out" | grep -q "FAIL.*missing Cosmos DB Data Contributor on:.*agent-entit
 base_env
 PROJECTS_OUT="acct1/proj1"
 PROJ_JSON="$(good_project_json)"
-PROJ_CONN_JSON="$(jq -n --arg rid "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg1/providers/Microsoft.DocumentDB/databaseAccounts/cosmos1" \
+PROJ_CONN_JSON="$(jq -n --arg rid "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg1/providers/Microsoft.DocumentDB/databaseAccounts/cosmos1" \
   '{value:[{name:"cosmos-conn",properties:{category:"CosmosDB",metadata:{ResourceId:$rid}}}]}')"
 COSMOS_DATA_JSON="$(jq -n --arg pid "33333333-3333-3333-3333-333333333333" \
   '[
@@ -459,7 +459,7 @@ echo "$out" | grep -q "FAIL.*missing Cosmos DB Data Contributor on:.*thread-mess
 base_env
 PROJECTS_OUT="acct1/proj1"
 PROJ_JSON="$(good_project_json)"
-PROJ_CONN_JSON="$(jq -n --arg rid "/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg1/providers/Microsoft.DocumentDB/databaseAccounts/cosmos1" \
+PROJ_CONN_JSON="$(jq -n --arg rid "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg1/providers/Microsoft.DocumentDB/databaseAccounts/cosmos1" \
   '{value:[{name:"cosmos-conn",properties:{category:"CosmosDB",metadata:{ResourceId:$rid}}}]}')"
 COSMOS_DATA_JSON="$(jq -n --arg pid "33333333-3333-3333-3333-333333333333" \
   '[
@@ -515,7 +515,7 @@ EXT_SHOW_EXIT=0
 GRAPH_PROBE_EXIT=0
 DNS_INTEGRATION_MODE="vnet-link"
 mkdir -p "$WORKDIR/zone-hits-5b"
-echo '[{"resourceGroup":"rg-dns","subscriptionId":"11111111-1111-1111-1111-111111111111"}]' >"$WORKDIR/zone-hits-5b/$REQUIRED_ZONE"
+echo '[{"resourceGroup":"rg-dns","subscriptionId":"00000000-0000-0000-0000-000000000000"}]' >"$WORKDIR/zone-hits-5b/$REQUIRED_ZONE"
 ZONE_HITS_DIR="$WORKDIR/zone-hits-5b"
 mkdir -p "$WORKDIR/dns-links-5b"
 # No fixture file for this zone => "az network private-dns link vnet list" returns nothing.
@@ -528,7 +528,7 @@ base_env
 EXT_SHOW_EXIT=0
 GRAPH_PROBE_EXIT=0
 mkdir -p "$WORKDIR/zone-hits-5c"
-echo '[{"resourceGroup":"rg-dns","subscriptionId":"11111111-1111-1111-1111-111111111111"}]' >"$WORKDIR/zone-hits-5c/$REQUIRED_ZONE"
+echo '[{"resourceGroup":"rg-dns","subscriptionId":"00000000-0000-0000-0000-000000000000"}]' >"$WORKDIR/zone-hits-5c/$REQUIRED_ZONE"
 ZONE_HITS_DIR="$WORKDIR/zone-hits-5c"
 out="$(DNS_INTEGRATION_MODE="zone-group" run_audit 2>&1)"
 echo "$out" | grep -q "PASS.*$REQUIRED_ZONE exists.*zone-group mode: no direct VNet link required" || fail "zone-group mode did not PASS an unlinked zone (got: $out)"
@@ -540,7 +540,7 @@ echo "$out" | grep -q "FAIL.*$REQUIRED_ZONE" && fail "zone-group mode must not F
 echo "==> [6] publicNetworkAccess enforcement"
 
 base_env
-ACCT_JSON='{"properties":{"publicNetworkAccess":"Enabled","networkInjections":[{"subnetArmId":"/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/snet1"}]}}'
+ACCT_JSON='{"properties":{"publicNetworkAccess":"Enabled","networkInjections":[{"subnetArmId":"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/snet1"}]}}'
 out="$(run_audit 2>&1)"
 echo "$out" | grep -q "FAIL.*publicNetworkAccess=Enabled" || fail "publicNetworkAccess=Enabled was not flagged FAIL even though network-injected (got: $out)"
 
@@ -555,7 +555,7 @@ echo "$out" | grep -q "WARN.*no networkInjections subnet" && fail "missing netwo
 
 # 6c. EXPECTED_VNET_ID comparison must be case-insensitive (ARM resource IDs are case-insensitive).
 base_env
-EXPECTED_VNET_ID="/SUBSCRIPTIONS/11111111-1111-1111-1111-111111111111/RESOURCEGROUPS/rg-net/providers/Microsoft.Network/virtualNetworks/VNET1"
+EXPECTED_VNET_ID="/SUBSCRIPTIONS/00000000-0000-0000-0000-000000000000/RESOURCEGROUPS/rg-net/providers/Microsoft.Network/virtualNetworks/VNET1"
 out="$(EXPECTED_VNET_ID="$EXPECTED_VNET_ID" run_audit 2>&1)"
 echo "$out" | grep -q "PASS.*account's VNet matches EXPECTED_VNET_ID" || fail "EXPECTED_VNET_ID comparison was not case-insensitive (got: $out)"
 echo "$out" | grep -q "FAIL.*does not match EXPECTED_VNET_ID" && fail "a differently-cased but otherwise identical VNet ID must not FAIL (got: $out)"
@@ -576,7 +576,7 @@ echo "$out" | grep -q "0 failed" || fail "the 'clean' scenario summary did not r
 
 # Same base scenario but with PNA=Enabled guarantees exactly one FAIL -> exit 1.
 base_env
-ACCT_JSON='{"properties":{"publicNetworkAccess":"Enabled","networkInjections":[{"subnetArmId":"/subscriptions/11111111-1111-1111-1111-111111111111/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/snet1"}]}}'
+ACCT_JSON='{"properties":{"publicNetworkAccess":"Enabled","networkInjections":[{"subnetArmId":"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet1/subnets/snet1"}]}}'
 if run_audit >/dev/null 2>&1; then
   fail "a run with at least one FAIL must exit non-zero"
 fi
