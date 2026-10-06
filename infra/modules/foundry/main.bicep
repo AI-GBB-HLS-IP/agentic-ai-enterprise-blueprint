@@ -344,7 +344,6 @@ module cosmosDBRbac './cosmos-rbac.bicep' = {
   params: {
     projectPrincipalId: project.identity.principalId
     cosmosDBAccountName: cosmosDBAccountNameResolved
-    projectWorkspaceIdGuid: projectWorkspaceIdGuid
   }
   #disable-next-line BCP318
   dependsOn: [
@@ -397,6 +396,24 @@ module capabilityHost './capability-host.bicep' = {
     cosmosDBRbac
     storageRbac
     aiSearchRbac
+  ]
+}
+
+// The data-plane Cosmos DB role (Cosmos DB Built-in Data Contributor, scoped to the
+// `enterprise_memory` database) can only be assigned after the Capability Host has activated,
+// because that activation is what causes the platform to auto-provision the `enterprise_memory`
+// database. Assigning it earlier fails with "database ... could not be found" since Cosmos DB SQL
+// role assignments require the target database to already exist.
+module cosmosDataRbac './cosmos-data-rbac.bicep' = {
+  name: 'foundry-cosmos-data-rbac'
+  scope: resourceGroup(cosmosSubscriptionId, cosmosResourceGroupName)
+  params: {
+    projectPrincipalId: project.identity.principalId
+    cosmosDBAccountName: cosmosDBAccountNameResolved
+    projectWorkspaceIdGuid: projectWorkspaceIdGuid
+  }
+  dependsOn: [
+    capabilityHost
   ]
 }
 
