@@ -296,16 +296,25 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
     COSMOS_RESID="${COSMOS_ROW##*|}"; STORAGE_RESID="${STORAGE_ROW##*|}"; SEARCH_RESID="${SEARCH_ROW##*|}"
 
     echo "  [1] 🔌 Required connections (Cosmos DB / Storage / AI Search):"
+    COSMOS_FALLBACK_RESID=""
     if [ -n "$COSMOS_ROW" ]; then
       verdict PASS "CosmosDB connection: ${COSMOS_ROW%%|*} (${COSMOS_ROW#*|})"
     else
       # Distinguish "Cosmos account exists but was never wired up as a project connection" from
       # "no Cosmos account was provisioned at all" -- these need different remediation, and the
-      # generic hint alone left the customer unsure which one they were looking at.
+      # generic hint alone left the customer unsure which one they were looking at. When exactly
+      # one candidate account is found, also remember its resource ID so [3] can still check its
+      # RBAC directly -- without a connection, the Capability Host can never activate anyway, but
+      # confirming RBAC is (or isn't) already in place on that account is still useful diagnostic
+      # signal while the connection gap gets fixed.
       COSMOS_ACCOUNTS_IN_RG=$(az cosmosdb list --resource-group "$RG" --query "[].name" -o tsv 2>/dev/null)
+      COSMOS_ACCOUNTS_COUNT=$(echo "$COSMOS_ACCOUNTS_IN_RG" | grep -c . || true)
       if [ -n "$COSMOS_ACCOUNTS_IN_RG" ]; then
         verdict FAIL "no CosmosDB connection (but found Cosmos account(s) in $RG: $(echo "$COSMOS_ACCOUNTS_IN_RG" | paste -sd, -))" \
           "infra/modules/foundry/project-connections.bicep -- create a project connection of category=CosmosDB pointing to the existing account; Capability Host activation and Cosmos RBAC both depend on this connection existing"
+        if [ "$COSMOS_ACCOUNTS_COUNT" -eq 1 ]; then
+          COSMOS_FALLBACK_RESID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.DocumentDB/databaseAccounts/$COSMOS_ACCOUNTS_IN_RG"
+        fi
       else
         verdict FAIL "no CosmosDB connection and no Cosmos account found in $RG" \
           "infra/modules/foundry/cosmos-rbac.bicep -- a Cosmos DB account must be provisioned for this project before a connection can be created; Capability Host activation depends on this"
@@ -332,14 +341,19 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
     fi
 
     echo "  [3] 🔐 RBAC on project managed identity ($PRINCIPAL_ID):"
-    if [ -n "$COSMOS_RESID" ]; then
-      if has_role_assignment "$COSMOS_RESID" "$PRINCIPAL_ID" "230815da-be43-4aae-9cb4-875f7bd000aa"; then
+    COSMOS_CHECK_RESID="$COSMOS_RESID"
+    [ -z "$COSMOS_CHECK_RESID" ] && COSMOS_CHECK_RESID="$COSMOS_FALLBACK_RESID"
+    if [ -n "$COSMOS_CHECK_RESID" ]; then
+      if [ -z "$COSMOS_RESID" ]; then
+        echo "    (no project connection -- checking RBAC directly against the one Cosmos account found in $RG)"
+      fi
+      if has_role_assignment "$COSMOS_CHECK_RESID" "$PRINCIPAL_ID" "230815da-be43-4aae-9cb4-875f7bd000aa"; then
         verdict PASS "Cosmos DB Operator (mgmt-plane) on Cosmos account"
       else
         verdict FAIL "missing Cosmos DB Operator role on Cosmos account" "infra/modules/foundry/cosmos-rbac.bicep"
       fi
-      COSMOS_ACCT_NAME=$(basename "$COSMOS_RESID")
-      COSMOS_RG=$(echo "$COSMOS_RESID" | sed -n 's#.*/resourceGroups/\([^/]*\)/.*#\1#p')
+      COSMOS_ACCT_NAME=$(basename "$COSMOS_CHECK_RESID")
+      COSMOS_RG=$(echo "$COSMOS_CHECK_RESID" | sed -n 's#.*/resourceGroups/\([^/]*\)/.*#\1#p')
       if [ "$CAP_HOST_STATE" = "Succeeded" ]; then
         DATA_ROLE_COUNT=$(az cosmosdb sql role assignment list --account-name "$COSMOS_ACCT_NAME" --resource-group "$COSMOS_RG" \
           --query "[?principalId=='${PRINCIPAL_ID}' && roleDefinitionId.ends_with(@, '0000-0000-0000-0000-000000000002') && contains(scope, '/dbs/enterprise_memory')] | length(@)" -o tsv 2>/dev/null || echo 0)
@@ -349,10 +363,11 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
           verdict FAIL "missing Cosmos DB Data Contributor on enterprise_memory database" "infra/modules/foundry/cosmos-data-rbac.bicep (must run AFTER Capability Host activates)"
         fi
       else
-        verdict WARN "skipped Cosmos data-plane RBAC check (Capability Host not yet Succeeded)"
+        verdict WARN "skipped Cosmos data-plane RBAC check (Capability Host not yet Succeeded -- the enterprise_memory database doesn't exist until it activates)"
       fi
     else
-      verdict WARN "cannot check Cosmos RBAC: connection has no metadata.ResourceId"
+      verdict WARN "cannot check Cosmos RBAC: no connection and no single Cosmos account resolved in $RG" \
+        "either no Cosmos account exists in this RG, or more than one was found and the right one is ambiguous without a project connection -- see [1] above"
     fi
 
     if [ -n "$SEARCH_RESID" ]; then
@@ -386,7 +401,7 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
     fi
 
     echo "  [4] 🧷 Private endpoint DNS zone groups (Cosmos DB / Storage / AI Search):"
-    check_pe_dns_group "Cosmos DB" "$COSMOS_RESID" "privatelink.documents.azure.com"
+    check_pe_dns_group "Cosmos DB" "$COSMOS_CHECK_RESID" "privatelink.documents.azure.com"
     check_pe_dns_group "Storage" "$STORAGE_RESID" "privatelink.blob.core.windows.net"
     check_pe_dns_group "AI Search" "$SEARCH_RESID" "privatelink.search.windows.net"
   done
