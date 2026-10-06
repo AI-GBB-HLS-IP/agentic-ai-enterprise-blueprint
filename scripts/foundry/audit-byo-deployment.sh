@@ -115,7 +115,11 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
 
   echo "--- [2] Projects ---"
   PROJECTS_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/projects?api-version=$API_VERSION"
-  PROJECTS=$(az rest --method get --url "$PROJECTS_URL" --query "value[].name" -o tsv 2>/dev/null)
+  # This list endpoint returns each project's "name" fully-qualified as "<account>/<project>"
+  # (not just "<project>"), unlike most ARM child-resource listings. Strip everything up to the
+  # last "/" so $PROJ is the bare project name -- otherwise concatenating "$NAME/$PROJ" below
+  # builds an invalid double-qualified URL that 404s.
+  PROJECTS=$(az rest --method get --url "$PROJECTS_URL" --query "value[].name" -o tsv 2>/dev/null | sed 's#.*/##')
   if [ -z "$PROJECTS" ]; then
     echo "  (no projects found)"
   fi
