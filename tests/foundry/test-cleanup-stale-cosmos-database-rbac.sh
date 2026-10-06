@@ -16,7 +16,7 @@ command -v jq >/dev/null 2>&1 || { echo "SKIP: jq not available."; exit 0; }
 workdir="$(mktemp -d "${REPO_ROOT}/tests/foundry/.cleanup-cosmos-test.XXXXXX")"
 trap 'rm -rf "$workdir"' EXIT
 
-ACCOUNT_ID="/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/cosmos-rg/providers/Microsoft.DocumentDB/databaseAccounts/shared-cosmos"
+ACCOUNT_ID="/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/cosmos-rg/providers/Microsoft.DocumentDB/databaseAccounts/shared-cosmos"
 PRINCIPAL_STALE="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 PRINCIPAL_OTHER="99999999-8888-7777-6666-555555555555"
 
@@ -59,7 +59,7 @@ if [ "$1" = "cosmosdb" ] && [ "$2" = "sql" ] && [ "$3" = "role" ] && [ "$4" = "a
     case "$1" in
       --query) query="$2"; shift 2 ;;
       --subscription)
-        [ "$2" = "11111111-2222-3333-4444-555555555555" ] || { echo "missing explicit subscription" >&2; exit 1; }
+        [ "$2" = "00000000-0000-0000-0000-000000000000" ] || { echo "missing explicit subscription" >&2; exit 1; }
         shift 2 ;;
       *) shift ;;
     esac
@@ -87,7 +87,7 @@ if [ "$1" = "cosmosdb" ] && [ "$2" = "sql" ] && [ "$3" = "role" ] && [ "$4" = "a
     case "$1" in
       --role-assignment-id) id="$2"; shift 2 ;;
       --subscription)
-        [ "$2" = "11111111-2222-3333-4444-555555555555" ] || { echo "missing explicit subscription on delete" >&2; exit 1; }
+        [ "$2" = "00000000-0000-0000-0000-000000000000" ] || { echo "missing explicit subscription on delete" >&2; exit 1; }
         shift 2 ;;
       *) shift ;;
     esac
