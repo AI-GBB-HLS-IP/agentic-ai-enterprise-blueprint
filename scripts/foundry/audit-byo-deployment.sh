@@ -14,13 +14,17 @@ set -uo pipefail
 # was built to catch going forward.
 #
 # Usage:
-#   SUBSCRIPTION_ID=<sub-id> ./audit-byo-deployment.sh
-#   SUBSCRIPTION_ID=<sub-id> RG_FILTER=<resource-group-substring> ./audit-byo-deployment.sh
+#   SUBSCRIPTION_ID=<sub-id-or-name> ./audit-byo-deployment.sh
+#   SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./audit-byo-deployment.sh
 #
 # Requires: az CLI (logged in), jq.
 
 : "${SUBSCRIPTION_ID:?SUBSCRIPTION_ID is required}"
-RG_FILTER="${RG_FILTER:-}"
+# Strip CR/whitespace that commonly survives a copy/paste from Windows terminals or docs;
+# az CLI treats a trailing \r as part of the identifier and fails to resolve it, which (without
+# this trim) silently left the previous subscription active instead of erroring clearly.
+SUBSCRIPTION_ID="$(printf '%s' "$SUBSCRIPTION_ID" | tr -d '\r' | xargs)"
+RG_FILTER="$(printf '%s' "${RG_FILTER:-}" | tr -d '\r' | xargs)"
 API_VERSION="2025-04-01-preview"
 
 PASS_COUNT=0
@@ -36,14 +40,22 @@ verdict() {
   esac
 }
 
-az account set --subscription "$SUBSCRIPTION_ID"
-CURRENT_SUB="$(az account show --query id -o tsv)"
-if [ "$CURRENT_SUB" != "$SUBSCRIPTION_ID" ]; then
-  echo "ABORT: active subscription ($CURRENT_SUB) does not match requested ($SUBSCRIPTION_ID)." >&2
+# SUBSCRIPTION_ID may be a GUID or a display name; az account set accepts either, so don't
+# re-compare the raw input against the resolved GUID (that always fails for a name, and masks
+# the real "az account set failed" case with a confusing mismatch message instead of az's own
+# error). Instead, require the set to succeed, then normalize to the resolved GUID for every
+# downstream management.azure.com call.
+AZ_SET_ERR="$(mktemp)"
+trap 'rm -f "$AZ_SET_ERR"' EXIT
+if ! az account set --subscription "$SUBSCRIPTION_ID" 2>"$AZ_SET_ERR"; then
+  echo "ABORT: 'az account set --subscription $SUBSCRIPTION_ID' failed:" >&2
+  cat "$AZ_SET_ERR" >&2
   exit 1
 fi
+SUBSCRIPTION_NAME="$(az account show --query name -o tsv)"
+SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
 
-echo "=== Subscription: $(az account show --query name -o tsv) ($SUBSCRIPTION_ID) ==="
+echo "=== Subscription: $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID) ==="
 [ -n "$RG_FILTER" ] && echo "=== Resource group filter: $RG_FILTER ==="
 echo
 
