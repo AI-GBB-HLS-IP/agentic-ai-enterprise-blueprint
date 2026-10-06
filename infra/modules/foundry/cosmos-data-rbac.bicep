@@ -15,6 +15,13 @@ param projectWorkspaceIdGuid string
 // This module must run *after* the Capability Host is created: Capability Host activation is what
 // causes the Foundry Agent Service platform to auto-provision the `enterprise_memory` database (and
 // its containers), and Cosmos DB SQL role assignments fail if the target scope does not exist.
+//
+// Deployments created by an earlier revision of this module (which assigned the role at the
+// `/dbs/enterprise_memory` *database* scope -- broad access across every project sharing the
+// Cosmos account) are not automatically cleaned up: ARM Incremental mode does not delete
+// resources removed from a template. Run
+// `scripts/foundry/cleanup-stale-cosmos-database-rbac.sh` against any such deployment to remove
+// the obsolete, over-broad grant.
 var cosmosDataContributorSqlRoleId = resourceId('Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions', cosmosDBAccountName, '00000000-0000-0000-0000-000000000002')
 var systemThreadContainerName = '${projectWorkspaceIdGuid}-system-thread-message-store'
 var userThreadContainerName = '${projectWorkspaceIdGuid}-thread-message-store'

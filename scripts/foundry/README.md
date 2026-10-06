@@ -108,6 +108,33 @@ If account creation remains in a `Creating` state, keep network injection enable
 investigating deployment diagnostics, subnet delegation, and service support guidance. A
 private-endpoint-only deployment is not a supported workaround for this blueprint.
 
+### Upgrading from the database-scoped Cosmos data RBAC revision
+
+An earlier revision of `cosmos-data-rbac.bicep` assigned Cosmos DB Built-in Data Contributor at
+the `/dbs/enterprise_memory` *database* scope (covering every project's containers in a shared/BYO
+Cosmos account). The current revision assigns it per-project, scoped only to that project's three
+workspace-prefixed containers. ARM Incremental mode does not delete resources removed from a
+template, so any deployment that ran the earlier revision still has the broader database-scoped
+assignment in Azure even after redeploying the current Bicep. Run the read-only check, then the
+cleanup, against any such pre-existing deployment:
+
+```bash
+# Dry run (list only)
+COSMOS_ACCOUNT_NAME=<cosmos-account> \
+RG_NAME=<resource-group> \
+./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh
+
+# Remove the stale database-scoped assignment(s)
+COSMOS_ACCOUNT_NAME=<cosmos-account> \
+RG_NAME=<resource-group> \
+./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh --execute
+```
+
+Optionally set `PRINCIPAL_ID=<project-identity-guid>` to target one project's identity; omit it to
+report/remove the stale grant for every principal that still holds it. The script only ever
+matches assignments scoped at exactly `/dbs/enterprise_memory` (no container suffix), so
+container-scoped assignments created by the current Bicep are never touched.
+
 ## Bitbucket adapter
 
 Bitbucket can call the same scripts after `az login` or workload-identity setup:
