@@ -164,16 +164,25 @@ It checks every AIServices account/project it finds against the approved referen
 `infra/modules/foundry/*.bicep` -- required connections, Capability Host state, the five required
 RBAC grants on the project's managed identity (Cosmos DB Operator, Cosmos DB Data Contributor on
 `enterprise_memory`, AI Search Index Data Contributor + Search Service Contributor, Storage Blob
-Data Contributor + scoped Data Owner), and private DNS zone links -- and prints a `PASS`/`WARN`/
-`FAIL` verdict per check with a pointer to the bicep module that encodes the expected state.
+Data Contributor + scoped Data Owner), private DNS zone VNet links, and -- for the Foundry
+account itself plus each project's Cosmos DB/Storage/AI Search connections -- that each
+resource's own private endpoint has a `privateDnsZoneGroups` association for the correct zone
+(`infra/modules/foundry/private-endpoint-dns.bicep`). It prints a `PASS`/`WARN`/`FAIL` verdict
+per check with a pointer to the bicep module that encodes the expected state.
 
-Private DNS zones commonly live in a separate hub subscription/resource group rather than the
-Foundry account's own RG. With the `resource-graph` az extension installed
+A zone being linked to the VNet only enables DNS *queries* from that VNet; the zone-group
+association on each resource's private endpoint is what actually creates that resource's A
+record. A missing zone-group association is a common root cause of the Agents-tab
+"customer-managed downstream dependency returned an error" failure even when the zone itself is
+present and correctly linked -- which is why both are checked separately.
+
+Private DNS zones and private endpoints commonly live in a separate hub subscription/resource
+group rather than the Foundry account's own RG. With the `resource-graph` az extension installed
 (`az extension add --name resource-graph`), the script searches every subscription you have
-access to for each required zone and verifies it's actually linked to the account's injected
-VNet, giving a definitive `PASS`/`FAIL` regardless of which subscription the zone lives in.
-Without that extension, zone checks are limited to the account's own RG and report `WARN`
-instead of `FAIL` when a zone isn't found there (since that doesn't prove it's missing elsewhere).
+access to for each required zone and private endpoint, giving a definitive `PASS`/`FAIL`
+regardless of which subscription they live in. Without that extension, these checks are limited
+to the account's own RG and report `WARN` instead of `FAIL` when nothing is found there (since
+that doesn't prove it's missing elsewhere).
 
 ```bash
 # SUBSCRIPTION_ID accepts either a subscription GUID or display name.

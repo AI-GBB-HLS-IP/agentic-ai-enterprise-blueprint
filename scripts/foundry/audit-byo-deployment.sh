@@ -18,9 +18,10 @@ set -uo pipefail
 #   SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./audit-byo-deployment.sh
 #
 # Requires: az CLI (logged in), jq. Optional: the "resource-graph" az extension
-# (az extension add --name resource-graph) -- without it, DNS zone checks in [3] can only
-# look within each account's own resource group and fall back to a WARN instead of a
-# definitive PASS/FAIL for zones that live in a different subscription (e.g. a hub).
+# (az extension add --name resource-graph) -- without it, DNS zone VNet-link checks in [3]
+# and private endpoint DNS zone-group checks (account [1], project [4]) can only look within
+# each account's own resource group and fall back to a WARN instead of a definitive PASS/FAIL,
+# e.g. for zones/endpoints that live in a different subscription (hub).
 
 : "${SUBSCRIPTION_ID:?SUBSCRIPTION_ID is required}"
 # Strip CR/whitespace that commonly survives a copy/paste from Windows terminals or docs;
@@ -96,6 +97,52 @@ has_role_assignment() {
   [ "${count:-0}" -ge 1 ]
 }
 
+# Verifies RESOURCE_ID has a private endpoint whose privateDnsZoneGroups includes EXPECTED_ZONE.
+# A VNet-linked zone only enables DNS *queries* from that VNet; the zone-group association on
+# the resource's own private endpoint (infra/modules/foundry/private-endpoint-dns.bicep) is what
+# actually creates that resource's A record. Missing it is a common root cause of the
+# "customer-managed downstream dependency returned an error" failure even when the zone itself
+# is correctly linked. Requires the resource-graph extension to search beyond the account's RG.
+check_pe_dns_group() {
+  local label="$1" resource_id="$2" expected_zone="$3"
+  if [ -z "$resource_id" ]; then
+    verdict WARN "cannot check $label private endpoint: no resource ID resolved"
+    return
+  fi
+  if [ "$GRAPH_AVAILABLE" != true ]; then
+    verdict WARN "cannot check $label private endpoint/DNS zone group without the resource-graph extension" \
+      "run: az extension add --name resource-graph"
+    return
+  fi
+  local pe_hits pe_count matched
+  pe_hits=$(az graph query -q "Resources | where type =~ 'microsoft.network/privateendpoints' | mv-expand conn=properties.privateLinkServiceConnections | where tostring(conn.properties.privateLinkServiceId) =~ '$resource_id' | project name, resourceGroup, subscriptionId" --query data -o json 2>/dev/null)
+  pe_count=$(echo "${pe_hits:-[]}" | jq 'length')
+  if [ "${pe_count:-0}" -eq 0 ]; then
+    verdict FAIL "no private endpoint found targeting $label" "$resource_id"
+    return
+  fi
+  matched=false
+  while IFS=$'\t' read -r pe_name pe_rg pe_sub; do
+    [ -z "$pe_name" ] && continue
+    if az network private-endpoint dns-zone-group list --endpoint-name "$pe_name" --resource-group "$pe_rg" --subscription "$pe_sub" \
+         --query "[].privateDnsZoneConfigs[].privateDnsZoneId" -o tsv 2>/dev/null | grep -qi "/privateDnsZones/${expected_zone}\$"; then
+      matched=true
+      break
+    fi
+  done < <(echo "$pe_hits" | jq -r '.[] | "\(.name)\t\(.resourceGroup)\t\(.subscriptionId)"')
+  if [ "$matched" = true ]; then
+    verdict PASS "$label private endpoint has a DNS zone group for $expected_zone"
+  else
+    verdict FAIL "$label private endpoint exists but has no DNS zone group for $expected_zone" \
+      "infra/modules/foundry/private-endpoint-dns.bicep -- without this, the A record is never created even though the zone itself may be fine"
+  fi
+}
+
+# Detected once: both the zone-link check in [3] and check_pe_dns_group need it, and extension
+# availability doesn't vary per account.
+GRAPH_AVAILABLE=true
+az extension show --name resource-graph >/dev/null 2>&1 || GRAPH_AVAILABLE=false
+
 mapfile -t ACCOUNT_LINES <<< "$ACCOUNTS"
 for LINE in "${ACCOUNT_LINES[@]}"; do
   IFS=$'\t' read -r NAME RG <<< "$LINE"
@@ -115,6 +162,10 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
     verdict WARN "no networkInjections found (publicNetworkAccess=$PNA)" \
       "expected for BYO-VNet accounts; see infra/modules/foundry/main.bicep account resource"
   fi
+  ACCOUNT_RESOURCE_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME"
+  check_pe_dns_group "Foundry account (cognitiveservices)" "$ACCOUNT_RESOURCE_ID" "privatelink.cognitiveservices.azure.com"
+  check_pe_dns_group "Foundry account (openai)" "$ACCOUNT_RESOURCE_ID" "privatelink.openai.azure.com"
+  check_pe_dns_group "Foundry account (services-ai)" "$ACCOUNT_RESOURCE_ID" "privatelink.services.ai.azure.com"
 
   echo "--- [2] Projects ---"
   PROJECTS_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/projects?api-version=$API_VERSION"
@@ -235,6 +286,11 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
     else
       verdict WARN "cannot check Storage RBAC: connection has no metadata.ResourceId"
     fi
+
+    echo "  [4] Private endpoint DNS zone groups (Cosmos DB / Storage / AI Search):"
+    check_pe_dns_group "Cosmos DB" "$COSMOS_RESID" "privatelink.documents.azure.com"
+    check_pe_dns_group "Storage" "$STORAGE_RESID" "privatelink.blob.core.windows.net"
+    check_pe_dns_group "AI Search" "$SEARCH_RESID" "privatelink.search.windows.net"
   done
 
   echo "--- [3] Private DNS zone links ---"
@@ -243,12 +299,10 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
   # the zone wherever it is, then check whether it's actually linked to *this* account's VNet --
   # not just linked to something. Falls back to the old RG-scoped check (as a WARN, since it
   # can't prove a negative across subscriptions) if the resource-graph extension isn't available.
-  GRAPH_AVAILABLE=true
-  az extension show --name resource-graph >/dev/null 2>&1 || GRAPH_AVAILABLE=false
   VNET_ID=""
   [ -n "$SUBNET" ] && VNET_ID="${SUBNET%/subnets/*}"
 
-  for ZONE in privatelink.cognitiveservices.azure.com privatelink.openai.azure.com privatelink.search.windows.net privatelink.documents.azure.com privatelink.blob.core.windows.net privatelink.vaultcore.azure.net; do
+  for ZONE in privatelink.cognitiveservices.azure.com privatelink.openai.azure.com privatelink.services.ai.azure.com privatelink.search.windows.net privatelink.documents.azure.com privatelink.blob.core.windows.net privatelink.vaultcore.azure.net; do
     if [ "$GRAPH_AVAILABLE" != true ]; then
       LINKED=$(az network private-dns link vnet list --zone-name "$ZONE" --resource-group "$RG" --query "[].virtualNetwork.id" -o tsv 2>/dev/null)
       if [ -n "$LINKED" ]; then
