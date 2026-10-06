@@ -126,9 +126,22 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
   for PROJ in $PROJECTS; do
     echo "  --- Project: $PROJ ---"
     PROJ_URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/projects/$PROJ?api-version=$API_VERSION"
-    PRINCIPAL_ID=$(az rest --method get --url "$PROJ_URL" --query identity.principalId -o tsv 2>/dev/null)
+    PROJ_REST_ERR="$(mktemp)"
+    PROJ_JSON=$(az rest --method get --url "$PROJ_URL" -o json 2>"$PROJ_REST_ERR")
+    PROJ_REST_EXIT=$?
+    if [ "$PROJ_REST_EXIT" -ne 0 ]; then
+      verdict FAIL "could not fetch project resource (az rest exit $PROJ_REST_EXIT)" \
+        "$(head -1 "$PROJ_REST_ERR")"
+      rm -f "$PROJ_REST_ERR"
+      continue
+    fi
+    rm -f "$PROJ_REST_ERR"
+    PRINCIPAL_ID=$(echo "$PROJ_JSON" | jq -r '.identity.principalId // empty')
     if [ -z "$PRINCIPAL_ID" ]; then
-      verdict FAIL "could not resolve project managed identity principalId"
+      IDENTITY_TYPE=$(echo "$PROJ_JSON" | jq -r '.identity.type // "none"')
+      PROJ_RESOURCE_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME/projects/$PROJ"
+      verdict FAIL "could not resolve project managed identity principalId (identity.type=$IDENTITY_TYPE)" \
+        "expected identity.type=SystemAssigned with a populated principalId; if type=none the project has no managed identity, if SystemAssigned but principalId is empty the identity may still be provisioning -- re-run in a few minutes, or check 'az resource show --ids $PROJ_RESOURCE_ID --query identity' directly"
       continue
     fi
 
