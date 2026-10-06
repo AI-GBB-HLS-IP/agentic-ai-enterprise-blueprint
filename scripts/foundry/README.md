@@ -154,11 +154,16 @@ RBAC are distinct.
 
 ## BYO deployment audit
 
-`audit-byo-deployment.sh` is a **read-only** diagnostic for an already-deployed, network-injected
-(BYO-VNet) Foundry account/project. It does not apply to greenfield deployments created
-end-to-end by `foundry.bicep` in this repo (those already satisfy every check by construction);
-it targets customer environments deployed by hand, by a different tool, or partially remediated
-out-of-band, where drift from the approved pattern is possible.
+`audit-byo-deployment.sh` is a **read-only**, fully standalone diagnostic for an already-deployed
+BYO-VNet Foundry account/project -- it only runs `az`/`jq` commands against the live environment
+and does not require a checkout of this repo (bicep paths in its hints are informational
+references to the approved pattern, not files it reads). It does not apply to greenfield
+deployments created end-to-end by `foundry.bicep` in this repo (those already satisfy every check
+by construction); it targets customer environments deployed by hand, by a different tool, or
+partially remediated out-of-band, where drift from the approved pattern is possible. It supports
+both BYO-VNet connectivity models: subnet delegation (`networkInjections`) and private-endpoint-
+only (`publicNetworkAccess=Disabled` with no delegation) -- both are valid per this repo's own
+pattern, and the script auto-detects which one an account uses.
 
 It checks every AIServices account/project it finds against the approved reference pattern in
 `infra/modules/foundry/*.bicep` -- required connections, Capability Host state, the five required
@@ -168,7 +173,7 @@ Data Contributor + scoped Data Owner), private DNS zone VNet links, and -- for t
 account itself plus each project's Cosmos DB/Storage/AI Search connections -- that each
 resource's own private endpoint has a `privateDnsZoneGroups` association for the correct zone
 (`infra/modules/foundry/private-endpoint-dns.bicep`). It prints a `PASS`/`WARN`/`FAIL` verdict
-per check with a pointer to the bicep module that encodes the expected state.
+per check (with ✅/⚠️/❌ icons) and a pointer to the bicep module that encodes the expected state.
 
 A zone being linked to the VNet only enables DNS *queries* from that VNet; the zone-group
 association on each resource's private endpoint is what actually creates that resource's A
@@ -177,12 +182,15 @@ record. A missing zone-group association is a common root cause of the Agents-ta
 present and correctly linked -- which is why both are checked separately.
 
 Private DNS zones and private endpoints commonly live in a separate hub subscription/resource
-group rather than the Foundry account's own RG. With the `resource-graph` az extension installed
-(`az extension add --name resource-graph`), the script searches every subscription you have
-access to for each required zone and private endpoint, giving a definitive `PASS`/`FAIL`
-regardless of which subscription they live in. Without that extension, these checks are limited
-to the account's own RG and report `WARN` instead of `FAIL` when nothing is found there (since
-that doesn't prove it's missing elsewhere).
+group rather than the Foundry account's own RG. The script attempts to install and probe the
+`resource-graph` az extension itself (a local CLI config change only -- it touches nothing in the
+customer's Azure environment) so it can search every subscription you have access to for each
+required zone and private endpoint, giving a definitive `PASS`/`FAIL` regardless of which
+subscription they live in. If the extension can't be installed or used (including when an
+organization's policy denies installing CLI extensions), the script prints the exact reason `az`
+reported and continues in a degraded mode: those specific zone/private-endpoint checks report
+`WARN` (manual verification needed) instead of `PASS`/`FAIL`, while every other check (RBAC,
+connections, Capability Host) is unaffected.
 
 ```bash
 # SUBSCRIPTION_ID accepts either a subscription GUID or display name.
@@ -190,6 +198,11 @@ SUBSCRIPTION_ID=<sub-id-or-name> ./scripts/foundry/audit-byo-deployment.sh
 
 # Narrow to resource groups whose name contains a substring:
 SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./scripts/foundry/audit-byo-deployment.sh
+
+# Assert the hub/spoke VNet this deployment is supposed to be private-linked into. [1] then
+# FAILs loudly if the account's actual VNet doesn't match, and [3]'s zone-link checks fall back
+# to it when no VNet could be auto-detected at all (instead of defaulting every zone to WARN).
+SUBSCRIPTION_ID=<sub-id-or-name> EXPECTED_VNET_ID=<vnet-resource-id> ./scripts/foundry/audit-byo-deployment.sh
 ```
 
 Exits non-zero if any check reports `FAIL`. `WARN` findings (e.g. DNS zone checks running

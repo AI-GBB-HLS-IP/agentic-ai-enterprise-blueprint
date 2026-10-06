@@ -22,12 +22,21 @@ export AZURE_CORE_NO_PROGRESS=true
 # Usage:
 #   SUBSCRIPTION_ID=<sub-id-or-name> ./audit-byo-deployment.sh
 #   SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./audit-byo-deployment.sh
+#   SUBSCRIPTION_ID=<sub-id-or-name> EXPECTED_VNET_ID=<hub/spoke VNet resource ID> ./audit-byo-deployment.sh
+#
+# EXPECTED_VNET_ID (optional) asserts which VNet this deployment is supposed to be private-linked
+# into. When set, [1] fails loudly if the account's actual VNet (from networkInjections or its
+# private endpoint) doesn't match it, and [3]'s zone-link checks use it as a fallback target when
+# no VNet could be auto-detected at all -- instead of silently downgrading every zone-link check
+# to a WARN. Omit it to rely on auto-detection only.
 #
 # Requires: az CLI (logged in), jq. Optional: the "resource-graph" az extension
 # (az extension add --name resource-graph) -- without it, DNS zone VNet-link checks in [3]
 # and private endpoint DNS zone-group checks (account [1], project [4]) can only look within
 # each account's own resource group and fall back to a WARN instead of a definitive PASS/FAIL,
-# e.g. for zones/endpoints that live in a different subscription (hub).
+# e.g. for zones/endpoints that live in a different subscription (hub). The script probes the
+# extension at startup (not just checks it's installed) since an installed-but-non-functional
+# extension would otherwise silently downgrade every cross-subscription check to a WARN too.
 
 : "${SUBSCRIPTION_ID:?SUBSCRIPTION_ID is required}"
 # Strip CR/whitespace that commonly survives a copy/paste from Windows terminals or docs;
@@ -35,6 +44,7 @@ export AZURE_CORE_NO_PROGRESS=true
 # this trim) silently left the previous subscription active instead of erroring clearly.
 SUBSCRIPTION_ID="$(printf '%s' "$SUBSCRIPTION_ID" | tr -d '\r' | xargs)"
 RG_FILTER="$(printf '%s' "${RG_FILTER:-}" | tr -d '\r' | xargs)"
+EXPECTED_VNET_ID="$(printf '%s' "${EXPECTED_VNET_ID:-}" | tr -d '\r' | xargs)"
 API_VERSION="2025-04-01-preview"
 
 PASS_COUNT=0
@@ -144,10 +154,61 @@ check_pe_dns_group() {
   fi
 }
 
+# BYO-VNet Foundry accounts can be connected to a VNet two different ways: subnet delegation
+# (properties.networkInjections, checked above) or private-endpoint-only connectivity with
+# publicNetworkAccess=Disabled and no delegation. Both are valid per this repo's own pattern
+# (infra/modules/foundry/private-endpoint-dns.bicep doesn't require network injection). When
+# there's no networkInjections subnet, fall back to resolving the VNet from the account's own
+# private endpoint so the [3] zone-link checks still get a real VNet to compare against instead
+# of defaulting to WARN for every zone.
+resolve_vnet_via_private_endpoint() {
+  local resource_id="$1"
+  [ "$GRAPH_AVAILABLE" != true ] && return
+  az graph query -q "Resources | where type =~ 'microsoft.network/privateendpoints' | mv-expand conn=properties.privateLinkServiceConnections | where tostring(conn.properties.privateLinkServiceId) =~ '$resource_id' | project subnetId=tostring(properties.subnet.id) | take 1" \
+    --query "data[0].subnetId" -o tsv 2>/dev/null | sed 's#/subnets/.*##'
+}
+
 # Detected once: both the zone-link check in [3] and check_pe_dns_group need it, and extension
-# availability doesn't vary per account.
+# availability doesn't vary per account. This is a read-only, local az-CLI-config change (it
+# installs nothing into the customer's Azure environment), so it's safe to attempt automatically
+# rather than making the customer run "az extension add" themselves and decode a possibly cryptic
+# error on their own -- some tenants/orgs deny CLI extension installs via policy, and when that
+# happens we want the *real* denial reason surfaced here, not just a generic "not installed".
+# A successful "az extension show" only confirms it's installed, not that it actually works (an
+# outdated version, an unregistered Resource Graph RP, or a principal without Reader anywhere can
+# all leave it installed but still failing every query) -- so probe it with a real query too.
 GRAPH_AVAILABLE=true
-az extension show --name resource-graph >/dev/null 2>&1 || GRAPH_AVAILABLE=false
+GRAPH_ERR=""
+if ! az extension show --name resource-graph >/dev/null 2>&1; then
+  GRAPH_INSTALL_ERR="$(mktemp)"
+  if az extension add --name resource-graph >/dev/null 2>"$GRAPH_INSTALL_ERR"; then
+    : # installed successfully; fall through to the functional probe below
+  else
+    GRAPH_AVAILABLE=false
+    GRAPH_ERR="$(head -3 "$GRAPH_INSTALL_ERR")"
+  fi
+  rm -f "$GRAPH_INSTALL_ERR"
+fi
+if [ "$GRAPH_AVAILABLE" = true ]; then
+  GRAPH_PROBE_ERR="$(mktemp)"
+  if ! az graph query -q "Resources | take 1" >/dev/null 2>"$GRAPH_PROBE_ERR"; then
+    GRAPH_AVAILABLE=false
+    GRAPH_ERR="$(head -3 "$GRAPH_PROBE_ERR")"
+  fi
+  rm -f "$GRAPH_PROBE_ERR"
+fi
+if [ "$GRAPH_AVAILABLE" != true ]; then
+  echo "⚠️  resource-graph extension is unavailable -- cross-subscription DNS zone-link and"
+  echo "   private-endpoint zone-group checks below will degrade to WARN instead of PASS/FAIL"
+  echo "   (manual verification needed for those specific lines; every other check is unaffected)."
+  if [ -n "$GRAPH_ERR" ]; then
+    echo "   Reason reported by az:"
+    echo "$GRAPH_ERR" | sed 's/^/     /'
+  fi
+  echo "   If your organization's policy denies installing CLI extensions, this is expected --"
+  echo "   no action needed here; otherwise try: az extension add --name resource-graph"
+  echo
+fi
 
 mapfile -t ACCOUNT_LINES <<< "$ACCOUNTS"
 for LINE in "${ACCOUNT_LINES[@]}"; do
@@ -162,13 +223,30 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
   echo "--- [1] 🌐 Network injection / public network access ---"
   PNA=$(echo "$ACCT_JSON" | jq -r '.properties.publicNetworkAccess // "Unknown"')
   SUBNET=$(echo "$ACCT_JSON" | jq -r '.properties.networkInjections[0].subnetArnResourceId // empty')
+  ACCOUNT_RESOURCE_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME"
+  PE_ONLY_VNET_ID=""
   if [ -n "$SUBNET" ]; then
     verdict PASS "network-injected (subnet: $SUBNET)"
   else
-    verdict WARN "no networkInjections found (publicNetworkAccess=$PNA)" \
-      "expected for BYO-VNet accounts; see infra/modules/foundry/main.bicep account resource"
+    PE_ONLY_VNET_ID=$(resolve_vnet_via_private_endpoint "$ACCOUNT_RESOURCE_ID")
+    if [ -n "$PE_ONLY_VNET_ID" ]; then
+      verdict PASS "no subnet delegation (publicNetworkAccess=$PNA) -- using private-endpoint-only connectivity, VNet resolved via account's private endpoint: $PE_ONLY_VNET_ID"
+    else
+      verdict WARN "no networkInjections subnet and no private endpoint VNet could be resolved (publicNetworkAccess=$PNA)" \
+        "both subnet-delegated and private-endpoint-only connectivity are valid BYO-VNet patterns (infra/modules/foundry/main.bicep, infra/modules/foundry/private-endpoint-dns.bicep in the agentic-ai-enterprise-blueprint repo -- informational reference only, not required to run this script); if this account truly has no VNet connectivity, publicNetworkAccess should be Enabled instead"
+    fi
   fi
-  ACCOUNT_RESOURCE_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$NAME"
+  DETECTED_VNET_ID=""
+  [ -n "$SUBNET" ] && DETECTED_VNET_ID="${SUBNET%/subnets/*}"
+  [ -z "$DETECTED_VNET_ID" ] && DETECTED_VNET_ID="$PE_ONLY_VNET_ID"
+  if [ -n "$EXPECTED_VNET_ID" ]; then
+    if [ -n "$DETECTED_VNET_ID" ] && [ "$DETECTED_VNET_ID" != "$EXPECTED_VNET_ID" ]; then
+      verdict FAIL "account's VNet ($DETECTED_VNET_ID) does not match EXPECTED_VNET_ID ($EXPECTED_VNET_ID)" \
+        "either EXPECTED_VNET_ID is wrong, or this account is private-linked into the wrong VNet"
+    elif [ -n "$DETECTED_VNET_ID" ]; then
+      verdict PASS "account's VNet matches EXPECTED_VNET_ID"
+    fi
+  fi
   check_pe_dns_group "Foundry account (cognitiveservices)" "$ACCOUNT_RESOURCE_ID" "privatelink.cognitiveservices.azure.com"
   check_pe_dns_group "Foundry account (openai)" "$ACCOUNT_RESOURCE_ID" "privatelink.openai.azure.com"
   check_pe_dns_group "Foundry account (services-ai)" "$ACCOUNT_RESOURCE_ID" "privatelink.services.ai.azure.com"
@@ -218,7 +296,21 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
     COSMOS_RESID="${COSMOS_ROW##*|}"; STORAGE_RESID="${STORAGE_ROW##*|}"; SEARCH_RESID="${SEARCH_ROW##*|}"
 
     echo "  [1] 🔌 Required connections (Cosmos DB / Storage / AI Search):"
-    [ -n "$COSMOS_ROW" ] && verdict PASS "CosmosDB connection: ${COSMOS_ROW%%|*} (${COSMOS_ROW#*|})" || verdict FAIL "no CosmosDB connection" "infra/modules/foundry/project-connections.bicep"
+    if [ -n "$COSMOS_ROW" ]; then
+      verdict PASS "CosmosDB connection: ${COSMOS_ROW%%|*} (${COSMOS_ROW#*|})"
+    else
+      # Distinguish "Cosmos account exists but was never wired up as a project connection" from
+      # "no Cosmos account was provisioned at all" -- these need different remediation, and the
+      # generic hint alone left the customer unsure which one they were looking at.
+      COSMOS_ACCOUNTS_IN_RG=$(az cosmosdb list --resource-group "$RG" --query "[].name" -o tsv 2>/dev/null)
+      if [ -n "$COSMOS_ACCOUNTS_IN_RG" ]; then
+        verdict FAIL "no CosmosDB connection (but found Cosmos account(s) in $RG: $(echo "$COSMOS_ACCOUNTS_IN_RG" | paste -sd, -))" \
+          "infra/modules/foundry/project-connections.bicep -- create a project connection of category=CosmosDB pointing to the existing account; Capability Host activation and Cosmos RBAC both depend on this connection existing"
+      else
+        verdict FAIL "no CosmosDB connection and no Cosmos account found in $RG" \
+          "infra/modules/foundry/cosmos-rbac.bicep -- a Cosmos DB account must be provisioned for this project before a connection can be created; Capability Host activation depends on this"
+      fi
+    fi
     [ -n "$STORAGE_ROW" ] && verdict PASS "AzureStorageAccount connection: ${STORAGE_ROW%%|*} (${STORAGE_ROW#*|})" || verdict FAIL "no AzureStorageAccount connection" "infra/modules/foundry/project-connections.bicep"
     [ -n "$SEARCH_ROW" ] && verdict PASS "CognitiveSearch connection: ${SEARCH_ROW%%|*} (${SEARCH_ROW#*|})" || verdict FAIL "no CognitiveSearch connection" "infra/modules/foundry/project-connections.bicep"
 
@@ -305,8 +397,11 @@ for LINE in "${ACCOUNT_LINES[@]}"; do
   # the zone wherever it is, then check whether it's actually linked to *this* account's VNet --
   # not just linked to something. Falls back to the old RG-scoped check (as a WARN, since it
   # can't prove a negative across subscriptions) if the resource-graph extension isn't available.
-  VNET_ID=""
-  [ -n "$SUBNET" ] && VNET_ID="${SUBNET%/subnets/*}"
+  VNET_ID="$DETECTED_VNET_ID"
+  if [ -z "$VNET_ID" ] && [ -n "$EXPECTED_VNET_ID" ]; then
+    VNET_ID="$EXPECTED_VNET_ID"
+    echo "    (no VNet auto-detected for this account -- using EXPECTED_VNET_ID as the comparison target)"
+  fi
 
   for ZONE in privatelink.cognitiveservices.azure.com privatelink.openai.azure.com privatelink.services.ai.azure.com privatelink.search.windows.net privatelink.documents.azure.com privatelink.blob.core.windows.net privatelink.vaultcore.azure.net; do
     if [ "$GRAPH_AVAILABLE" != true ]; then
