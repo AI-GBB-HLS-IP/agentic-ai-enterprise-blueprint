@@ -199,6 +199,12 @@ reported and continues in a degraded mode: those specific zone/private-endpoint 
 `WARN` (manual verification needed) instead of `PASS`/`FAIL`, while every other check (RBAC,
 connections, Capability Host) is unaffected.
 
+Set `SKIP_EXTENSION_INSTALL=1` to opt out of the automatic `az extension add --name
+resource-graph` attempt entirely -- useful behind restricted egress, in locked-down CI runners,
+or anywhere auto-installing CLI extensions is undesirable. The script then goes straight to the
+same degraded `WARN` mode described above instead of attempting the install, with a clear message
+pointing to `az extension add --name resource-graph` if you want the stronger checks later.
+
 ```bash
 # SUBSCRIPTION_ID accepts either a subscription GUID or display name.
 SUBSCRIPTION_ID=<sub-id-or-name> ./scripts/foundry/audit-byo-deployment.sh
@@ -210,6 +216,9 @@ SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./scripts/
 # FAILs loudly if the account's actual VNet doesn't match, and [3]'s zone-link checks fall back
 # to it when no VNet could be auto-detected at all (instead of defaulting every zone to WARN).
 SUBSCRIPTION_ID=<sub-id-or-name> EXPECTED_VNET_ID=<vnet-resource-id> ./scripts/foundry/audit-byo-deployment.sh
+
+# Skip the automatic "resource-graph" extension install (e.g. restricted egress or CI runners):
+SUBSCRIPTION_ID=<sub-id-or-name> SKIP_EXTENSION_INSTALL=1 ./scripts/foundry/audit-byo-deployment.sh
 ```
 
 Exits non-zero if any check reports `FAIL`. `WARN` findings (e.g. DNS zone checks running

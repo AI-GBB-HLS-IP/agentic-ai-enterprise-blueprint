@@ -24,6 +24,7 @@ export AZURE_CORE_NO_PROGRESS=true
 #   SUBSCRIPTION_ID=<sub-id-or-name> RG_FILTER=<resource-group-substring> ./audit-byo-deployment.sh
 #   SUBSCRIPTION_ID=<sub-id-or-name> EXPECTED_VNET_ID=<hub/spoke VNet resource ID> ./audit-byo-deployment.sh
 #   SUBSCRIPTION_ID=<sub-id-or-name> DNS_INTEGRATION_MODE=zone-group ./audit-byo-deployment.sh
+#   SUBSCRIPTION_ID=<sub-id-or-name> SKIP_EXTENSION_INSTALL=1 ./audit-byo-deployment.sh
 #
 # EXPECTED_VNET_ID (optional) asserts which VNet this deployment is supposed to be private-linked
 # into. When set, [1] fails loudly if the account's actual VNet (from networkInjections or its
@@ -44,6 +45,13 @@ export AZURE_CORE_NO_PROGRESS=true
 # e.g. for zones/endpoints that live in a different subscription (hub). The script probes the
 # extension at startup (not just checks it's installed) since an installed-but-non-functional
 # extension would otherwise silently downgrade every cross-subscription check to a WARN too.
+#
+# SKIP_EXTENSION_INSTALL=1 (optional) opts out of the automatic "az extension add --name
+# resource-graph" attempt above -- useful behind restricted egress, in locked-down CI runners, or
+# anywhere auto-installing CLI extensions is undesirable. When set, the script degrades
+# gracefully straight to the WARN path described above instead of attempting the install; it
+# never crashes with a raw az error. Install the extension manually first
+# (az extension add --name resource-graph) to get the stronger cross-subscription checks.
 
 : "${SUBSCRIPTION_ID:?SUBSCRIPTION_ID is required}"
 # Strip CR/whitespace that commonly survives a copy/paste from Windows terminals or docs;
@@ -107,11 +115,12 @@ echo "🔎 Subscription: $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
 echo
 
 ACCOUNTS_ERR="$(mktemp)"
-if [ -n "$RG_FILTER" ]; then
-  ACCOUNTS=$(az cognitiveservices account list --query "[?kind=='AIServices' && contains(resourceGroup, '${RG_FILTER}')].{name:name, rg:resourceGroup}" -o tsv 2>"$ACCOUNTS_ERR")
-else
-  ACCOUNTS=$(az cognitiveservices account list --query "[?kind=='AIServices'].{name:name, rg:resourceGroup}" -o tsv 2>"$ACCOUNTS_ERR")
-fi
+# RG_FILTER is user-supplied and must never be interpolated into the JMESPath string literal
+# server-side -- a value containing a single quote would break (or, worse, manipulate) the query
+# syntax. Instead, always fetch the full unfiltered list and apply the substring match locally
+# with a literal (non-regex) index() lookup in awk below, which is injection-safe regardless of
+# RG_FILTER's contents.
+ACCOUNTS_RAW=$(az cognitiveservices account list --query "[?kind=='AIServices'].{name:name, rg:resourceGroup}" -o tsv 2>"$ACCOUNTS_ERR")
 ACCOUNTS_EXIT=$?
 # A failed account-list call (bad auth, wrong API version, network error, throttling, ...) must
 # never be treated the same as "this subscription legitimately has zero accounts" -- with
@@ -126,6 +135,15 @@ if [ "$ACCOUNTS_EXIT" -ne 0 ]; then
   exit 1
 fi
 rm -f "$ACCOUNTS_ERR"
+
+if [ -n "$RG_FILTER" ]; then
+  # Fixed-string (-F) substring match on the "rg" (2nd TSV) column only, so a resource group
+  # name that happens to contain filter-like characters (., *, [, etc.) can't be misread as a
+  # pattern, and the match stays anchored to the resource-group field rather than the name field.
+  ACCOUNTS=$(printf '%s\n' "$ACCOUNTS_RAW" | awk -F'\t' -v rg="$RG_FILTER" 'index($2, rg) > 0')
+else
+  ACCOUNTS="$ACCOUNTS_RAW"
+fi
 
 if [ -z "$ACCOUNTS" ]; then
   echo "No AIServices accounts found."
@@ -266,14 +284,24 @@ resolve_vnet_via_private_endpoint() {
 GRAPH_AVAILABLE=true
 GRAPH_ERR=""
 if ! az extension show --name resource-graph >/dev/null 2>&1; then
-  GRAPH_INSTALL_ERR="$(mktemp)"
-  if az extension add --name resource-graph >/dev/null 2>"$GRAPH_INSTALL_ERR"; then
-    : # installed successfully; fall through to the functional probe below
-  else
+  # Some environments (restricted egress, locked-down CI runners, org policy against ad-hoc
+  # local config changes) want to opt out of this auto-install entirely rather than have it
+  # silently attempt a network call. SKIP_EXTENSION_INSTALL=1 degrades gracefully to the same
+  # WARN-instead-of-PASS/FAIL path used for any other extension failure, with a clear message
+  # telling the user how to install it manually if they do want the stronger checks.
+  if [ "${SKIP_EXTENSION_INSTALL:-}" = "1" ]; then
     GRAPH_AVAILABLE=false
-    GRAPH_ERR="$(head -3 "$GRAPH_INSTALL_ERR")"
+    GRAPH_ERR="SKIP_EXTENSION_INSTALL=1 is set; skipped 'az extension add --name resource-graph'."
+  else
+    GRAPH_INSTALL_ERR="$(mktemp)"
+    if az extension add --name resource-graph >/dev/null 2>"$GRAPH_INSTALL_ERR"; then
+      : # installed successfully; fall through to the functional probe below
+    else
+      GRAPH_AVAILABLE=false
+      GRAPH_ERR="$(head -3 "$GRAPH_INSTALL_ERR")"
+    fi
+    rm -f "$GRAPH_INSTALL_ERR"
   fi
-  rm -f "$GRAPH_INSTALL_ERR"
 fi
 if [ "$GRAPH_AVAILABLE" = true ]; then
   GRAPH_PROBE_ERR="$(mktemp)"

@@ -26,6 +26,15 @@ trap 'rm -rf "$WORKDIR"' EXIT
 STUBDIR="$WORKDIR/stub"
 mkdir -p "$STUBDIR"
 
+# run_audit/run_audit_with_roles invoke the audit script with PATH reset to "$STUBDIR:/usr/bin:/bin"
+# so only the fake "az" stub (not any real az on the test runner's PATH) is found. jq is a real,
+# unstubbed dependency of the audit script though, and it doesn't reliably live in /usr/bin or
+# /bin on every platform (e.g. /usr/local/bin, Homebrew's /opt/homebrew/bin, ...). Symlink the
+# real jq into $STUBDIR up front so it's always found first regardless of where it's installed,
+# without having to special-case every possible jq location in the restricted PATH itself.
+REAL_JQ="$(command -v jq)"
+ln -s "$REAL_JQ" "$STUBDIR/jq"
+
 FAILED=0
 fail() {
   echo "FAIL: $1" >&2
@@ -235,28 +244,39 @@ base_env() {
   PROJECTS_OUT=""
 }
 
+# Builds the shared set of env-var assignments (with their scenario defaults) forwarded to the
+# audit script by every run_* wrapper below, as a single source of truth -- so a new env var only
+# ever needs to be added in one place instead of risking drift between run_audit and
+# run_audit_with_roles.
+common_audit_env() {
+  COMMON_AUDIT_ENV=(
+    AZ_CALL_LOG="${AZ_CALL_LOG:-$WORKDIR/calls.log}"
+    SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-11111111-1111-1111-1111-111111111111}"
+    RG_FILTER="${RG_FILTER:-}" EXPECTED_VNET_ID="${EXPECTED_VNET_ID:-}"
+    DNS_INTEGRATION_MODE="${DNS_INTEGRATION_MODE:-vnet-link}"
+    SUB_ID="${SUB_ID:-}" SUB_NAME="${SUB_NAME:-}"
+    ACCOUNT_SET_EXIT="${ACCOUNT_SET_EXIT:-0}"
+    ACCOUNT_LIST_EXIT="${ACCOUNT_LIST_EXIT:-0}" ACCOUNT_LIST_OUT="${ACCOUNT_LIST_OUT:-}"
+    ACCT_REST_EXIT="${ACCT_REST_EXIT:-0}" ACCT_JSON="${ACCT_JSON:-}"
+    ACCT_CONN_EXIT="${ACCT_CONN_EXIT:-0}" ACCT_CONN_JSON="${ACCT_CONN_JSON:-}"
+    PROJECTS_EXIT="${PROJECTS_EXIT:-0}" PROJECTS_OUT="${PROJECTS_OUT:-}"
+    PROJ_REST_EXIT="${PROJ_REST_EXIT:-0}" PROJ_JSON="${PROJ_JSON:-}"
+    PROJ_CONN_EXIT="${PROJ_CONN_EXIT:-0}" PROJ_CONN_JSON="${PROJ_CONN_JSON:-}"
+    CAP_HOSTS_EXIT="${CAP_HOSTS_EXIT:-0}" CAP_HOSTS_JSON="${CAP_HOSTS_JSON:-}"
+    COSMOS_LIST_EXIT="${COSMOS_LIST_EXIT:-0}" COSMOS_LIST_OUT="${COSMOS_LIST_OUT:-}"
+    EXT_SHOW_EXIT="${EXT_SHOW_EXIT:-1}" EXT_ADD_EXIT="${EXT_ADD_EXIT:-1}"
+    GRAPH_PROBE_EXIT="${GRAPH_PROBE_EXIT:-0}" GRAPH_PE_HITS="${GRAPH_PE_HITS:-[]}"
+    STORAGE_OWNER_JSON="${STORAGE_OWNER_JSON:-[]}" COSMOS_DATA_JSON="${COSMOS_DATA_JSON:-[]}"
+    DNS_ZONE_GROUP_OUT="${DNS_ZONE_GROUP_OUT:-}"
+    ZONE_HITS_DIR="${ZONE_HITS_DIR:-}" ZONE_HITS_DEFAULT="${ZONE_HITS_DEFAULT:-[]}"
+    DNS_LINK_DIR="${DNS_LINK_DIR:-}"
+  )
+}
+
 run_audit() {
+  common_audit_env
   env -i PATH="$STUBDIR:/usr/bin:/bin" HOME="${HOME:-/root}" \
-    AZ_CALL_LOG="${AZ_CALL_LOG:-$WORKDIR/calls.log}" \
-    SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-11111111-1111-1111-1111-111111111111}" \
-    RG_FILTER="${RG_FILTER:-}" EXPECTED_VNET_ID="${EXPECTED_VNET_ID:-}" \
-    DNS_INTEGRATION_MODE="${DNS_INTEGRATION_MODE:-vnet-link}" \
-    SUB_ID="${SUB_ID:-}" SUB_NAME="${SUB_NAME:-}" \
-    ACCOUNT_SET_EXIT="${ACCOUNT_SET_EXIT:-0}" \
-    ACCOUNT_LIST_EXIT="${ACCOUNT_LIST_EXIT:-0}" ACCOUNT_LIST_OUT="${ACCOUNT_LIST_OUT:-}" \
-    ACCT_REST_EXIT="${ACCT_REST_EXIT:-0}" ACCT_JSON="${ACCT_JSON:-}" \
-    ACCT_CONN_EXIT="${ACCT_CONN_EXIT:-0}" ACCT_CONN_JSON="${ACCT_CONN_JSON:-}" \
-    PROJECTS_EXIT="${PROJECTS_EXIT:-0}" PROJECTS_OUT="${PROJECTS_OUT:-}" \
-    PROJ_REST_EXIT="${PROJ_REST_EXIT:-0}" PROJ_JSON="${PROJ_JSON:-}" \
-    PROJ_CONN_EXIT="${PROJ_CONN_EXIT:-0}" PROJ_CONN_JSON="${PROJ_CONN_JSON:-}" \
-    CAP_HOSTS_EXIT="${CAP_HOSTS_EXIT:-0}" CAP_HOSTS_JSON="${CAP_HOSTS_JSON:-}" \
-    COSMOS_LIST_EXIT="${COSMOS_LIST_EXIT:-0}" COSMOS_LIST_OUT="${COSMOS_LIST_OUT:-}" \
-    EXT_SHOW_EXIT="${EXT_SHOW_EXIT:-1}" EXT_ADD_EXIT="${EXT_ADD_EXIT:-1}" \
-    GRAPH_PROBE_EXIT="${GRAPH_PROBE_EXIT:-0}" GRAPH_PE_HITS="${GRAPH_PE_HITS:-[]}" \
-    STORAGE_OWNER_JSON="${STORAGE_OWNER_JSON:-[]}" COSMOS_DATA_JSON="${COSMOS_DATA_JSON:-[]}" \
-    DNS_ZONE_GROUP_OUT="${DNS_ZONE_GROUP_OUT:-}" \
-    ZONE_HITS_DIR="${ZONE_HITS_DIR:-}" ZONE_HITS_DEFAULT="${ZONE_HITS_DEFAULT:-[]}" \
-    DNS_LINK_DIR="${DNS_LINK_DIR:-}" \
+    "${COMMON_AUDIT_ENV[@]}" \
     "$AUDIT_SCRIPT"
 }
 
@@ -269,27 +289,9 @@ run_audit_with_roles() {
   for v in "$@"; do
     extra+=("$v=${!v}")
   done
+  common_audit_env
   env -i PATH="$STUBDIR:/usr/bin:/bin" HOME="${HOME:-/root}" \
-    AZ_CALL_LOG="${AZ_CALL_LOG:-$WORKDIR/calls.log}" \
-    SUBSCRIPTION_ID="${SUBSCRIPTION_ID:-11111111-1111-1111-1111-111111111111}" \
-    RG_FILTER="${RG_FILTER:-}" EXPECTED_VNET_ID="${EXPECTED_VNET_ID:-}" \
-    DNS_INTEGRATION_MODE="${DNS_INTEGRATION_MODE:-vnet-link}" \
-    SUB_ID="${SUB_ID:-}" SUB_NAME="${SUB_NAME:-}" \
-    ACCOUNT_SET_EXIT="${ACCOUNT_SET_EXIT:-0}" \
-    ACCOUNT_LIST_EXIT="${ACCOUNT_LIST_EXIT:-0}" ACCOUNT_LIST_OUT="${ACCOUNT_LIST_OUT:-}" \
-    ACCT_REST_EXIT="${ACCT_REST_EXIT:-0}" ACCT_JSON="${ACCT_JSON:-}" \
-    ACCT_CONN_EXIT="${ACCT_CONN_EXIT:-0}" ACCT_CONN_JSON="${ACCT_CONN_JSON:-}" \
-    PROJECTS_EXIT="${PROJECTS_EXIT:-0}" PROJECTS_OUT="${PROJECTS_OUT:-}" \
-    PROJ_REST_EXIT="${PROJ_REST_EXIT:-0}" PROJ_JSON="${PROJ_JSON:-}" \
-    PROJ_CONN_EXIT="${PROJ_CONN_EXIT:-0}" PROJ_CONN_JSON="${PROJ_CONN_JSON:-}" \
-    CAP_HOSTS_EXIT="${CAP_HOSTS_EXIT:-0}" CAP_HOSTS_JSON="${CAP_HOSTS_JSON:-}" \
-    COSMOS_LIST_EXIT="${COSMOS_LIST_EXIT:-0}" COSMOS_LIST_OUT="${COSMOS_LIST_OUT:-}" \
-    EXT_SHOW_EXIT="${EXT_SHOW_EXIT:-1}" EXT_ADD_EXIT="${EXT_ADD_EXIT:-1}" \
-    GRAPH_PROBE_EXIT="${GRAPH_PROBE_EXIT:-0}" GRAPH_PE_HITS="${GRAPH_PE_HITS:-[]}" \
-    STORAGE_OWNER_JSON="${STORAGE_OWNER_JSON:-[]}" COSMOS_DATA_JSON="${COSMOS_DATA_JSON:-[]}" \
-    DNS_ZONE_GROUP_OUT="${DNS_ZONE_GROUP_OUT:-}" \
-    ZONE_HITS_DIR="${ZONE_HITS_DIR:-}" ZONE_HITS_DEFAULT="${ZONE_HITS_DEFAULT:-[]}" \
-    DNS_LINK_DIR="${DNS_LINK_DIR:-}" \
+    "${COMMON_AUDIT_ENV[@]}" \
     "${extra[@]}" \
     "$AUDIT_SCRIPT"
 }
