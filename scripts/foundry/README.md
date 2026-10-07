@@ -152,6 +152,59 @@ permissions at every endpoint resource group. In cross-subscription `zone-group`
 needs the separately granted central DNS-zone read/join permission; DNS RBAC and endpoint-scope
 RBAC are distinct.
 
+### Required account networking
+
+`foundry.bicep` always configures both the Foundry private endpoint and subnet-delegated Standard
+Agent service network injection (`networkInjections` with `scenario: 'agent'`). The Capability
+Host needs the delegated VNet route to reach its private Cosmos DB, Storage, and AI Search
+dependencies; the Foundry private endpoint provides inbound access to the account and is not a
+replacement for that route. Do not disable network injection unless a separately validated
+networking topology provides private connectivity from the Capability Host to every dependency.
+
+If account creation remains in a `Creating` state, keep network injection enabled while
+investigating deployment diagnostics, subnet delegation, and service support guidance. A
+private-endpoint-only deployment is not a supported workaround for this blueprint.
+
+### Upgrading from the database-scoped Cosmos data RBAC revision
+
+An earlier revision of `cosmos-data-rbac.bicep` assigned Cosmos DB Built-in Data Contributor at
+the `/dbs/enterprise_memory` *database* scope (covering every project's containers in a shared/BYO
+Cosmos account). The current revision assigns it per-project, scoped only to that project's three
+workspace-prefixed containers. ARM Incremental mode does not delete resources removed from a
+template, so any deployment that ran the earlier revision still has the broader database-scoped
+assignment in Azure even after redeploying the current Bicep. Run the read-only check, then the
+cleanup, against any such pre-existing deployment:
+
+```bash
+# Dry run (list only) -- no principal/assignment scoping required for discovery.
+COSMOS_ACCOUNT_ID=/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-account> \
+./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh
+
+# Remove the stale database-scoped assignment(s) for one known-stale project identity.
+COSMOS_ACCOUNT_ID=/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-account> \
+PRINCIPAL_ID=<project-identity-guid> \
+./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh --execute
+
+# ... or remove only the exact assignment id(s) identified from the dry-run output above.
+COSMOS_ACCOUNT_ID=/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.DocumentDB/databaseAccounts/<cosmos-account> \
+./scripts/foundry/cleanup-stale-cosmos-database-rbac.sh --execute --assignment-ids=<id1>,<id2>
+```
+
+The script only ever matches the built-in Cosmos DB Data Contributor role at exactly
+`/dbs/enterprise_memory` (no container suffix), so custom/read-only database roles and
+container-scoped assignments created by the current Bicep are never touched. The full account
+resource ID selects the account and its subscription explicitly for listing, deletion, and
+verification.
+
+This role+scope filtering alone does not prove a matching assignment is the stale one: because
+this blueprint supports shared/BYO Cosmos accounts, a database-scoped Built-in Data Contributor
+grant can also be a legitimate assignment owned by a different workload on the same account.
+`--execute` therefore **requires** either `PRINCIPAL_ID`/`--principal-id=<guid>` (the stale
+project's managed identity) or `ASSIGNMENT_IDS`/`--assignment-ids=<id1,id2,...>` (assignment ids
+copied from a prior dry-run review); `--execute` without one of these is refused with a non-zero
+exit. Dry-run listing (the default, no `--execute`) remains unrestricted for discovery/visibility
+and does not require either.
+
 ## BYO deployment audit
 
 `audit-byo-deployment.sh` is a **read-only**, fully standalone diagnostic for an already-deployed

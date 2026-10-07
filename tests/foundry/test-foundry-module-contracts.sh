@@ -18,6 +18,7 @@ FOUNDRY_DNS_ENV="${REPO_ROOT}/infra/envs/poc/foundry-dns.bicep"
 MAIN_MODULE="${REPO_ROOT}/infra/modules/foundry/main.bicep"
 FOUNDRY_ENV="${REPO_ROOT}/infra/envs/poc/foundry.bicep"
 STORAGE_RBAC_MODULE="${REPO_ROOT}/infra/modules/foundry/storage-rbac.bicep"
+COSMOS_DATA_RBAC_MODULE="${REPO_ROOT}/infra/modules/foundry/cosmos-data-rbac.bicep"
 
 command -v az >/dev/null 2>&1 || {
   echo "SKIP: az CLI not available; cannot run bicep build checks." >&2
@@ -52,6 +53,7 @@ build_bicep "$FOUNDRY_DNS_ENV" "$workdir/foundry-dns.json"
 build_bicep "$MAIN_MODULE" "$workdir/main.json"
 build_bicep "$FOUNDRY_ENV" "$workdir/foundry-env.json"
 build_bicep "$STORAGE_RBAC_MODULE" "$workdir/storage-rbac.json"
+build_bicep "$COSMOS_DATA_RBAC_MODULE" "$workdir/cosmos-data-rbac.json"
 
 echo "==> private-endpoint.bicep creates bare endpoints and exposes IDs and names"
 python3 - "$workdir/private-endpoint.json" <<'PY'
@@ -215,6 +217,97 @@ for path, display_name in zip(sys.argv[1:], ("main.bicep", "envs/poc/foundry.bic
     for output in expected_outputs:
         if output not in outputs:
             sys.exit(f"{display_name} is missing expected endpoint ID output: {output}")
+PY
+
+echo "==> Cosmos data RBAC is project-scoped and follows Capability Host activation"
+python3 - "$workdir/cosmos-data-rbac.json" "$workdir/main.json" <<'PY'
+import json
+import sys
+
+cosmos_rbac = json.load(open(sys.argv[1]))
+assignments = [
+    resource
+    for resource in cosmos_rbac.get("resources", [])
+    if resource.get("type") == "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments"
+]
+if len(assignments) != 3:
+    sys.exit(f"cosmos-data-rbac.bicep must declare three container-level assignments, found {len(assignments)}")
+
+scopes = [str(assignment.get("properties", {}).get("scope", "")) for assignment in assignments]
+scope_expressions = " ".join(scopes)
+for scope in scopes:
+    if "resourceId('Microsoft.DocumentDB/databaseAccounts'" not in scope:
+        sys.exit("each Cosmos container scope must include the full Cosmos DB account resource ID")
+    if "/dbs/enterprise_memory/colls/" not in scope or "ContainerName')" not in scope:
+        sys.exit("each Cosmos data assignment must be restricted to an enterprise_memory container")
+if len(set(scopes)) != 3:
+    sys.exit("Cosmos data assignments must target three distinct container scopes")
+
+container_variables = cosmos_rbac.get("variables", {})
+for name, suffix in (
+    ("userThreadContainerName", "thread-message-store"),
+    ("systemThreadContainerName", "system-thread-message-store"),
+    ("entityStoreContainerName", "agent-entity-store"),
+):
+    expression = str(container_variables.get(name, ""))
+    if suffix not in expression or "parameters('projectWorkspaceIdGuid')" not in expression:
+        sys.exit(f"cosmos-data-rbac.bicep must prefix {suffix} with the project workspace ID")
+    if f"variables('{name}')" not in scope_expressions:
+        sys.exit(f"Cosmos assignment scope is missing the {name} container")
+
+main = json.load(open(sys.argv[2]))
+pre_activation_rbac = next(
+    (
+        resource for resource in main.get("resources", [])
+        if resource.get("type") == "Microsoft.Resources/deployments"
+        and resource.get("name") == "foundry-cosmos-rbac"
+    ),
+    None,
+)
+if pre_activation_rbac is None:
+    sys.exit("main.bicep is missing the pre-activation Cosmos RBAC module")
+
+pre_activation_template = pre_activation_rbac.get("properties", {}).get("template", {})
+pre_activation_resources = pre_activation_template.get("resources", [])
+if any(
+    resource.get("type", "").lower()
+    == "microsoft.documentdb/databaseaccounts/sqlroleassignments"
+    for resource in pre_activation_resources
+):
+    sys.exit("pre-activation foundry-cosmos-rbac must not contain Cosmos SQL role assignments")
+
+data_assignment = next(
+    (
+        resource for resource in main.get("resources", [])
+        if resource.get("type") == "Microsoft.Resources/deployments"
+        and resource.get("name") == "foundry-cosmos-data-rbac"
+    ),
+    None,
+)
+if data_assignment is None:
+    sys.exit("main.bicep is missing the post-activation Cosmos data RBAC module")
+if "[resourceId('Microsoft.Resources/deployments', 'foundry-capability-host')]" not in data_assignment.get("dependsOn", []):
+    sys.exit("Cosmos data RBAC must depend on Capability Host activation")
+PY
+
+echo "==> Foundry always enables Standard Agent network injection"
+python3 - "$workdir/main.json" "$workdir/foundry-env.json" <<'PY'
+import json
+import sys
+
+main, environment = (json.load(open(path)) for path in sys.argv[1:])
+if "enableNetworkInjection" in main.get("parameters", {}) or "enableNetworkInjection" in environment.get("parameters", {}):
+    sys.exit("network injection must not be an optional deployment mode")
+
+accounts = [
+    resource for resource in main.get("resources", [])
+    if resource.get("type") == "Microsoft.CognitiveServices/accounts"
+]
+if len(accounts) != 1:
+    sys.exit(f"expected one Foundry account resource, found {len(accounts)}")
+injections = accounts[0].get("properties", {}).get("networkInjections", [])
+if len(injections) != 1 or injections[0].get("scenario") != "agent":
+    sys.exit("Foundry account must always configure Standard Agent network injection")
 PY
 
 echo "==> private-endpoint.bicep guards Key Vault private-endpoint creation like Storage/Cosmos/AISearch"

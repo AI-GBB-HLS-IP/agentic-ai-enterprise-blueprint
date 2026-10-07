@@ -47,9 +47,9 @@ resource capabilityHost 'Microsoft.CognitiveServices/accounts/projects/capabilit
 // The Foundry Agent Service platform formats the project's internalId (a raw hex GUID) into
 // standard dashed-GUID form to derive the names of the Cosmos containers and Storage container
 // it auto-provisions for this project (enterprise_memory database, {workspaceId}-* containers,
-// and the {workspaceId}-azureml-agent blob container). RBAC below is pre-authorized against
-// those not-yet-existing child scopes, which Azure RBAC permits as long as the parent resource
-// (the Cosmos/Storage account) already exists.
+// and the {workspaceId}-azureml-agent blob container). Storage RBAC is pre-authorized against
+// the future blob-container scope; Cosmos SQL RBAC is assigned to the three created containers
+// after Capability Host activation.
 var rawWorkspaceId = string(project.properties.internalId)
 var _validateWorkspaceId = (length(rawWorkspaceId) == 32) ? true : fail('project.properties.internalId must be a 32-character hex GUID; ensure the selected API version returns internalId.')
 var workspaceIdGuid = _validateWorkspaceId

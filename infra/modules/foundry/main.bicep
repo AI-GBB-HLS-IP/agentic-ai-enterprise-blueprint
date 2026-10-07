@@ -339,7 +339,6 @@ module cosmosDBRbac './cosmos-rbac.bicep' = {
   params: {
     projectPrincipalId: project.identity.principalId
     cosmosDBAccountName: cosmosDBAccountNameResolved
-    projectWorkspaceIdGuid: projectWorkspaceIdGuid
   }
   #disable-next-line BCP318
   dependsOn: [
@@ -377,8 +376,8 @@ module storageRbac './storage-rbac.bicep' = {
 }
 
 // The capability host activates the Agent Service against the project connections. It must run
-// after every RBAC assignment, because the platform auto-provisions the Cosmos containers and the
-// blob container during activation using the project's managed identity.
+// after the pre-activation RBAC assignments; Cosmos SQL RBAC is applied afterward because the
+// platform creates the database and containers during activation using the project's identity.
 module capabilityHost './capability-host.bicep' = {
   name: 'foundry-capability-host'
   params: {
@@ -392,6 +391,22 @@ module capabilityHost './capability-host.bicep' = {
     cosmosDBRbac
     storageRbac
     aiSearchRbac
+  ]
+}
+
+// The Cosmos DB Built-in Data Contributor role is scoped to this project's three
+// `enterprise_memory` containers. Assign it after Capability Host activation creates those
+// containers; broader database-level access would let projects access one another's memory.
+module cosmosDataRbac './cosmos-data-rbac.bicep' = {
+  name: 'foundry-cosmos-data-rbac'
+  scope: resourceGroup(cosmosSubscriptionId, cosmosResourceGroupName)
+  params: {
+    projectPrincipalId: project.identity.principalId
+    cosmosDBAccountName: cosmosDBAccountNameResolved
+    projectWorkspaceIdGuid: projectWorkspaceIdGuid
+  }
+  dependsOn: [
+    capabilityHost
   ]
 }
 

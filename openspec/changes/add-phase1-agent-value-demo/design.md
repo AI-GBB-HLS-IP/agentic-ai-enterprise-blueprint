@@ -288,7 +288,7 @@ This table is the coverage record, not a new runtime gate or a second task syste
 | [Tooling](specs/governed-agent-tooling/spec.md): Approved tool invocation through APIM; Managed authentication and policy enforcement | 8; APIM/tool backend and caller tokens | 1.5, 4.1-4.6, 5.2, 9.3 | Invoke an approved tool; Prevent gateway bypass; Authorized/Unauthorized agent call; Backend trusts only the gateway identity; Verify the Foundry caller; Shared identity is not individual-agent authorization |
 | Tooling: One deterministic read-only tool; Explicit tool failure behavior; End-to-end correlation | 8-9; lookup contract and errors | 1.2, 4.1, 4.4-4.6, 9.3, 10.4-10.5 | Reproduce the tool result; Backend operation fails; Trace a tool call |
 | [Memory](specs/durable-agent-memory/spec.md): Prompt-agent managed persistence | 1,7; project connections/RBAC/capability | 6.4-6.8, 8.3 | Activate Foundry-managed persistence; Avoid speculative Foundry structures |
-| Memory: AKS-agent application persistence; Memory ownership isolation | 7; project stores versus AKS namespace | 5.3, 6.5, 6.8, 9.4, 9.7 | Persist an AKS conversation; Preserve state after restart; Enforce separate write scopes |
+| Memory: AKS-agent application persistence; Memory ownership isolation | 7; project stores versus AKS namespace | 5.3, 6.7, 6.8, 9.4, 9.7 | Persist an AKS conversation; Preserve state after restart; Enforce separate write scopes |
 | Memory: Minimum long-term memory demonstration | 7,9; continuity tests and scope | 8.3, 9.7, 10.1, 11.3 | Demonstrate continuity; Defer broader memory governance |
 | [Delivery](specs/dual-agent-delivery/spec.md): Separate agent implementations; Common functional contract | 5,9; Foundry prompt and AKS deployments | 8.1-8.5, 9.1-9.7, 10.1, 11.5 | Identify both deployments; Update one implementation independently; Execute comparable workflow |
 | Delivery: AKS deployment readiness; No hidden Foundry-hosting substitution | 5-6; cluster workload and guidance | 1.1, 5.1-5.5, 9.6, 11.1 | Deploy healthy AKS workload; Block without AKS prerequisite; Report runtime location |
@@ -310,7 +310,8 @@ This table is the coverage record, not a new runtime gate or a second task syste
 - **[AKS cluster prerequisites are unavailable]** → Mark AKS readiness blocked while allowing
   pre-approval shared-resource work and prompt-agent work to retain their independent status.
 - **[Cosmos DB permissions become overly broad]** → Use separate identities and the narrowest
-  available data-plane scopes; validate effective assignments before activation.
+  available data-plane scopes; validate control-plane assignments before activation and Cosmos
+  data-plane assignments after activation creates their target containers.
 - **[Application Insights captures sensitive prompts or document content]** → Default to
   metadata, identifiers, timings, status, and redacted exception details; require explicit
   approval for content capture.
@@ -333,8 +334,10 @@ This table is the coverage record, not a new runtime gate or a second task syste
 4. Prepare the AKS namespace, workload identity binding, registry access, private dependency
    routes, and deployment pipeline against an approved cluster.
 5. After approval, provision or validate the single Foundry account and account-level networking
-   and models. Onboard the first project against that account and shared assets, then its
-   connections, scoped RBAC, and capability host. Verify a second project without replacing the first.
+   and models. Onboard the first project against that account and shared assets; establish its
+   connections, pre-activation Storage RBAC, and Cosmos DB Operator management-plane role; then
+   activate its capability host and assign Cosmos data-plane RBAC to the provider-created,
+   workspace-prefixed containers. Verify a second project without replacing the first.
 6. Create and ingest the Foundry IQ knowledge source and knowledge base; validate retrieval and
    citations.
 7. Deploy and validate the prompt agent.
