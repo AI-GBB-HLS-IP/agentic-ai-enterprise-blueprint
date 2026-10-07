@@ -30,6 +30,7 @@ foundation_params="${REPO_ROOT}/infra/envs/poc/apim.bicepparam"
 customer_params="${REPO_ROOT}/infra/envs/poc/apim.customer.example.bicepparam"
 integration="${REPO_ROOT}/infra/envs/poc/apim-foundry-integration.bicep"
 integration_params="${REPO_ROOT}/infra/envs/poc/apim-foundry-integration.bicepparam"
+integration_customer_params="${REPO_ROOT}/infra/envs/poc/apim-foundry-integration.customer.example.bicepparam"
 api_module="${REPO_ROOT}/infra/modules/apim/api.bicep"
 validator="${REPO_ROOT}/specs/02-apim-ai-gateway/validation/validate.sh"
 
@@ -72,6 +73,12 @@ assert_present "readEnvironmentVariable\\('FOUNDRY_APPROVED_REGIONS'\\)" "$integ
   "approved Foundry regions must be explicitly supplied"
 assert_absent "FOUNDRY_APPROVED_REGIONS'.*eastus" "$integration_params" \
   "approved Foundry regions must not use a repository default"
+assert_present "readEnvironmentVariable\\('APIM_STAGE1_FOUNDATION_READINESS'\\)" "$integration_customer_params" \
+  "customer Stage 2 parameters must require the Stage 1 readiness handoff"
+assert_present "readEnvironmentVariable\\('FOUNDRY_APPROVED_REGIONS'\\)" "$integration_customer_params" \
+  "customer Stage 2 parameters must require approved Foundry regions"
+assert_present '"publicName":"<public-model-alias>","deploymentName":"<foundry-deployment-name>","enabled":true' "$integration_customer_params" \
+  "customer Stage 2 parameters must document the approved model mapping contract"
 
 echo "==> Validator follows the staged parameter and backend contracts"
 assert_present 'APIM_FOUNDATION_PARAMETERS_FILE' "$validator" \

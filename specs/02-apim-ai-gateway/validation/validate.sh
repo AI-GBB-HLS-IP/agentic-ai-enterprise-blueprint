@@ -421,6 +421,7 @@ validate_integration_offline() {
     "infra/modules/apim/api.bicep"
     "$INTEGRATION_TEMPLATE"
     "$INTEGRATION_PARAMETERS"
+    "infra/envs/poc/apim-foundry-integration.customer.example.bicepparam"
   )
   for file in "${files[@]}"; do require_file "$file"; done
 
@@ -429,6 +430,9 @@ validate_integration_offline() {
   compile_bicep "infra/modules/apim/api.bicep"
   compile_bicep "$INTEGRATION_TEMPLATE"
   compile_params "$INTEGRATION_PARAMETERS"
+  if [[ "$INTEGRATION_PARAMETERS" != "infra/envs/poc/apim-foundry-integration.customer.example.bicepparam" ]]; then
+    compile_params "infra/envs/poc/apim-foundry-integration.customer.example.bicepparam"
+  fi
 
   assert_present 'authentication-managed-identity' "$REPO_ROOT/infra/modules/apim/backend.bicep" "managed-identity backend policy is missing"
   assert_present 'https://cognitiveservices.azure.com' "$REPO_ROOT/infra/modules/apim/backend.bicep" "Cognitive Services audience is missing"

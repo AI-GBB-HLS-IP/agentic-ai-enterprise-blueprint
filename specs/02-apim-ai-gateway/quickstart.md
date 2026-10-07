@@ -124,7 +124,9 @@ Begin only after Stage 1 is ready and customer Foundry governance is complete.
    To keep customer values in a local file instead, copy
    `infra/envs/poc/apim-foundry-integration.customer.example.bicepparam` to
    `infra/envs/poc/apim-foundry-integration.customer.bicepparam` (git-ignored) and point
-   `APIM_INTEGRATION_PARAMETERS_FILE` at the copy.
+   `APIM_INTEGRATION_PARAMETERS_FILE` at the copy. Only placeholder-backed values can be stored in
+   the copy; `APIM_STAGE1_FOUNDATION_READINESS` and `FOUNDRY_APPROVED_REGIONS` still must be
+   exported because they have no defaults.
 2. Run integration preflight:
 
    ```bash
