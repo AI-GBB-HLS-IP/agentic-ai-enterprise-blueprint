@@ -126,7 +126,8 @@ Begin only after Stage 1 is ready and customer Foundry governance is complete.
    `infra/envs/poc/apim-foundry-integration.customer.bicepparam` (git-ignored) and point
    `APIM_INTEGRATION_PARAMETERS_FILE` at the copy. Only placeholder-backed values can be stored in
    the copy; `APIM_STAGE1_FOUNDATION_READINESS` and `FOUNDRY_APPROVED_REGIONS` still must be
-   exported because they have no defaults.
+   exported because they have no defaults. `APIM_RESOURCE_GROUP` must also stay exported, because
+   the `az deployment` commands below read it from the shell to choose the deployment scope.
 2. Run integration preflight:
 
    ```bash
