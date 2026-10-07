@@ -27,6 +27,8 @@
 **/foundry.customer.bicepparam
 **/apim.customer.bicepparam
 !**/apim.customer.example.bicepparam
+**/apim-foundry-integration.customer.bicepparam
+!**/apim-foundry-integration.customer.example.bicepparam
 **/foundry-dns.bicepparam
 !**/foundry-dns.bicepparam.example
 **/foundry-dns.customer.bicepparam
