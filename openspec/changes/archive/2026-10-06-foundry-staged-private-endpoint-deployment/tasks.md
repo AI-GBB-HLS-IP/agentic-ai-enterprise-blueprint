@@ -99,8 +99,10 @@
       `tests/network/run-tests.sh` suite (including `test-generate-brownfield-params.sh` and the
       confidentiality/policy-input scans) — all pass.
 - [x] 6.3 Ran `openspec validate foundry-staged-private-endpoint-deployment` — valid.
-- [ ] 6.4 Flag to the user that live validation (an actual `az deployment group validate`/`create`
+- [x] 6.4 Flag to the user that live validation (an actual `az deployment group validate`/`create`
       run of both phases against a representative brownfield environment) is still required before
       merging, matching the precedent set by `brownfield-apim-network-policy-compliance` — and
       that this is also the point at which the design's open question about private-endpoint
       connection approval (independent of DNS zone group timing) should get answered.
+      (Closed 2026-10-06 on the maintainer's confirmation that the Foundry BYO deployment was live-validated
+      in the customer environment; evidence is held outside this repository.)
