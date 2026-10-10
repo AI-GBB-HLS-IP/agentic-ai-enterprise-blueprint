@@ -1,5 +1,7 @@
 targetScope = 'resourceGroup'
 
+import { existingHostnamesMissing } from '../../modules/apim/hostnames.bicep'
+
 @description('Deployment location (defaults to resource group location).')
 param location string = resourceGroup().location
 
@@ -75,6 +77,24 @@ param publicNetworkAccess string = 'Enabled'
   'Premium'
 ])
 param apimSkuName string = 'Premium'
+
+@description('Custom domain handling: preserve (default) re-sends the live domains captured by scripts/apim/get-existing-hostnames.sh; merge adds hostnameConfigurations to them; replace makes hostnameConfigurations authoritative.')
+@allowed([
+  'preserve'
+  'merge'
+  'replace'
+])
+param hostnameMode string = 'preserve'
+
+@description('JSON array of live custom domains captured by scripts/apim/get-existing-hostnames.sh (APIM_EXISTING_HOSTNAMES_JSON). Required when hostnameMode is preserve or merge; an unset value fails the deployment instead of removing live domains. Use [] only for a first deployment.')
+param existingHostnamesJson string = ''
+
+@description('Declared custom domains (type, hostName, and keyVaultId or certificateKey).')
+param hostnameConfigurations array = []
+
+@description('PFX material keyed by certificateKey: { <key>: { encodedCertificate, certificatePassword } }. Never commit values.')
+@secure()
+param hostnameCertificates object = {}
 
 @description('APIM SKU capacity. Developer requires exactly one unit.')
 @minValue(1)
@@ -225,6 +245,9 @@ var skuCapacityApproved = apimSkuName == 'Developer' && apimSkuCapacity != 1
   : true
 var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && skuCapacityApproved && privateDnsContractValidated
 
+var existingHostnamesValidated = !existingHostnamesMissing(hostnameMode, existingHostnamesJson) ? true : fail('hostnameMode ${hostnameMode} requires existingHostnamesJson (APIM_EXISTING_HOSTNAMES_JSON). Run scripts/apim/get-existing-hostnames.sh first; skipping it would remove live custom domains.')
+var existingHostnameConfigurations = !empty(trim(existingHostnamesJson)) ? json(existingHostnamesJson) : []
+
 module apimMain '../../modules/apim/main.bicep' = {
   name: 'apim-foundation-service'
   params: {
@@ -237,6 +260,10 @@ module apimMain '../../modules/apim/main.bicep' = {
     apimPublicIpAddressId: apimPublicIp.id
     apimSkuName: apimSkuName
     apimSkuCapacity: apimSkuCapacity
+    hostnameMode: hostnameMode
+    existingHostnameConfigurations: existingHostnamesValidated ? existingHostnameConfigurations : []
+    hostnameConfigurations: hostnameConfigurations
+    hostnameCertificates: hostnameCertificates
     publicNetworkAccess: publicNetworkAccess
   }
 }

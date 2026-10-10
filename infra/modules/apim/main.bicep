@@ -1,5 +1,7 @@
 targetScope = 'resourceGroup'
 
+import { resolveHostnames, countDefaultSslBindings } from 'hostnames.bicep'
+
 @description('Deployment location for the APIM gateway.')
 param location string = resourceGroup().location
 
@@ -32,6 +34,24 @@ param apimSkuName string = 'Premium'
 @minValue(1)
 param apimSkuCapacity int = 1
 
+@description('Custom domain handling. preserve: re-send existingHostnameConfigurations only. merge: existing plus declared (declared wins on the same type/hostName, and on the same type for non-Proxy types; a retained Proxy loses defaultSslBinding when a declared Proxy claims it). replace: declared only; an empty list removes all custom domains.')
+@allowed([
+  'preserve'
+  'merge'
+  'replace'
+])
+param hostnameMode string = 'preserve'
+
+@description('Custom domains currently on the live APIM service, captured by scripts/apim/get-existing-hostnames.sh. Key Vault-backed certificates only; PFX-backed domains are never returned by APIM and must be declared.')
+param existingHostnameConfigurations array
+
+@description('Declared custom domains. Each entry: type (Proxy, DeveloperPortal, Management, Scm), hostName, optional defaultSslBinding/negotiateClientCertificate, and either keyVaultId or certificateKey (a key in hostnameCertificates).')
+param hostnameConfigurations array = []
+
+@description('PFX certificate material keyed by certificateKey: { <key>: { encodedCertificate: <base64 pfx>, certificatePassword: <password> } }.')
+@secure()
+param hostnameCertificates object = {}
+
 @description('Public network access state. Classic internal VNet-injected APIM requires Enabled until an approved APIM private-endpoint handoff is implemented.')
 @allowed([
   'Enabled'
@@ -48,6 +68,9 @@ var tlsSecurityProperties = {
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11': 'false'
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168': 'false'
 }
+
+var effectiveHostnameConfigurations = resolveHostnames(hostnameMode, existingHostnameConfigurations, hostnameConfigurations, hostnameCertificates)
+var defaultBindingValidated = countDefaultSslBindings(effectiveHostnameConfigurations) <= 1 ? true : fail('At most one Proxy hostname may set defaultSslBinding to true.')
 
 resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
   name: apimServiceName
@@ -71,6 +94,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
       subnetResourceId: apimSubnetId
     }
     customProperties: tlsSecurityProperties
+    hostnameConfigurations: defaultBindingValidated ? effectiveHostnameConfigurations : []
   }
 }
 

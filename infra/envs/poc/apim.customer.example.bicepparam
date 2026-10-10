@@ -46,3 +46,47 @@ param capacityAlertName = readEnvironmentVariable('APIM_CAPACITY_ALERT_NAME', 'a
 param capacityAlertTags = json(readEnvironmentVariable('APIM_CAPACITY_ALERT_TAGS', '{}'))
 param capacityAlertThreshold = int(readEnvironmentVariable('APIM_CAPACITY_ALERT_THRESHOLD', '60'))
 param capacityAlertActionGroupIds = json(readEnvironmentVariable('APIM_CAPACITY_ALERT_ACTION_GROUP_IDS', '[]'))
+
+// Custom domains. Default 'preserve' re-sends the live domains captured by
+// scripts/apim/get-existing-hostnames.sh into APIM_EXISTING_HOSTNAMES_JSON (run it first, see README).
+// Use 'merge' to add the domains below to the live ones, or 'replace' to make them authoritative.
+// PFX domains are never returned by APIM, so they must be declared with merge or replace.
+param hostnameMode = readEnvironmentVariable('APIM_HOSTNAME_MODE', 'preserve')
+param existingHostnamesJson = readEnvironmentVariable('APIM_EXISTING_HOSTNAMES_JSON', '')
+
+// Generic placeholder hostnames. Each certificate must cover its hostName (subject or SAN).
+param hostnameConfigurations = [
+  {
+    type: 'Proxy' // gateway
+    hostName: 'api.example.com'
+    certificateKey: 'gateway'
+    defaultSslBinding: true
+  }
+  {
+    type: 'DeveloperPortal'
+    hostName: 'developer.example.com'
+    certificateKey: 'developer'
+  }
+  {
+    type: 'Management'
+    hostName: 'management.example.com'
+    certificateKey: 'management'
+  }
+]
+
+// Base64 PFX content and password come from the environment (or a pipeline secret); never commit them.
+// Example: export APIM_GATEWAY_PFX_BASE64="$(base64 < gateway.pfx | tr -d '\n')"
+param hostnameCertificates = {
+  gateway: {
+    encodedCertificate: readEnvironmentVariable('APIM_GATEWAY_PFX_BASE64', '')
+    certificatePassword: readEnvironmentVariable('APIM_GATEWAY_PFX_PASSWORD', '')
+  }
+  developer: {
+    encodedCertificate: readEnvironmentVariable('APIM_DEVELOPER_PFX_BASE64', '')
+    certificatePassword: readEnvironmentVariable('APIM_DEVELOPER_PFX_PASSWORD', '')
+  }
+  management: {
+    encodedCertificate: readEnvironmentVariable('APIM_MANAGEMENT_PFX_BASE64', '')
+    certificatePassword: readEnvironmentVariable('APIM_MANAGEMENT_PFX_PASSWORD', '')
+  }
+}
