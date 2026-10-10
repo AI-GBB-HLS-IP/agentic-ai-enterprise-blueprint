@@ -52,7 +52,7 @@ param capacityAlertActionGroupIds = json(readEnvironmentVariable('APIM_CAPACITY_
 // Use 'merge' to add the domains below to the live ones, or 'replace' to make them authoritative.
 // PFX domains are never returned by APIM, so they must be declared with merge or replace.
 param hostnameMode = readEnvironmentVariable('APIM_HOSTNAME_MODE', 'preserve')
-param existingHostnameConfigurations = json(readEnvironmentVariable('APIM_EXISTING_HOSTNAMES_JSON', '[]'))
+param existingHostnamesJson = readEnvironmentVariable('APIM_EXISTING_HOSTNAMES_JSON', '')
 
 // Generic placeholder hostnames. Each certificate must cover its hostName (subject or SAN).
 param hostnameConfigurations = [
@@ -75,7 +75,7 @@ param hostnameConfigurations = [
 ]
 
 // Base64 PFX content and password come from the environment (or a pipeline secret); never commit them.
-// Example: export APIM_GATEWAY_PFX_BASE64="$(base64 -w0 gateway.pfx)"
+// Example: export APIM_GATEWAY_PFX_BASE64="$(base64 < gateway.pfx | tr -d '\n')"
 param hostnameCertificates = {
   gateway: {
     encodedCertificate: readEnvironmentVariable('APIM_GATEWAY_PFX_BASE64', '')

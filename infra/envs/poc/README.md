@@ -92,7 +92,7 @@ az deployment group create \
 
 # 3. APIM (references the network RG's vnet/subnet and the Foundry RG's account)
 # REQUIRED before every APIM deployment in hostnameMode preserve (default) or merge:
-# capture the live custom domains. Skipping this sends an empty list and removes them.
+# capture the live custom domains. Skipping it fails the deployment (it would otherwise remove them).
 export APIM_EXISTING_HOSTNAMES_JSON="$(scripts/apim/get-existing-hostnames.sh "$APIM_RG" "<apim-name>")"
 
 az deployment group what-if \
@@ -117,13 +117,14 @@ az deployment group create \
 > preserved automatically.
 
 APIM replaces `hostnameConfigurations` on every deployment (including SKU changes), so omitting
-domains removes them. `hostnameMode` controls the result:
+domains removes them. `preserve` and `merge` therefore require the captured list and fail without
+it. `hostnameMode` controls the result:
 
 | Mode | Deployed domains | Use when |
 |---|---|---|
 | `preserve` (default) | Live domains captured by `get-existing-hostnames.sh` | Redeploying without domain changes |
-| `merge` | Captured domains plus `hostnameConfigurations`; a declared entry replaces a captured one with the same type and hostName, and a declared non-`Proxy` type replaces the captured domain of that type | Adding or updating a domain |
-| `replace` | Only `hostnameConfigurations`; an empty list removes all domains | Declarative ownership or removing a domain |
+| `merge` | Captured domains plus `hostnameConfigurations`; a declared entry replaces a captured one with the same type and hostName, and a declared non-`Proxy` type replaces the captured domain of that type. A declared `Proxy` with `defaultSslBinding` clears it on retained `Proxy` domains | Adding or updating a domain |
+| `replace` | Only `hostnameConfigurations`; an empty list removes all domains. Does not need the capture step | Declarative ownership or removing a domain |
 
 1. Run `get-existing-hostnames.sh` before every deployment in `preserve` or `merge` mode (step 3
    above). It prints the JSON array to stdout, so capture it in `APIM_EXISTING_HOSTNAMES_JSON`.

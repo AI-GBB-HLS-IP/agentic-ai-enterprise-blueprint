@@ -16,8 +16,11 @@ and which therefore cannot be read back from the live service.
   domains as JSON for the `APIM_EXISTING_HOSTNAMES_JSON` variable read by the `.bicepparam` files.
 - Add `hostnameMode`/existing-domain parameters to `apim.bicepparam` and gateway, developer portal
   and management PFX examples (placeholder hostnames) to `apim.customer.example.bicepparam`.
+- Fail `preserve`/`merge` deployments when the captured list is not supplied, and fail when more
+  than one `Proxy` domain would set `defaultSslBinding`.
 - Document in `infra/envs/poc/README.md` that the script must run before every deployment in
   `preserve` or `merge` mode.
+- Add a mocked-CLI regression test for the capture script.
 - Out of scope: creating certificates, Key Vault access, private DNS records for custom hostnames,
   and preserving PFX-backed domains automatically (they must be declared).
 
@@ -34,5 +37,5 @@ and which therefore cannot be read back from the live service.
 - `infra/modules/apim/main.bicep`, `infra/envs/poc/apim.bicep`, `apim.bicepparam`,
   `apim.customer.example.bicepparam`, `infra/envs/poc/README.md`
 - New `scripts/apim/get-existing-hostnames.sh`
-- Deployment procedure: the script must run first; skipping it in `preserve`/`merge` mode removes
-  live domains.
+- Deployment procedure: the script must run first; skipping it in `preserve`/`merge` mode fails the
+  deployment.

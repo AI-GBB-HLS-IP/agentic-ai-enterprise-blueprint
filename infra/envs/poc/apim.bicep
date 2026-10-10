@@ -84,8 +84,8 @@ param apimSkuName string = 'Premium'
 ])
 param hostnameMode string = 'preserve'
 
-@description('Live custom domains captured by scripts/apim/get-existing-hostnames.sh before deploying (Key Vault-backed only).')
-param existingHostnameConfigurations array = []
+@description('JSON array of live custom domains captured by scripts/apim/get-existing-hostnames.sh (APIM_EXISTING_HOSTNAMES_JSON). Required when hostnameMode is preserve or merge; an unset value fails the deployment instead of removing live domains. Use [] only for a first deployment.')
+param existingHostnamesJson string = ''
 
 @description('Declared custom domains (type, hostName, and keyVaultId or certificateKey).')
 param hostnameConfigurations array = []
@@ -243,6 +243,11 @@ var skuCapacityApproved = apimSkuName == 'Developer' && apimSkuCapacity != 1
   : true
 var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && skuCapacityApproved && privateDnsContractValidated
 
+var existingHostnamesRequired = hostnameMode != 'replace'
+var existingHostnamesProvided = !empty(trim(existingHostnamesJson))
+var existingHostnamesValidated = (!existingHostnamesRequired || existingHostnamesProvided) ? true : fail('hostnameMode ${hostnameMode} requires existingHostnamesJson (APIM_EXISTING_HOSTNAMES_JSON). Run scripts/apim/get-existing-hostnames.sh first; skipping it would remove live custom domains.')
+var existingHostnameConfigurations = existingHostnamesProvided ? json(existingHostnamesJson) : []
+
 module apimMain '../../modules/apim/main.bicep' = {
   name: 'apim-foundation-service'
   params: {
@@ -256,7 +261,7 @@ module apimMain '../../modules/apim/main.bicep' = {
     apimSkuName: apimSkuName
     apimSkuCapacity: apimSkuCapacity
     hostnameMode: hostnameMode
-    existingHostnameConfigurations: existingHostnameConfigurations
+    existingHostnameConfigurations: existingHostnamesValidated ? existingHostnameConfigurations : []
     hostnameConfigurations: hostnameConfigurations
     hostnameCertificates: hostnameCertificates
     publicNetworkAccess: publicNetworkAccess

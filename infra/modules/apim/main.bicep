@@ -32,7 +32,7 @@ param apimSkuName string = 'Premium'
 @minValue(1)
 param apimSkuCapacity int = 1
 
-@description('Custom domain handling. preserve: re-send existingHostnameConfigurations only. merge: existing plus declared (declared wins on the same type/hostName, and on the same type for non-Proxy types). replace: declared only; an empty list removes all custom domains.')
+@description('Custom domain handling. preserve: re-send existingHostnameConfigurations only. merge: existing plus declared (declared wins on the same type/hostName, and on the same type for non-Proxy types; a retained Proxy loses defaultSslBinding when a declared Proxy claims it). replace: declared only; an empty list removes all custom domains.')
 @allowed([
   'preserve'
   'merge'
@@ -41,7 +41,7 @@ param apimSkuCapacity int = 1
 param hostnameMode string = 'preserve'
 
 @description('Custom domains currently on the live APIM service, captured by scripts/apim/get-existing-hostnames.sh. Key Vault-backed certificates only; PFX-backed domains are never returned by APIM and must be declared.')
-param existingHostnameConfigurations array = []
+param existingHostnameConfigurations array
 
 @description('Declared custom domains. Each entry: type (Proxy, DeveloperPortal, Management, Scm), hostName, optional defaultSslBinding/negotiateClientCertificate, and either keyVaultId or certificateKey (a key in hostnameCertificates).')
 param hostnameConfigurations array = []
@@ -79,10 +79,16 @@ var declaredHostnames = map(hostnameConfigurations, d => union(
 ))
 var declaredNames = map(declaredHostnames, d => toLower('${d.type}|${d.hostName}'))
 var declaredNonProxyTypes = map(filter(declaredHostnames, d => d.type != 'Proxy'), d => d.type)
-var retainedExistingHostnames = filter(existingHostnameConfigurations, e => !contains(declaredNames, toLower('${e.type}|${e.hostName}')) && !contains(declaredNonProxyTypes, e.type))
+var declaredClaimsDefaultBinding = !empty(filter(declaredHostnames, d => d.type == 'Proxy' && d.defaultSslBinding))
+var retainedExistingHostnames = map(
+  filter(existingHostnameConfigurations, e => !contains(declaredNames, toLower('${e.type}|${e.hostName}')) && !contains(declaredNonProxyTypes, e.type)),
+  e => declaredClaimsDefaultBinding && e.type == 'Proxy' ? union(e, { defaultSslBinding: false }) : e
+)
 var effectiveHostnameConfigurations = hostnameMode == 'preserve'
   ? existingHostnameConfigurations
   : hostnameMode == 'merge' ? concat(retainedExistingHostnames, declaredHostnames) : declaredHostnames
+var defaultBindingCount = length(filter(effectiveHostnameConfigurations, h => h.type == 'Proxy' && (h.?defaultSslBinding ?? false)))
+var defaultBindingValidated = defaultBindingCount <= 1 ? true : fail('At most one Proxy hostname may set defaultSslBinding to true.')
 
 resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
   name: apimServiceName
@@ -106,7 +112,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
       subnetResourceId: apimSubnetId
     }
     customProperties: tlsSecurityProperties
-    hostnameConfigurations: effectiveHostnameConfigurations
+    hostnameConfigurations: defaultBindingValidated ? effectiveHostnameConfigurations : []
   }
 }
 

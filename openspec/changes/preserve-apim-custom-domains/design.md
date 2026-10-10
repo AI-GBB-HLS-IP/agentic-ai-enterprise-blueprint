@@ -19,9 +19,13 @@ automatic preservation of PFX domains, an in-template read of the live service.
 - **Read-then-resend via a capture script.** Alternatives rejected: an `existing` reference to the
   same service in the template (self-dependency and fails on first deploy); managing domains
   outside Bicep with `az apim update` (drift, not in the template).
-- **Capture output travels through `APIM_EXISTING_HOSTNAMES_JSON`.** The `.bicepparam` files read
-  it with `readEnvironmentVariable`, defaulting to `[]`, so repository validators compile without a
-  live service and no captured file is written or git-ignored.
+- **Capture output travels through `APIM_EXISTING_HOSTNAMES_JSON` and fails closed.** The
+  `.bicepparam` files read it into the string parameter `existingHostnamesJson` with an empty
+  default. `apim.bicep` uses the existing `fail()` validation pattern to reject an empty value in
+  `preserve`/`merge` mode, so repository validators still compile without a live service while a
+  deployment without the capture step cannot remove domains. An explicit `[]` is accepted.
+- **One default binding.** In `merge`, retained `Proxy` entries lose `defaultSslBinding` when a
+  declared `Proxy` claims it, and the module fails if more than one `Proxy` would set it.
 - **`hostnameMode` over a boolean.** `preserve` re-sends captured domains; `merge` adds declared
   domains (declared wins on type + case-insensitive hostName, and on type for non-`Proxy` types);
   `replace` is declarative.
@@ -33,9 +37,9 @@ automatic preservation of PFX domains, an in-template read of the live service.
 
 ## Risks / Trade-offs
 
-- [Operator skips the script; the empty default removes domains in `preserve`/`merge`] →
-  README marks the step required and `what-if` shows the removal. No in-template guard is
-  possible; residual risk requires user acceptance.
+- [Operator skips the script] → the deployment fails in `preserve`/`merge` mode (fail-closed).
+  Residual: running the script against the wrong service, or supplying `[]` by hand, still
+  removes domains; `what-if` review is the mitigation.
 - [Captured entry rejected by the API, or a captured and a declared entry both set
   `defaultSslBinding`] → script passes the full live object except read-only certificate fields; verify with what-if or a deploy on
   a non-production service.
