@@ -17,7 +17,7 @@ name="${2:?APIM service name required}"
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 
-if ! az apim show -g "$rg" -n "$name" --query "properties.hostnameConfigurations" -o json >"$tmp" 2>"$tmp.err"; then
+if ! az apim show -g "$rg" -n "$name" --query "hostnameConfigurations" -o json >"$tmp" 2>"$tmp.err"; then
   if grep -qi "ResourceNotFound\|could not be found\|not found" "$tmp.err"; then
     rm -f "$tmp.err"
     echo "APIM '$name' not found in '$rg'; returning an empty list." >&2
