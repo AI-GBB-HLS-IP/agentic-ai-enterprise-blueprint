@@ -12,7 +12,7 @@ and which therefore cannot be read back from the live service.
 - Add `hostnameMode` (`preserve` default, `merge`, `replace`), `existingHostnameConfigurations`,
   `hostnameConfigurations` and a secure `hostnameCertificates` object to the APIM module and the
   `apim.bicep` environment template.
-- Add `scripts/apim/get-existing-hostnames.sh`, which prints the live Key Vault-backed custom
+- Add `scripts/apim/get-existing-hostnames.sh`, which prints the live custom
   domains as JSON for the `APIM_EXISTING_HOSTNAMES_JSON` variable read by the `.bicepparam` files.
 - Add `hostnameMode`/existing-domain parameters to `apim.bicepparam` and gateway, developer portal
   and management PFX examples (placeholder hostnames) to `apim.customer.example.bicepparam`.

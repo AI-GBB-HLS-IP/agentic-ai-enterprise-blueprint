@@ -37,7 +37,7 @@ automatic preservation of PFX domains, an in-template read of the live service.
   README marks the step required and `what-if` shows the removal. No in-template guard is
   possible; residual risk requires user acceptance.
 - [Captured entry rejected by the API, or a captured and a declared entry both set
-  `defaultSslBinding`] → script projects only supported fields; verify with what-if or a deploy on
+  `defaultSslBinding`] → script passes the full live object except read-only certificate fields; verify with what-if or a deploy on
   a non-production service.
 - [Merge expression evaluated only by `bicep snapshot`, which does not expand lambdas] → live
   validation task is BLOCKED until a non-production APIM is available.

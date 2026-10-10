@@ -21,19 +21,26 @@ if ! az apim show -g "$rg" -n "$name" -o none 2>/dev/null; then
 fi
 
 # Default *.azure-api.net endpoints are implicit; only custom domains are returned.
+# The full live object is passed through so no domain setting is lost; only the read-only
+# certificate details are removed.
 live="$(az apim show -g "$rg" -n "$name" \
-  --query "properties.hostnameConfigurations[?hostName && !ends_with(hostName, '.azure-api.net') && !ends_with(hostName, '.azure-api.net.')].{type:type,hostName:hostName,keyVaultId:keyVaultId,identityClientId:identityClientId,defaultSslBinding:defaultSslBinding,negotiateClientCertificate:negotiateClientCertificate}" \
+  --query "properties.hostnameConfigurations[?hostName && !ends_with(hostName, '.azure-api.net') && !ends_with(hostName, '.azure-api.net.')]" \
   -o json)"
 
-# APIM never returns uploaded PFX certificates, so domains without keyVaultId cannot be
-# preserved. They are dropped here; declare them in hostnameConfigurations (merge or replace).
+# APIM never returns uploaded PFX certificates, so domains that use one (no keyVaultId and not
+# APIM-managed) cannot be preserved. They are dropped; declare them in hostnameConfigurations.
 python3 -c '
 import json, sys
 live = json.loads(sys.argv[1]) or []
+keep = []
 for e in live:
-    if not e.get("keyVaultId"):
+    if e.get("keyVaultId") or e.get("certificateSource") == "Managed":
+        for k in ("certificate", "certificateStatus"):
+            e.pop(k, None)
+        keep.append(e)
+    else:
         print("WARNING: %s %s uses an uploaded PFX and cannot be preserved; declare it in "
               "hostnameConfigurations with hostnameMode=merge or replace, or it is removed."
               % (e["type"], e["hostName"]), file=sys.stderr)
-print(json.dumps([e for e in live if e.get("keyVaultId")]))
+print(json.dumps(keep))
 ' "$live"

@@ -57,8 +57,9 @@ types with placeholder hostnames, and SHALL take certificate material from envir
 
 ### Requirement: Live domains can be captured before deployment
 The system SHALL provide a script that prints the live custom domains (excluding default
-`*.azure-api.net` endpoints) as a JSON array on stdout, prints `[]` when the service does not
-exist, and omits domains without a Key Vault certificate reference while warning that they must be
+`*.azure-api.net` endpoints) as a JSON array on stdout with every live setting preserved except
+read-only certificate details, prints `[]` when the service does not exist, and omits domains that
+use an uploaded PFX (no Key Vault reference and not APIM-managed) while warning that they must be
 declared.
 
 #### Scenario: First deployment
@@ -66,7 +67,7 @@ declared.
 - **THEN** the script prints `[]` and exits successfully
 
 #### Scenario: Uploaded PFX domain
-- **WHEN** a live domain has no `keyVaultId`
+- **WHEN** a live domain has no `keyVaultId` and is not APIM-managed
 - **THEN** the script omits it from the output and warns on stderr
 
 ### Requirement: Operator guidance states the mandatory capture step
