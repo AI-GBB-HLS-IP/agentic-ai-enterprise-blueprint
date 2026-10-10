@@ -108,6 +108,14 @@ az deployment group create \
 
 ### APIM custom domains
 
+> **Important:** custom domains that use an uploaded PFX certificate cannot be preserved. APIM
+> never returns the certificate or its password, so `get-existing-hostnames.sh` omits them (and
+> prints `[]` when they are the only custom domains). If your APIM has such domains, every
+> deployment removes them unless you re-declare them in `hostnameConfigurations` with the PFX and
+> password and deploy with `hostnameMode=merge` or `replace`. Keep the PFX files and passwords
+> available for each deployment. Only Key Vault-backed and APIM-managed certificate domains are
+> preserved automatically.
+
 APIM replaces `hostnameConfigurations` on every deployment (including SKU changes), so omitting
 domains removes them. `hostnameMode` controls the result:
 
