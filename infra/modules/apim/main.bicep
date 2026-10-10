@@ -32,6 +32,24 @@ param apimSkuName string = 'Premium'
 @minValue(1)
 param apimSkuCapacity int = 1
 
+@description('Custom domain handling. preserve: re-send existingHostnameConfigurations only. merge: existing plus declared (declared wins on the same type/hostName, and on the same type for non-Proxy types). replace: declared only; an empty list removes all custom domains.')
+@allowed([
+  'preserve'
+  'merge'
+  'replace'
+])
+param hostnameMode string = 'preserve'
+
+@description('Custom domains currently on the live APIM service, captured by scripts/apim/get-existing-hostnames.sh. Key Vault-backed certificates only; PFX-backed domains are never returned by APIM and must be declared.')
+param existingHostnameConfigurations array = []
+
+@description('Declared custom domains. Each entry: type (Proxy, DeveloperPortal, Management, Scm), hostName, optional defaultSslBinding/negotiateClientCertificate, and either keyVaultId or certificateKey (a key in hostnameCertificates).')
+param hostnameConfigurations array = []
+
+@description('PFX certificate material keyed by certificateKey: { <key>: { encodedCertificate: <base64 pfx>, certificatePassword: <password> } }.')
+@secure()
+param hostnameCertificates object = {}
+
 @description('Public network access state. Classic internal VNet-injected APIM requires Enabled until an approved APIM private-endpoint handoff is implemented.')
 @allowed([
   'Enabled'
@@ -48,6 +66,23 @@ var tlsSecurityProperties = {
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11': 'false'
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168': 'false'
 }
+
+var declaredHostnames = map(hostnameConfigurations, d => union(
+  {
+    type: d.type
+    hostName: d.hostName
+    defaultSslBinding: d.?defaultSslBinding ?? false
+    negotiateClientCertificate: d.?negotiateClientCertificate ?? false
+  },
+  contains(d, 'keyVaultId') ? { keyVaultId: d.keyVaultId } : {},
+  contains(d, 'certificateKey') ? hostnameCertificates[d.certificateKey] : {}
+))
+var declaredNames = map(declaredHostnames, d => toLower('${d.type}|${d.hostName}'))
+var declaredNonProxyTypes = map(filter(declaredHostnames, d => d.type != 'Proxy'), d => d.type)
+var retainedExistingHostnames = filter(existingHostnameConfigurations, e => !contains(declaredNames, toLower('${e.type}|${e.hostName}')) && !contains(declaredNonProxyTypes, e.type))
+var effectiveHostnameConfigurations = hostnameMode == 'preserve'
+  ? existingHostnameConfigurations
+  : hostnameMode == 'merge' ? concat(retainedExistingHostnames, declaredHostnames) : declaredHostnames
 
 resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
   name: apimServiceName
@@ -71,6 +106,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
       subnetResourceId: apimSubnetId
     }
     customProperties: tlsSecurityProperties
+    hostnameConfigurations: effectiveHostnameConfigurations
   }
 }
 

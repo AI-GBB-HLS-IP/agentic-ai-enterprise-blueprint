@@ -76,6 +76,24 @@ param publicNetworkAccess string = 'Enabled'
 ])
 param apimSkuName string = 'Premium'
 
+@description('Custom domain handling: preserve (default) re-sends the live domains captured by scripts/apim/get-existing-hostnames.sh; merge adds hostnameConfigurations to them; replace makes hostnameConfigurations authoritative.')
+@allowed([
+  'preserve'
+  'merge'
+  'replace'
+])
+param hostnameMode string = 'preserve'
+
+@description('Live custom domains captured by scripts/apim/get-existing-hostnames.sh before deploying (Key Vault-backed only).')
+param existingHostnameConfigurations array = []
+
+@description('Declared custom domains (type, hostName, and keyVaultId or certificateKey).')
+param hostnameConfigurations array = []
+
+@description('PFX material keyed by certificateKey: { <key>: { encodedCertificate, certificatePassword } }. Never commit values.')
+@secure()
+param hostnameCertificates object = {}
+
 @description('APIM SKU capacity. Developer requires exactly one unit.')
 @minValue(1)
 param apimSkuCapacity int = 1
@@ -237,6 +255,10 @@ module apimMain '../../modules/apim/main.bicep' = {
     apimPublicIpAddressId: apimPublicIp.id
     apimSkuName: apimSkuName
     apimSkuCapacity: apimSkuCapacity
+    hostnameMode: hostnameMode
+    existingHostnameConfigurations: existingHostnameConfigurations
+    hostnameConfigurations: hostnameConfigurations
+    hostnameCertificates: hostnameCertificates
     publicNetworkAccess: publicNetworkAccess
   }
 }

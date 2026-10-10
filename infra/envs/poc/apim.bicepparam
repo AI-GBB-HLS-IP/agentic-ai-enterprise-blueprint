@@ -25,6 +25,10 @@ param publicNetworkAccess = readEnvironmentVariable('APIM_PUBLIC_NETWORK_ACCESS'
 param apimSkuName = readEnvironmentVariable('APIM_SKU_NAME', 'Premium')
 param apimSkuCapacity = int(readEnvironmentVariable('APIM_SKU_CAPACITY', '1'))
 
+// Custom domains: run scripts/apim/get-existing-hostnames.sh before every deployment (see README).
+param hostnameMode = readEnvironmentVariable('APIM_HOSTNAME_MODE', 'preserve')
+param existingHostnameConfigurations = json(readEnvironmentVariable('APIM_EXISTING_HOSTNAMES_JSON', '[]'))
+
 param privateDnsZoneName = readEnvironmentVariable('APIM_PRIVATE_DNS_ZONE_NAME', 'azure-api.net')
 param privateDnsDeploymentMode = readEnvironmentVariable('APIM_PRIVATE_DNS_MODE', 'blueprint')
 param privateDnsRecordName = readEnvironmentVariable('APIM_DNS_RECORD_NAME', 'apim-agent-factory-private-poc')
