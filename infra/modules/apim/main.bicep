@@ -1,5 +1,7 @@
 targetScope = 'resourceGroup'
 
+import { resolveHostnames, countDefaultSslBindings } from 'hostnames.bicep'
+
 @description('Deployment location for the APIM gateway.')
 param location string = resourceGroup().location
 
@@ -67,28 +69,8 @@ var tlsSecurityProperties = {
   'Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168': 'false'
 }
 
-var declaredHostnames = map(hostnameConfigurations, d => union(
-  {
-    type: d.type
-    hostName: d.hostName
-    defaultSslBinding: d.?defaultSslBinding ?? false
-    negotiateClientCertificate: d.?negotiateClientCertificate ?? false
-  },
-  contains(d, 'keyVaultId') ? { keyVaultId: d.keyVaultId } : {},
-  contains(d, 'certificateKey') ? hostnameCertificates[d.certificateKey] : {}
-))
-var declaredNames = map(declaredHostnames, d => toLower('${d.type}|${d.hostName}'))
-var declaredNonProxyTypes = map(filter(declaredHostnames, d => d.type != 'Proxy'), d => d.type)
-var declaredClaimsDefaultBinding = !empty(filter(declaredHostnames, d => d.type == 'Proxy' && d.defaultSslBinding))
-var retainedExistingHostnames = map(
-  filter(existingHostnameConfigurations, e => !contains(declaredNames, toLower('${e.type}|${e.hostName}')) && !contains(declaredNonProxyTypes, e.type)),
-  e => declaredClaimsDefaultBinding && e.type == 'Proxy' ? union(e, { defaultSslBinding: false }) : e
-)
-var effectiveHostnameConfigurations = hostnameMode == 'preserve'
-  ? existingHostnameConfigurations
-  : hostnameMode == 'merge' ? concat(retainedExistingHostnames, declaredHostnames) : declaredHostnames
-var defaultBindingCount = length(filter(effectiveHostnameConfigurations, h => h.type == 'Proxy' && (h.?defaultSslBinding ?? false)))
-var defaultBindingValidated = defaultBindingCount <= 1 ? true : fail('At most one Proxy hostname may set defaultSslBinding to true.')
+var effectiveHostnameConfigurations = resolveHostnames(hostnameMode, existingHostnameConfigurations, hostnameConfigurations, hostnameCertificates)
+var defaultBindingValidated = countDefaultSslBindings(effectiveHostnameConfigurations) <= 1 ? true : fail('At most one Proxy hostname may set defaultSslBinding to true.')
 
 resource apimService 'Microsoft.ApiManagement/service@2024-05-01' = {
   name: apimServiceName

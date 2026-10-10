@@ -17,6 +17,7 @@
 - [x] 3.2 Demote retained `Proxy` `defaultSslBinding` when a declared `Proxy` claims it and fail on more than one; verify with `bicep test` assertions across preserve, replace, merge (case-insensitive replace, Management replace, default demotion) and two declared defaults
 - [x] 3.3 Use portable base64 in the example (`base64 < file | tr -d '\n'`); verify no `base64 -w0` remains
 - [x] 3.4 Add `tests/foundry/test-apim-hostname-capture.sh` (mocked `az`) and verify it passes, fails when `az` errors are swallowed, and runs in `tests/foundry/run-tests.sh`
+- [x] 3.5 Extract the mode/merge/default-binding/fail-closed logic into `infra/modules/apim/hostnames.bicep` (exported functions used by `main.bicep` and `apim.bicep`) and add persistent `bicep test` assertions in `tests/network/bicep/hostnames.tests.bicep`, run by `tests/network/test-apim-hostnames.sh` in CI; verify the suite passes on the pinned Bicep and fails when default-binding demotion is removed
 
 ## 4. Live validation (BLOCKED until a non-production APIM is available)
 

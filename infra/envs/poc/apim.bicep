@@ -1,5 +1,7 @@
 targetScope = 'resourceGroup'
 
+import { existingHostnamesMissing } from '../../modules/apim/hostnames.bicep'
+
 @description('Deployment location (defaults to resource group location).')
 param location string = resourceGroup().location
 
@@ -243,10 +245,8 @@ var skuCapacityApproved = apimSkuName == 'Developer' && apimSkuCapacity != 1
   : true
 var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && skuCapacityApproved && privateDnsContractValidated
 
-var existingHostnamesRequired = hostnameMode != 'replace'
-var existingHostnamesProvided = !empty(trim(existingHostnamesJson))
-var existingHostnamesValidated = (!existingHostnamesRequired || existingHostnamesProvided) ? true : fail('hostnameMode ${hostnameMode} requires existingHostnamesJson (APIM_EXISTING_HOSTNAMES_JSON). Run scripts/apim/get-existing-hostnames.sh first; skipping it would remove live custom domains.')
-var existingHostnameConfigurations = existingHostnamesProvided ? json(existingHostnamesJson) : []
+var existingHostnamesValidated = !existingHostnamesMissing(hostnameMode, existingHostnamesJson) ? true : fail('hostnameMode ${hostnameMode} requires existingHostnamesJson (APIM_EXISTING_HOSTNAMES_JSON). Run scripts/apim/get-existing-hostnames.sh first; skipping it would remove live custom domains.')
+var existingHostnameConfigurations = !empty(trim(existingHostnamesJson)) ? json(existingHostnamesJson) : []
 
 module apimMain '../../modules/apim/main.bicep' = {
   name: 'apim-foundation-service'
