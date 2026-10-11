@@ -8,10 +8,11 @@ certificate-validation, or evidence requirements for integration readiness.
 ## ADDED Requirements
 
 ### Requirement: Explicit endpoint modes
-The foundation SHALL support `built-in` (default) and `custom` endpoint modes independently
-of DNS ownership and certificate handling. Custom mode SHALL require gateway, developer
-portal, and management hostnames and SHALL exclude built-in legacy portal and SCM from
-its client-access gate, without changing platform network dependencies.
+The foundation SHALL support `built-in` (default) with blueprint or external DNS and
+`custom` with external DNS only; custom/blueprint SHALL fail explicitly. Custom mode
+SHALL require gateway, developer portal, and management hostnames and SHALL exclude
+built-in legacy portal and SCM from its client-access gate. Certificate handling and
+platform network dependencies SHALL remain unchanged.
 
 #### Scenario: Existing standard configuration
 - **WHEN** endpoint mode is omitted
@@ -24,6 +25,11 @@ its client-access gate, without changing platform network dependencies.
 #### Scenario: Incomplete custom configuration
 - **WHEN** a required custom hostname is missing or is a URL, wildcard, or invalid hostname
 - **THEN** configuration fails explicitly rather than falling back to built-in names.
+
+#### Scenario: Unsupported custom DNS ownership
+- **WHEN** custom endpoint mode is combined with blueprint DNS ownership
+- **THEN** configuration fails explicitly without creating corporate DNS resources or
+  falling back to built-in endpoints.
 
 ### Requirement: Live endpoint binding verification
 Runtime validation SHALL match each selected custom hostname to its endpoint type on the

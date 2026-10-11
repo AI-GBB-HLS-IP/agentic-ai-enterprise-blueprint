@@ -10,8 +10,10 @@ unconditional built-in checks unsuitable for those configurations.
 
 ## What Changes
 
-- Add explicit endpoint selection (`built-in`, default; `custom`) independently of DNS resource
-  ownership (`blueprint`, `external`) and certificate handling (`preserve`, `merge`, `replace`).
+- Add explicit endpoint selection (`built-in`, default; `custom`) as a separate input from DNS
+  ownership and certificate handling. Built-in mode supports `blueprint` or `external` DNS;
+  custom mode requires `external` DNS and rejects `custom`/`blueprint`. Certificate handling
+  (`preserve`, `merge`, `replace`) remains unchanged.
 - Custom mode requires configured gateway, developer portal, and management hostnames and
   excludes built-in legacy portal and SCM from the client-access gate.
 - Keep built-in/direct-private validation compatible. Custom mode supports direct-private

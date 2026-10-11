@@ -99,12 +99,12 @@ scenarios are covered by the named tasks.
 
 | Requirement in `specs/apim-endpoint-access/spec.md` | Decisions | Affected surfaces/modes | Tasks | Acceptance scenarios |
 |---|---|---|---|---|
-| Explicit endpoint modes | D1, D2 | Foundation Bicep, both parameter files; built-in/blueprint, built-in/external, custom/external | 1.1, 2.1, 4.1 | Existing standard configuration; Built-in names are blocked; Incomplete custom configuration |
+| Explicit endpoint modes | D1, D2 | Foundation Bicep, both parameter files, runtime endpoint selection; built-in/blueprint, built-in/external, custom/external; custom/blueprint rejected | 1.1, 2.1, 2.2, 4.1 | Existing standard configuration; Built-in names are blocked; Incomplete custom configuration; Unsupported custom DNS ownership |
 | Live endpoint binding verification | D2, D3 | Effective/live bindings, foundation/all runtime validator | 2.1, 2.2, 4.1 | Valid custom bindings; Wrong service or invalid certificate |
 | Access-path-specific verification | D1, D3 | Direct and corporate branches, evidence validation | 2.2, 4.1, 4.2 | Direct custom access; Approved intermediary; Unproven intermediary |
-| Context-bound readiness handoff | D2, D4 | DNS module, foundation outputs, Stage 2 preflight/Bicep | 2.1, 3.1, 4.1 | Custom readiness completed; Changed selection or stale evidence; Legacy standard handoff |
-| Selected gateway integration | D4 | Integration/all requests, URL output/overrides, client examples | 3.1, 3.2, 4.1, 4.2 | Custom gateway request; Conflicting override |
-| Explicit operational limits | D5 | Chapter 02 spec/plan/tasks/contracts, README, validation docs, related active artifacts | 1.1, 3.2, 4.2 | Custom-only organization |
+| Context-bound readiness handoff | D2, D3, D4 | DNS module, foundation outputs, runtime evidence validation, Stage 2 preflight/Bicep | 2.1, 2.2, 3.1, 4.1 | Custom readiness completed; Changed selection or stale evidence; Legacy standard handoff |
+| Selected gateway integration | D2, D4 | Foundation endpoint selection, integration/all requests, URL output/overrides, client examples | 2.1, 2.2, 3.1, 3.2, 4.1, 4.2 | Custom gateway request; Conflicting override |
+| Explicit operational limits | D3, D5 | Chapter 02 spec/plan/tasks/contracts, README, runtime evidence guidance, validation docs, related active artifacts | 1.1, 2.2, 3.2, 4.2 | Custom-only organization |
 
 Affected callers include `foundation`, `integration`, `all`, offline compile/static checks,
 runtime checks, foundation handoff consumers, default and overridden integration requests,

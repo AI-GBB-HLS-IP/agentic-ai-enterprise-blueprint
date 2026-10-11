@@ -15,7 +15,8 @@
   in the foundation and DNS module. Wire both foundation parameter files; retain the existing
   built-in output and certificate helpers. Update foundation documentation concurrently.
   Verify Bicep compile plus evaluated tests for built-in default, both DNS owners,
-  custom/external/direct, custom/external/corporate, invalid combinations/hostnames,
+  custom/external/direct, custom/external/corporate, explicit custom/blueprint rejection,
+  other invalid combinations/hostnames,
   absent evidence pending, matching evidence ready, and mismatched evidence rejection.
 - [ ] 2.2 After 2.1, update foundation/all runtime validation for role-matched live bindings,
   direct-private equality, and corporate evidence plus DNS/TLS. Document the evidence JSON
