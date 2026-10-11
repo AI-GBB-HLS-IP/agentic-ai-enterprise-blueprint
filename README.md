@@ -1,5 +1,21 @@
 # Agentic AI Enterprise Blueprint — Build Governed Agent Platforms on Azure
 
+## Maintaining OpenSpec Workflows
+
+The checked-in OpenSpec prompts and skills are generated from OpenSpec 1.14.1
+with repository customizations. Upgrades can overwrite those customizations.
+Follow the [OpenSpec Upgrade Policy](.github/copilot-instructions.md#openspec-upgrade-policy):
+review the generated diff, reconcile the customizations, then run
+`./scripts/openspec/check-workflow-customizations.sh` and
+`./tests/openspec/test-workflow-customizations.sh`. PR validation runs both.
+This detects known drift; it does not prevent local overwrites or reapply edits.
+
+Chapter specs remain under root `specs/`, not upstream `openspec/specs/`.
+OpenSpec's main-spec CLI inventory/validation does not cover those chapters.
+Explore and sync therefore inspect them directly; ambiguous chapter mappings
+require approval, and unresolved checks block sync rather than being reported
+as passed. No chapter migration is part of this workflow refresh.
+
 ## Vision
 
 > Build an enterprise AI agent platform where **developers ship fast** and **security teams sleep well** — not by choosing one over the other, but by making governed development the path of least resistance.

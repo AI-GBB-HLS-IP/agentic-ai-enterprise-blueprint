@@ -86,6 +86,34 @@ on a coherent revision, and only then request another review. New mechanisms req
 integration tasks, and acceptance coverage; do not let comment-by-comment fixes silently expand
 the approved scope.
 
+## OpenSpec Upgrade Policy
+
+OpenSpec prompts in `.github/prompts/opsx-*.prompt.md` and skills in
+`.github/skills/openspec-*/SKILL.md` are generated files. `openspec update` can
+overwrite repository customizations; neither a version marker nor `--force`
+preserves them. This policy and `openspec/config.yaml` are the durable repository
+instructions, not generated workflow output.
+
+- After an upgrade, reconcile the generated diff with the previous revision before
+  committing. Preserve unrestricted skill tool access: do not add `allowed-tools`
+  restrictions that prevent code/file edits, investigation, or supported archiving.
+- Keep repo-local chapter specs in root `specs/`; never silently create a second
+  main-spec tree under `openspec/specs/`. Explicitly selected standalone stores
+  keep their upstream layout. Inspect root chapter specs directly during discovery.
+- Use synchronous, verified spec merging before
+  `openspec archive "<name>" --yes --skip-specs --json`. Require successful CLI
+  exit and valid JSON; do not substitute a manual directory move.
+- Root chapter formats and capability names may differ from OpenSpec deltas.
+  Obtain explicit mappings and acceptance criteria before ambiguous merges.
+  OpenSpec CLI main-spec inventory/validation does not cover root `specs/`:
+  report that limitation, use manual semantic read-back and the readiness gate,
+  and mark unresolved required checks `BLOCKED`, not passed.
+- Run `./scripts/openspec/check-workflow-customizations.sh` and
+  `./tests/openspec/test-workflow-customizations.sh` after updating. The PR
+  validation workflow runs both. The guard detects known customization drift;
+  it neither prevents local overwrites nor automatically reapplies edits, and
+  passing it is not proof of semantic correctness or agent execution behavior.
+
 ## Completion
 
 Before handing off work, confirm:

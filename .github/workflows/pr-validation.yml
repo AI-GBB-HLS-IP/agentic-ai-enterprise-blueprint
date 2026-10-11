@@ -27,6 +27,19 @@ env:
   BICEP_VERSION: v0.46.1
 
 jobs:
+  openspec-customizations:
+    name: OpenSpec customization guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Check workflow customizations
+        run: ./scripts/openspec/check-workflow-customizations.sh
+
+      - name: Test customization drift detection
+        run: ./tests/openspec/test-workflow-customizations.sh
+
   confidentiality:
     name: Confidentiality scan
     runs-on: ubuntu-latest
