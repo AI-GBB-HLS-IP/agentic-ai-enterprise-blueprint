@@ -20,10 +20,15 @@ unconditional built-in checks unsuitable for those configurations.
   access or evidence-backed corporate routing, without accepting arbitrary addresses or a
   successful HTTP response as proof of APIM identity.
 - Emit a selected-endpoint handoff and record validation evidence bound to the selected APIM,
-  endpoints, and access path. Require explicit `status: pass` for custom readiness; failed,
+  endpoints, and access path. Extend the generic validation contract with every exact base
+  field, including `timestampUtc`; keep generic fields redacted and live extension context
+  only in untracked deployment inputs/handoffs and the customer evidence store.
+  Require explicit `status: pass` and complete valid evidence for custom readiness; failed,
   blocked, or missing outcomes cannot advance readiness. Preserve Stage 2's readiness prerequisite.
 - Use the selected gateway for integration requests and dependent consumers; allow explicit
   overrides only when consistent with the selected live binding and HTTPS port 443.
+  Inventory existing project/portal onboarding, agent/MCP/A2A/UI, and CI URL consumers in
+  design D5; preserve route suffixes and independent API Center/Foundry backend endpoints.
 - Update chapter specification, contracts, operator instructions, examples, and regressions.
 - No certificate lifecycle change, corporate DNS/proxy provisioning, platform dependency
   firewall changes, or claim that client access proves APIM-to-Foundry connectivity.

@@ -63,11 +63,51 @@ APIM, in addition to live binding, DNS, and TLS checks. An IP range SHALL NOT im
 - **WHEN** endpoints resolve to shared or other addresses but matching routing evidence is absent
 - **THEN** readiness remains BLOCKED even when an HTTPS root request returns a response.
 
+### Requirement: Generic endpoint evidence fields
+`endpointValidationEvidence` SHALL extend `specs/00-network-foundation/contracts/validation-evidence.md`
+with every exact base field: `validationType`, `status`, `owner`, `scope`,
+`approvalReference`, `evidenceSummary`, and `timestampUtc`. Base fields SHALL remain
+generic/redacted and non-empty strings. `validationType` SHALL be `apim-endpoint-access`;
+`timestampUtc` SHALL be an ISO-8601 UTC validation-event timestamp.
+
+#### Scenario: Conforming generic evidence
+- **WHEN** an endpoint record includes all exact base fields with valid values
+- **THEN** the base schema passes without treating schema conformance alone as readiness
+  or authenticating operator approval.
+
+#### Scenario: Generic evidence contract enforced
+- **WHEN** custom evidence claims `pass` but omits a base field, uses an empty value or
+  wrong field type, has an incorrect `validationType`, substitutes `timestamp` or
+  `validationTimestamp` for `timestampUtc`, or has an invalid UTC timestamp
+- **THEN** validation rejects it as readiness proof; foundation rejects missing or
+  structurally invalid fields and Stage 2 preflight rejects the handoff even if overall
+  status claims deployed.
+
+### Requirement: Deployment endpoint evidence extension
+Evidence SHALL include `apimServiceId`, `endpointMode`, `endpointAccessPath`,
+`selectedHostnames`, and non-placeholder `validationReference`. Corporate routing SHALL
+require `owner: network-owner` and separate non-placeholder `routingApprovalReference`.
+Required extension values SHALL be non-empty strings except the hostname-map object.
+Live context SHALL remain in untracked deployment inputs/handoffs and the customer
+evidence store; committed examples SHALL remain redacted.
+
+#### Scenario: Complete deployment evidence
+- **WHEN** deployment evidence includes all required extension fields matching the service,
+  mode, path, and exact gateway/developerPortal/management hostname map
+- **THEN** its context matches the selected configuration, with corporate routing approval
+  retained separately from the generic `approvalReference`.
+
+#### Scenario: Invalid deployment evidence
+- **WHEN** a required extension field or hostname-map entry is absent, empty, or of the
+  wrong type, or corporate evidence lacks `owner: network-owner` or `routingApprovalReference`
+- **THEN** foundation cannot advance readiness and Stage 2 rejects the handoff even if
+  its overall status claims deployed.
+
 ### Requirement: Context-bound readiness handoff
-The handoff SHALL identify endpoint mode, access path, selected hostnames, APIM service,
-excluded endpoints, and validation evidence. Custom readiness SHALL require matching evidence
-with explicit `status: pass`; `fail`, `blocked`, absent, or invalid outcomes SHALL NOT advance
-readiness. Stage 2 SHALL reject mismatched or non-pass custom handoffs and preserve existing
+The handoff SHALL identify mode, access path, selected hostnames, APIM service, exclusions,
+and evidence. Custom readiness SHALL require complete, valid, matching evidence with
+`status: pass`; non-pass, absent, or invalid evidence SHALL NOT advance readiness.
+Stage 2 SHALL reject mismatched or invalid/non-pass custom handoffs and preserve existing
 readiness checks. Legacy handoffs SHALL remain usable only with built-in/direct-private inputs.
 
 #### Scenario: Custom readiness completed
@@ -96,6 +136,12 @@ separately from client-to-APIM connectivity.
 #### Scenario: Custom gateway request
 - **WHEN** integration runs with a validated custom handoff
 - **THEN** its smoke request targets the custom gateway and verifies an actual approved-model response.
+
+#### Scenario: Selected endpoint consumers
+- **WHEN** an operator follows the inventoried project, portal, agent, and CI examples in custom mode
+- **THEN** their APIM client settings and generated onboarding URLs use the selected gateway
+  without a built-in fallback, API Center portal metadata uses the selected developer portal,
+  and independent API Center/Foundry backend URLs and existing route suffixes are unchanged.
 
 #### Scenario: Conflicting override
 - **WHEN** a request override names a different gateway or incorrect API path
