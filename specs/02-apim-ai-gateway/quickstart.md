@@ -105,22 +105,37 @@ endpoints remain internal instead of treating the public IP resource itself as e
 
 ## Optional Enterprise DNS Extension
 
-The default private `azure-api.net` zone supports the deployment VNet and explicitly linked
-networks. For broader enterprise resolution, separately obtain approved custom domains and CA
-certificates, configure APIM custom hostnames, and request internal DNS A records to the APIM
-private VIP.
+Built-in/direct-private is the default with either DNS owner. For custom-only client access,
+select `APIM_ENDPOINT_MODE=custom`, `APIM_PRIVATE_DNS_MODE=external`, and the three
+`APIM_CUSTOM_ENDPOINT_HOSTNAMES` roles: gateway, developerPortal, management.
+Use direct-private DNS to the live VIP or explicit corporate-routed network-owner approval.
+Custom creates no corporate DNS resources and excludes only legacy portal/SCM client checks;
+platform dependencies and separate private Foundry acceptance remain unchanged.
+Follow [endpoint selection/evidence](../../infra/envs/poc/README.md#apim-client-endpoint-selection-stage-1)
+for every exact base/extension field, mandatory capture/manual PFX resupply, and revalidation.
+Only complete matching pass evidence advances readiness; absent/non-pass evidence cannot.
+
+Record `endpointAccess` from the exact validated foundation deployment as
+`APIM_STAGE1_ENDPOINT_ACCESS` and set
+`APIM_GATEWAY_URL="$(jq -er '.selectedGatewayUrl' <<<"$APIM_STAGE1_ENDPOINT_ACCESS")"`.
+Use that value in requests/onboarding/clients without a custom built-in fallback.
 
 ## Stage 2 — Foundry Integration
 
 Begin only after Stage 1 is ready and customer Foundry governance is complete.
 
 1. Export the validated Stage 1 outputs as `APIM_STAGE1_SERVICE_ID` and the JSON
-   `APIM_STAGE1_FOUNDATION_READINESS`, set
+   `APIM_STAGE1_FOUNDATION_READINESS` and selected `APIM_STAGE1_ENDPOINT_ACCESS`, set
    `APIM_INTEGRATION_PARAMETERS_FILE='infra/envs/poc/apim-foundry-integration.bicepparam'`, and
    populate the selected parameter file's environment-backed values for the Foundry account,
    governance evidence, explicitly approved regions, approved model mappings, and API policy
    settings. Values with empty defaults, including the Stage 1 handoff and governance evidence,
    must be exported; they cannot be inferred from the parameter file name.
+   Retain Stage 1's `APIM_ENDPOINT_MODE`, `APIM_ENDPOINT_ACCESS_PATH`, and
+   `APIM_CUSTOM_ENDPOINT_HOSTNAMES`. Legacy empty endpoint metadata is built-in/direct-private
+   only. Custom evidence must remain complete, valid, matching, and pass even when overall
+   readiness says deployed. `APIM_INTEGRATION_REQUEST_URL` overrides must match selected
+   HTTPS host/configured API path, no userinfo, and implicit or explicit port 443.
    To keep customer values in a local file instead, copy
    `infra/envs/poc/apim-foundry-integration.customer.example.bicepparam` to
    `infra/envs/poc/apim-foundry-integration.customer.bicepparam` (git-ignored) and point

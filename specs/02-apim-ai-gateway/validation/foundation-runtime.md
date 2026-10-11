@@ -15,8 +15,11 @@ Required live evidence:
 - customer subnet controls and active route-table profile;
 - internal APIM and system identity using the selected supported tier;
 - approved classic platform public IP;
-- private DNS A records for gateway, developer, portal, management, and SCM;
-- private resolution/reachability from an authorized internal network;
+- five built-in endpoint records/checks by default, or the three selected custom
+  Proxy/DeveloperPortal/Management bindings with external DNS and no built-in probes;
+- direct-private resolution to live VIPs and TLS, or measured custom DNS/TLS plus retained
+  network-owner approval of the intended Internal APIM upstream and corporate client path;
+- complete matching pass endpoint evidence and handoff from the exact deployed foundation;
 - TLS and weak-protocol settings;
 - AllLogs/AllMetrics diagnostic destination, including policy-owned settings;
 - average capacity alert threshold of at least 60 percent.
@@ -33,3 +36,34 @@ APIM_VALIDATE_ENDPOINT_REACHABILITY=true \
 No Foundry resource is required for this evidence.
 See [`stage1-smoke-test.md`](stage1-smoke-test.md) for prerequisites, deployment, expected checks,
 and the evidence return format.
+
+Custom evidence extends the generic contract with all seven exact base fields, including
+ISO-8601 UTC `timestampUtc`, and all deployment extension fields documented in
+[`README.md`](README.md#selected-endpoint-validation). Keep base fields redacted and live
+extension context untracked. Missing/invalid/non-pass evidence cannot advance custom readiness.
+Legacy portal/SCM client exclusions do not remove platform dependencies. HTTP root success
+is transport, not origin/model proof; separate Foundry acceptance remains required.
+
+Redacted corporate evidence template (placeholders are intentionally not deployment-ready):
+
+```json
+{
+  "validationType": "apim-endpoint-access",
+  "status": "blocked",
+  "owner": "network-owner",
+  "scope": "apim-foundation",
+  "approvalReference": "approval-generic-001",
+  "evidenceSummary": "Authorized endpoint and routing validation pending.",
+  "timestampUtc": "2026-10-11T00:00:00Z",
+  "apimServiceId": "<selected-apim-service-id>",
+  "endpointMode": "custom",
+  "endpointAccessPath": "corporate-routed",
+  "selectedHostnames": {
+    "gateway": "api.example.com",
+    "developerPortal": "developer.example.com",
+    "management": "management.example.com"
+  },
+  "validationReference": "<retained-validation-record>",
+  "routingApprovalReference": "<network-owner-route-approval>"
+}
+```

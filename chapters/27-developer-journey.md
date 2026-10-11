@@ -89,7 +89,7 @@ Business Justification: >
 Welcome to the Secure Agent Factory!
 
 Your project: agent-customer-support-dev
-APIM Endpoint: https://apim-agent-factory.azure-api.net
+APIM Endpoint: <validated Chapter 02 selectedGatewayUrl>
 
 Available models (through APIM):
   • gpt-4o-mini → /models/deployments/gpt-4o-mini/chat/completions
@@ -120,7 +120,8 @@ pip install -r requirements.txt
 
 # Configure from onboarding package
 cp .env.template .env
-# Fill in APIM_GATEWAY_URL, AZURE_CLIENT_ID, etc.
+# Fill APIM_GATEWAY_URL from Chapter 02 endpointAccess.selectedGatewayUrl; no built-in fallback.
+# Fill in AZURE_CLIENT_ID and the other onboarding settings.
 ```
 
 ### What the Platform Guarantees (Behind the Scenes)

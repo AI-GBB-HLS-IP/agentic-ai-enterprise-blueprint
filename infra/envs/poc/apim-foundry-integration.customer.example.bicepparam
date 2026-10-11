@@ -12,6 +12,10 @@ param apimServiceName = readEnvironmentVariable('APIM_SERVICE_NAME', '<stage-1-a
 param stage1ApimServiceId = readEnvironmentVariable('APIM_STAGE1_SERVICE_ID', '<stage-1-apim-resource-id>')
 // JSON handoff recorded after Stage 1 validation. Regenerate it after any APIM SKU change.
 param stage1FoundationReadiness = json(readEnvironmentVariable('APIM_STAGE1_FOUNDATION_READINESS'))
+param stage1EndpointAccess = json(readEnvironmentVariable('APIM_STAGE1_ENDPOINT_ACCESS', '{}'))
+param endpointMode = readEnvironmentVariable('APIM_ENDPOINT_MODE', 'built-in')
+param endpointAccessPath = readEnvironmentVariable('APIM_ENDPOINT_ACCESS_PATH', 'direct-private')
+param customEndpointHostnames = json(readEnvironmentVariable('APIM_CUSTOM_ENDPOINT_HOSTNAMES', '{}'))
 
 param foundryResourceGroupName = readEnvironmentVariable('FOUNDRY_RESOURCE_GROUP', '<foundry-resource-group>')
 param foundryAccountName = readEnvironmentVariable('FOUNDRY_ACCOUNT_NAME', '<foundry-account-name>')

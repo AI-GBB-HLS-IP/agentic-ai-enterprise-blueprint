@@ -44,6 +44,11 @@ Developer pushes code
 
 ## Prerequisites
 
+Set the workflow variable `APIM_GATEWAY_URL` to the validated Chapter 02
+`endpointAccess.selectedGatewayUrl`. Model/evaluator requests and deployment reports use that
+same selected value, without a built-in fallback. Keep route suffixes unchanged; these future
+pipeline examples do not establish live SDK/topology acceptance.
+
 | Requirement | Details |
 |------------|---------|
 | Labs 01-08 completed | Agent built and tested locally |
@@ -80,6 +85,7 @@ env:
   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   AGENT_MANIFEST: agent.yaml
+  APIM_GATEWAY_URL: ${{ vars.APIM_GATEWAY_URL }}
 
 jobs:
   # ──────────────────────────────────────────────
@@ -281,7 +287,7 @@ jobs:
 
               async with httpx.AsyncClient() as client:
                   response = await client.post(
-                      f"{os.getenv('APIM_GATEWAY_URL', 'https://apim-agent-factory.azure-api.net')}/models/deployments/gpt-4o-mini/chat/completions",
+                      f"{os.environ['APIM_GATEWAY_URL']}/models/deployments/gpt-4o-mini/chat/completions",
                       headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
                       json={"messages": [{"role": m["role"], "content": m["content"]} for m in messages], "max_tokens": 512},
                       timeout=30.0,
@@ -633,7 +639,7 @@ jobs:
       - gate-compliance
     environment:
       name: production
-      url: https://apim-agent-factory.azure-api.net
+      url: ${{ vars.APIM_GATEWAY_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -685,7 +691,7 @@ jobs:
             | Agent | \`${{ steps.manifest.outputs.name }}\` |
             | Version | \`${{ steps.manifest.outputs.version }}\` |
             | Model | \`${{ steps.manifest.outputs.model }}\` |
-            | Endpoint | \`https://apim-agent-factory.azure-api.net\` |
+            | Endpoint | \`${{ vars.APIM_GATEWAY_URL }}\` |
 
             ### Gates Passed
             - ✅ Security Scan

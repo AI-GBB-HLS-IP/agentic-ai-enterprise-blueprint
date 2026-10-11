@@ -32,6 +32,7 @@ tool integrations or runtime paths are already deployed.
 - APIM name, approved Developer or Premium capacity, corporate publisher identity, and approved
   public IP name, DNS label, and tags.
 - Private DNS ownership mode, zone/record names, or external corporate-DNS handoff.
+- Endpoint selection and access path as defined below, independent of certificate handling.
 - Application Insights, Log Analytics, diagnostics ownership, and capacity-alert settings.
 - Public-network policy handoff (`Enabled` during activation unless an approved private endpoint
   permits `Disabled`).
@@ -69,6 +70,63 @@ endpoints are public.
 `apimServiceId`, `apimServiceName`, `apimGatewayHostname`, `apimPrincipalId`,
 `privateIpAddresses`, DNS and observability resource IDs, `foundationReadiness`, and
 `integrationReadiness: not-deployed`.
+
+### Endpoint Access Contract
+
+Implementation and acceptance are tracked by #104 in
+`openspec/changes/support-apim-custom-endpoint-access/tasks.md`. Its
+`specs/apim-endpoint-access/spec.md` and design D1-D5 define the requirements, scenarios,
+and cross-surface ownership.
+
+| Endpoint mode | DNS ownership | Access path | Client acceptance |
+|---|---|---|---|
+| `built-in` (default) | `blueprint` or `external` | `direct-private` (default) | Existing five built-in endpoints, DNS to live private VIP, validated TLS |
+| `custom` | `external` only | `direct-private` | Gateway, developer portal, management; role-matched bindings, DNS to live private VIP, validated TLS |
+| `custom` | `external` only | `corporate-routed` | Same three bindings, DNS/TLS, and retained network-owner routing approval |
+
+All other combinations MUST fail explicitly. Custom names MUST be normalized lowercase DNS
+names, not URLs, ports, paths, wildcards, or missing roles. Custom mode MUST NOT probe built-in
+names; legacy portal/SCM are excluded only from custom client acceptance, not removed as
+platform features. Platform network dependencies remain unchanged.
+
+Foundation MUST validate custom selections against the effective certificate binding assembly
+and runtime MUST verify the corresponding live Proxy, DeveloperPortal, and Management bindings
+on the intended classic Internal APIM. `hostnameMode` remains `preserve`/`merge`/`replace`;
+capture and manual PFX resupply remain mandatory where applicable.
+
+Additive `endpointAccess`, `selectedGatewayHostname`, selected gateway URL, and mode-aware
+`privateDnsHandoff` MUST identify the service, selected roles, path, exclusions, and evidence.
+`apimGatewayHostname` retains its built-in compatibility value.
+
+Custom readiness requires matching `endpointValidationEvidence` with every exact generic
+base field (`validationType`, `status`, `owner`, `scope`, `approvalReference`,
+`evidenceSummary`, `timestampUtc`) and extension field (`apimServiceId`, `endpointMode`,
+`endpointAccessPath`, `selectedHostnames`, `validationReference`), plus
+`routingApprovalReference` and `owner: network-owner` for corporate routing.
+Fields are non-empty strings except the exact three-role hostname map. The gate name is
+`apim-endpoint-access`; runtime requires ISO-8601 UTC `timestampUtc`, with no timestamp aliases.
+Only complete, valid, context-matching `status: pass` evidence can advance custom DNS
+readiness. Missing evidence remains pending/BLOCKED; fail/blocked evidence cannot advance;
+invalid or mismatched records are rejected.
+
+Generic base fields remain redacted under
+`../00-network-foundation/contracts/validation-evidence.md`; live extension context belongs
+only in untracked inputs/handoffs and the approved customer evidence store. Corporate approval
+attests to the intended Internal upstream and client route without unapproved public exposure;
+DNS, TLS, HTTP responses, or an IP range alone cannot prove that route's APIM origin.
+Revalidate after service, route, hostname, or certificate changes.
+
+Stage 2 MUST verify selected metadata and passing custom evidence even if overall readiness
+claims deployed, and match the live gateway binding. Legacy handoffs are accepted only for
+built-in/direct-private. Integration requests and D5's inventoried instructional consumers
+MUST use selected gateway URLs while preserving API paths and independent Foundry/API Center
+endpoints. Overrides MUST match HTTPS, selected host, configured path, no userinfo, and implicit
+or explicit port 443 before credentials are used. Stage 2 remains existing-resource-only and
+requires separate Foundry/model/identity/request/telemetry acceptance.
+
+Workspace gateways, v2 management, multi-region mapping, wildcard selection, corporate
+network provisioning, and Chapter 14's separate topology are excluded. Local evaluation does
+not satisfy live task 4.2 or deployment approval.
 
 ## Stage 2 — Foundry Integration
 

@@ -157,6 +157,11 @@ enterprise-travel-copilot/
 
 ## Part 4: Implement the Custom Engine Agent
 
+Set `APIM_GATEWAY_URL` from the validated Chapter 02 `endpointAccess.selectedGatewayUrl`;
+forward it unchanged to the model client below. Custom configuration must not fall back to a
+built-in name. Preserve model routes and independent Foundry endpoints; SDK/live agent acceptance
+remains this chapter's work, separate from the Chapter 02 client-access gate.
+
 ### Step 1: Create the Agent Logic
 
 Create `src/agent.ts`:

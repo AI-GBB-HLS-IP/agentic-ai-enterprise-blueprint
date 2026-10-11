@@ -137,8 +137,114 @@ it. `hostnameMode` controls the result:
    `hostnameCertificates` parameter from environment variables or a pipeline secret. See
    `apim.customer.example.bicepparam`. Never commit certificate material.
 4. Review `what-if` output for the `hostnameConfigurations` change before running `create`.
-5. Custom hostnames need private DNS records for this internal-VNet APIM; the foundation DNS
-   module only creates the default gateway record.
+   Both parameter files accept `APIM_HOSTNAME_CONFIGURATIONS_JSON` (declared array) and
+   secret `APIM_HOSTNAME_CERTIFICATES_JSON` (certificate-key object). The customer example
+   retains its three placeholder declarations and individual PFX/password environment
+   defaults; the JSON certificate object overrides matching keys. The standard file defaults
+   to an empty declared array and empty certificate object. Never print or commit the
+   certificate JSON.
+5. Custom hostnames need operator-managed DNS/routing for this Internal APIM. Built-in mode
+   creates the five built-in records when blueprint-owned; custom mode creates no DNS resources.
+
+### APIM client endpoint selection (Stage 1)
+
+Endpoint selection is separate from certificate `hostnameMode` and DNS ownership.
+
+| `APIM_ENDPOINT_MODE` | `APIM_PRIVATE_DNS_MODE` | `APIM_ENDPOINT_ACCESS_PATH` |
+|---|---|---|
+| `built-in` (default) | `blueprint` or `external` | `direct-private` (default) |
+| `custom` | `external` only | `direct-private` or `corporate-routed` |
+
+Other combinations fail. Custom mode requires all three configured roles and performs no
+built-in client checks; legacy portal/SCM are excluded only from custom client acceptance.
+Azure-managed platform dependency/firewall requirements are unchanged.
+
+```bash
+export APIM_ENDPOINT_MODE=custom
+export APIM_PRIVATE_DNS_MODE=external
+export APIM_ENDPOINT_ACCESS_PATH=direct-private
+export APIM_CUSTOM_ENDPOINT_HOSTNAMES='{"gateway":"api.example.com","developerPortal":"developer.example.com","management":"management.example.com"}'
+```
+
+Names are lowercase-normalized DNS hostnames, not URLs, ports, paths, wildcards, or built-in
+names. The selected roles must match effective Proxy/DeveloperPortal/Management bindings;
+capture and re-declare manual PFX certificates with merge/replace as described above.
+Built-in `apimGatewayHostname` remains for compatibility; use additive
+`selectedGatewayHostname`, `apimGatewayUrl`, and `endpointAccess` for client settings.
+Custom `privateDnsHandoff` lists only those three selected endpoints and records exclusions.
+
+`APIM_ENDPOINT_VALIDATION_EVIDENCE` is JSON extending the generic validation contract
+(`specs/00-network-foundation/contracts/validation-evidence.md`). Keep its base fields generic;
+replace extension placeholders only in ignored inputs/handoffs and approved evidence storage.
+The following is a **redacted shape, not passing deployment evidence**:
+
+```json
+{
+  "validationType": "apim-endpoint-access",
+  "status": "blocked",
+  "owner": "network-owner",
+  "scope": "apim-foundation",
+  "approvalReference": "approval-generic-001",
+  "evidenceSummary": "Endpoint validation and approved routing evidence pending.",
+  "timestampUtc": "2026-10-11T00:00:00Z",
+  "apimServiceId": "<selected-apim-service-id>",
+  "endpointMode": "custom",
+  "endpointAccessPath": "corporate-routed",
+  "selectedHostnames": {
+    "gateway": "api.example.com",
+    "developerPortal": "developer.example.com",
+    "management": "management.example.com"
+  },
+  "validationReference": "<retained-validation-record>",
+  "routingApprovalReference": "<network-owner-route-approval>"
+}
+```
+
+All base/extension fields must be non-empty strings except the exact three-role hostname map.
+`validationType` must identify this gate; `timestampUtc` is ISO-8601 UTC, with no timestamp
+aliases. `validationReference` must be non-placeholder. Corporate routing additionally
+requires `owner: network-owner` and a separate non-placeholder `routingApprovalReference`
+identifying retained approval of the intended Internal APIM upstream and approved client path
+without unapproved public exposure. It cannot be inferred from an IP range or HTTP response.
+
+Direct-private checks require DNS equality to live APIM private IPs and certificate-validated
+TLS. Corporate routing additionally requires current approval; DNS/TLS are measurements,
+upstream identity/routing are operator attestation. Missing evidence leaves custom DNS readiness
+pending; fail/blocked cannot advance; invalid or context-mismatched evidence fails explicitly.
+Only complete matching pass evidence, with all other foundation gates, advances readiness.
+Do not populate the legacy `APIM_EXTERNAL_DNS_VALIDATION_REFERENCE` in custom mode.
+ARM checks structure/context, not timestamp validity or approval authenticity.
+Revalidate after service/hostname/route/certificate changes, preview/redeploy foundation,
+and retain the handoff from that exact deployment before Stage 2. Client transport never proves
+private APIM-to-Foundry connectivity or managed-identity authorization.
+
+Environment variables must be present in the shell that runs Azure CLI. WSL exports are not
+automatically forwarded to Windows processes; use one environment consistently or explicitly
+forward only the required variables without printing certificates, passwords, keys, or payloads.
+
+### Selected Stage 2 and Client Handoff
+
+Copy `apimServiceId`, `foundationReadiness`, and `endpointAccess` from the **exact validated**
+foundation deployment into `APIM_STAGE1_SERVICE_ID`, `APIM_STAGE1_FOUNDATION_READINESS`,
+and `APIM_STAGE1_ENDPOINT_ACCESS`. Retain the same endpoint mode/path/custom hostname map in
+both integration parameter files. Legacy metadata-free handoffs permit only built-in/direct-private.
+Stage 2 checks selected service/context, complete passing custom evidence, and the live gateway;
+it references APIM rather than redeploying APIM/DNS/monitoring.
+
+```bash
+export APIM_STAGE1_ENDPOINT_ACCESS="$(az deployment group show \
+  --resource-group "$APIM_RESOURCE_GROUP" --name apim-foundation \
+  --query properties.outputs.endpointAccess.value -o json)"
+export APIM_GATEWAY_URL="$(jq -er '.selectedGatewayUrl' <<<"$APIM_STAGE1_ENDPOINT_ACCESS")"
+```
+
+Populate project/portal `APIM_URL`, stored URL settings, and CI `APIM_GATEWAY_URL` from that
+selected value; retain existing model/MCP/A2A paths and do not rewrite independent Foundry
+or API Center endpoints. Integration emits `apimGatewayUrl` (origin) and `apimClientUrl`
+(origin plus configured `apiPath`). Runtime smoke requests append `/chat/completions`.
+`APIM_INTEGRATION_REQUEST_URL` overrides must use the selected HTTPS host and exact API
+path, no userinfo/query/fragment, and implicit or explicit 443. Other ports are rejected before
+credentials. Authorized model/identity/telemetry acceptance remains separate and mandatory.
 
 ## Verify
 

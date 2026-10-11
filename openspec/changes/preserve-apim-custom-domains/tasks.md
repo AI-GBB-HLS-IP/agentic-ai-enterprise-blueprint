@@ -1,5 +1,11 @@
 ## 1. Template
 
+Continuation #104 (`../support-apim-custom-endpoint-access/tasks.md`, design D5) owns
+endpoint selection/readiness in 2.1/2.2, selected Stage 2/client URLs in 3.1/3.2,
+and local/live endpoint acceptance in 4.1/4.2. Certificate modes and the live gates
+below are unchanged: custom selections reuse effective bindings, require external DNS
+and complete matching pass evidence, and exclude only legacy portal/SCM client probes.
+
 - [x] 1.1 Add `hostnameMode`, existing/declared hostname parameters and secure `hostnameCertificates` with merge logic to `infra/modules/apim/main.bicep`; verify `az bicep build --file infra/envs/poc/apim.bicep` has no errors or warnings
 - [x] 1.2 Plumb the parameters through `infra/envs/poc/apim.bicep`; verify the build succeeds
 - [x] 1.3 Verify `az bicep snapshot` for preserve, merge and replace parameter files shows the selected expression and that preserve emits the captured entries

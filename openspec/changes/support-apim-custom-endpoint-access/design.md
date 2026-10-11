@@ -189,8 +189,87 @@ valid where policy blocks those names.
 ## Readiness Record
 
 User approved three mandatory custom endpoints, legacy portal/SCM client exclusions,
-and evidence-backed corporate routing. Proposal changes no live resources. Authoritative
+and evidence-backed corporate routing. Implementation changes no live resources. Authoritative
 platform feasibility is established for classic APIM custom bindings; external origin
-attestation is explicitly not a platform guarantee. Implementation tests and live customer
-route/backend evidence remain pending under tasks 4.1/4.2 and gate deployment acceptance,
-not this proposal. No customer identifiers or secrets belong in committed artifacts.
+attestation is explicitly not a platform guarantee. Local acceptance task 4.1 is complete;
+authorized live customer route/backend evidence remains BLOCKED under task 4.2 and gates
+deployment acceptance. The implementation PR remains draft, not deployment-approved.
+No customer identifiers or secrets belong in committed artifacts.
+
+Implementation evidence (local, not live): task 1.1 reconciled Chapter 02 and the two active
+contracts; `openspec validate support-apim-custom-endpoint-access --strict` passed.
+Supplementary strict validation of the related changes reports pre-existing long-requirement
+warnings; it does not establish root Chapter 02 correctness. Task 2.1 uses shared
+`infra/modules/apim/endpoints.bicep` predicates and the existing certificate assembler.
+`bash tests/network/test-apim-endpoints.sh` passed evaluated matrix, hostname, role binding,
+and evidence/readiness predicates including every missing/empty/wrong-type field, non-pass,
+context mismatch, and timestamp-alias rejection. Foundation/DNS builds and both foundation
+parameter builds passed. `bash tests/network/test-apim-hostnames.sh` and
+`bash tests/foundry/test-apim-review-regressions.sh` passed. ARM does not validate timestamp
+semantics or authenticate approval; runtime timestamp checks and full cross-surface/live
+acceptance remain pending. No live resources were changed.
+
+Task 2.2: `bash -n specs/02-apim-ai-gateway/validation/validate.sh tests/foundry/test-apim-endpoint-validation.sh`
+and `bash tests/foundry/test-apim-endpoint-validation.sh` passed. The mocks prove three
+custom-only probes, all role bindings, Internal classic posture, certificate failure,
+direct VIP equality, attested corporate routing, complete valid evidence, every required
+missing/empty/wrong-type field, timestamp validity/aliases, mismatches, and non-pass outcomes.
+`bash tests/foundry/test-apim-review-regressions.sh` passed again. These are mocked/local
+results, not live client or upstream approval.
+
+Task 3.1: evaluated handoff predicates, both integration parameter builds, and
+`bash tests/foundry/test-apim-staged-contracts.sh` passed. Extended
+`bash tests/foundry/test-apim-endpoint-validation.sh` passed custom/legacy handoffs,
+missing/invalid evidence, timestamp/alias rejection, stale selection/live gateway,
+and URL scheme/host/path/userinfo/port guards. Invalid URLs were exercised through
+the mocked full integration preflight and stopped before downstream reads or
+credential-bearing requests. Implicit and explicit 443 passed. Stage 2 remains
+existing-resource-only; runtime approved requests must return a chat-completion shape,
+not merely a successful HTTP status. Live requests remain task 4.2.
+
+Task 3.2: `bash tests/foundry/test-apim-endpoint-docs.sh` passed the full D5 consumer
+inventory, selected gateway/developer portal handoffs, preserved model/MCP/A2A routes,
+independent API Center/Foundry URLs, and explicit Chapter 14 exclusion. Operator guidance
+and redacted foundation evidence templates enumerate every exact base/extension field;
+integration consumes the same retained endpoint evidence. JSON snippets are explicitly
+rendered templates, not claims of automatic environment interpolation. The confidentiality
+scan of changed/new files and `git diff --check` passed. During cross-surface review DNS
+resource conditions were also bound to the module's selection/evidence guards, preventing
+invalid custom/blueprint writes; the coupled compiled regression passed.
+
+Task 4.1: reviewed the complete tracked diff and new helper/tests against D5, including
+both entry points and parameter pairs, DNS ownership branches, effective/live role bindings,
+evidence shapes/outcomes, all selected URL consumers, and unchanged private Foundry boundaries.
+On the final coherent revision the following local commands passed:
+
+- `OFFLINE_ONLY=true specs/02-apim-ai-gateway/validation/validate.sh all`
+- `bash tests/foundry/test-apim-staged-contracts.sh`
+- `bash tests/foundry/test-apim-review-regressions.sh`
+- `bash tests/foundry/test-apim-hostname-capture.sh`
+- `bash tests/network/test-apim-hostnames.sh`
+- `bash tests/network/test-apim-endpoints.sh`
+- `bash tests/foundry/test-apim-endpoint-validation.sh`
+- `bash tests/foundry/test-apim-endpoint-docs.sh`
+- `bash -n specs/02-apim-ai-gateway/validation/validate.sh tests/foundry/test-apim-endpoint-validation.sh tests/foundry/test-apim-endpoint-docs.sh tests/network/test-apim-endpoints.sh`
+- `openspec validate support-apim-custom-endpoint-access --strict`
+- `git diff --check`
+- `bash scripts/network/scan-confidentiality.sh` with all modified and new task files as arguments.
+
+Offline all-mode compiled both entry points, their four parameter files, and owned modules.
+Only pre-existing `prefer-interpolation` warnings in `api.bicep` and `backend.bicep` remain.
+The ownership check now inspects actual resource writes recursively, allowing the compiler's
+explicit `existing: true` APIM reference while rejecting seeded nested foundation writes.
+Evaluated parameter cases verify custom declaration/certificate JSON in both foundation
+files and preserved customer-example defaults/individual PFX inputs. Both files now use
+environment-backed assignments; certificate mode semantics are unchanged. The ignored local
+parameter file was adjusted with user authorization and remains untracked. Mocked direct
+checks reject a non-VIP secondary DNS address and accept multiple reported private VIPs.
+Compilation, structural checks, evaluated predicates, and mocks are not Azure live proof.
+OpenSpec validation covers this delta, not semantic validation of root Chapter 02 specs.
+
+Task 4.2: **BLOCKED**. No authorized live environment, current network-owner routing record,
+foundation what-if/runtime evidence, exact-deployment endpoint handoff, or Stage 2 preview,
+model/telemetry/private Foundry/managed-identity evidence was supplied. Both standard/direct
+and custom approved-path acceptance (including unavailable built-in client names) remain
+mandatory. No live deployment was attempted, and no live evidence is claimed. Keep #104
+open and task 4.2 unchecked; do not archive or approve deployment on local results alone.

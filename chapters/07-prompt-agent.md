@@ -56,6 +56,10 @@ The Prompt Agent demonstrates the **power of composition** — a single agent th
 
 ### Step 1: Create via Python SDK
 
+Set `APIM_GATEWAY_URL` from Chapter 02's validated `endpointAccess.selectedGatewayUrl`,
+without a built-in fallback. The independent `FOUNDRY_PROJECT_ENDPOINT` remains unchanged;
+this instructional MCP handoff does not prove SDK or live agent acceptance.
+
 ```python
 import os
 from dotenv import load_dotenv
@@ -85,7 +89,7 @@ with (
 
     # 2. MCP tool via APIM (from Chapter 02)
     mcp_tool = McpTool(
-        server_url="https://apim-agents-gateway.azure-api.net/mcp/enterprise-tools/mcp",
+        server_url=f"{os.environ['APIM_GATEWAY_URL']}/mcp/enterprise-tools/mcp",
         server_label="Enterprise Tools",
         description="Access enterprise HR and IT tools",
         # Authentication handled via project connection

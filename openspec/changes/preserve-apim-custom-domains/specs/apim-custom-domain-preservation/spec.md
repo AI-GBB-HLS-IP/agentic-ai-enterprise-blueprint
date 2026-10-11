@@ -3,6 +3,13 @@
 Prevents APIM redeployments, such as a SKU change, from silently removing custom domains, and
 lets operators add or replace domains, including PFX-backed ones, through the same deployment.
 
+Endpoint selection is orthogonal and owned by
+`../../../support-apim-custom-endpoint-access/specs/apim-endpoint-access/spec.md`, design
+D1-D5, and tasks 1.1-4.2. Custom/external endpoint selection validates three effective/live
+roles while retaining this change's preserve/merge/replace and manual PFX requirements.
+It excludes only legacy portal/SCM client checks and requires context-matching pass
+evidence; it does not provision corporate DNS or change certificate lifecycle.
+
 ## ADDED Requirements
 
 ### Requirement: Hostname mode selects the deployed custom domains

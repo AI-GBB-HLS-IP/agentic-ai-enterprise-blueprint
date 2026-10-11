@@ -380,12 +380,17 @@ az apic api register \
 
 ### Step 5: Verify End-to-End
 
+Set `APIM_GATEWAY_URL` from the validated Chapter 02 `endpointAccess.selectedGatewayUrl`,
+retaining the A2A suffix. The Hosted Agent's independent `AZURE_OPENAI_ENDPOINT` above remains
+its actual Foundry backend endpoint, not this APIM client URL.
+
 ```python
+import os
 import httpx
 
 # Other agents now invoke the hosted agent through APIM (governed)
 async def invoke_via_apim():
-    apim_url = "https://apim-agents-gateway.azure-api.net/agents/travel/a2a"
+    apim_url = f"{os.environ['APIM_GATEWAY_URL']}/agents/travel/a2a"
 
     headers = {
         "Authorization": f"Bearer {get_agent_token()}",

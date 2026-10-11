@@ -104,6 +104,7 @@ Record these outputs for the Stage 2 handoff:
 - `apimServiceName`
 - `apimPrincipalId`
 - `apimGatewayHostname`
+- `selectedGatewayHostname`, `apimGatewayUrl`, and `endpointAccess` (selected client handoff)
 - `privateIpAddresses`
 - `foundationReadiness`
 
@@ -114,23 +115,47 @@ When Azure Policy owns the APIM resource diagnostic setting, validate its destin
 AllLogs/AllMetrics categories first. Then set `APIM_POLICY_DIAGNOSTICS_VALIDATION_REFERENCE` to
 the real evidence reference and redeploy Stage 1 so `foundationReadiness` can report `deployed`.
 
-### Private DNS and Optional Enterprise Custom Domains
+### Private DNS and Selected Enterprise Custom Endpoints
 
 The default `azure-api.net` private zone and VNet link are sufficient for consumers in the
 deployment VNet or explicitly linked networks. Internal APIM endpoints use A records for the
 gateway, developer portal, legacy portal, management endpoint, and SCM endpoint.
 
-When consumers must resolve APIM across the broader enterprise network, complete this separate,
-conditional extension:
+Built-in/direct-private remains the default. When built-in client names are blocked or custom
+enterprise access is required, select `APIM_ENDPOINT_MODE=custom`,
+`APIM_PRIVATE_DNS_MODE=external`, and all three
+`APIM_CUSTOM_ENDPOINT_HOSTNAMES` roles (gateway, developerPortal, management).
+Custom/blueprint and built-in/corporate-routed are rejected. Follow the complete
+[endpoint/evidence contract](../infra/envs/poc/README.md#apim-client-endpoint-selection-stage-1).
 
 1. Obtain customer-approved internal custom endpoint names.
 2. Obtain certificates issued by an approved enterprise CA.
 3. Configure the APIM custom domains and certificate lifecycle controls.
-4. Request enterprise internal DNS A records that resolve each approved name to the APIM private
-   VIP.
-5. Validate name resolution and TLS from each required network segment.
+4. Request DNS to the live private VIP for `direct-private`, or obtain retained network-owner
+   upstream/path approval for explicit `corporate-routed`.
+5. Validate role-matched live bindings, DNS, and TLS from each required network segment; record
+   complete matching pass `APIM_ENDPOINT_VALIDATION_EVIDENCE` and redeploy to record readiness.
 
 Custom domains are not required for the default VNet-local foundation.
+Custom excludes only legacy portal/SCM client probes, not Azure-managed platform dependencies.
+Manual PFX certificates must be resupplied on every foundation redeployment. DNS/TLS and HTTP
+responses do not prove corporate upstream identity or private Foundry connectivity.
+
+Use the **exact validated foundation deployment** to populate downstream client settings:
+
+```bash
+export APIM_STAGE1_ENDPOINT_ACCESS="$(az deployment group show \
+  --resource-group "$APIM_RESOURCE_GROUP" --name apim-foundation \
+  --query properties.outputs.endpointAccess.value -o json)"
+export APIM_GATEWAY_URL="$(jq -er '.selectedGatewayUrl' <<<"$APIM_STAGE1_ENDPOINT_ACCESS")"
+export APIM_DEVELOPER_PORTAL_URL="https://$(jq -er '.selectedHostnames.developerPortal' <<<"$APIM_STAGE1_ENDPOINT_ACCESS")"
+```
+
+No built-in fallback is permitted in custom configurations. Forward these selected settings
+to onboarding, agent/MCP/A2A/UI clients, and CI; preserve their existing route suffixes and
+independent API Center/Foundry backend endpoints. JSON examples in later chapters are templates:
+render their selected URL values before saving them, rather than assuming JSON expands shell
+variables. These instructional handoffs do not establish future SDK/topology/live acceptance.
 
 ## Stage 2 — Foundry Integration
 
@@ -146,11 +171,16 @@ Custom domains are not required for the default VNet-local foundation.
 
 ### Configure Integration Parameters
 
-Export `APIM_STAGE1_SERVICE_ID` and `APIM_STAGE1_FOUNDATION_READINESS` from the validated Stage 1
+Export `APIM_STAGE1_SERVICE_ID`, `APIM_STAGE1_FOUNDATION_READINESS`, and
+`APIM_STAGE1_ENDPOINT_ACCESS` from the validated Stage 1
 deployment outputs. Then use `infra/envs/poc/apim-foundry-integration.bicepparam` to supply the
 existing APIM resource group and service name, Foundry account identity, governance evidence,
 explicitly approved regions, approved models, backend/API/product names, token limit, and Foundry
 API version.
+Retain the same endpoint mode/access path/custom hostname map. Stage 2 checks custom passing
+evidence and the live Proxy binding even when overall readiness says deployed; legacy metadata-free
+handoffs permit only built-in/direct-private. Requests use the selected gateway and configured
+API path; overrides require HTTPS, no userinfo, and implicit/explicit 443 before credentials.
 
 ### Validate, Preview, and Deploy
 

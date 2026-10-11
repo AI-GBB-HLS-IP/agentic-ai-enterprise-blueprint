@@ -377,6 +377,11 @@ Developers can discover and use APIs directly from VS Code:
 
 ### Generate MCP Client Configuration
 
+Populate the catalog/client URL from Chapter 02's validated
+`endpointAccess.selectedGatewayUrl` (`APIM_GATEWAY_URL`), retaining the MCP suffix.
+The JSON below is a template: replace `${APIM_GATEWAY_URL}` before saving; JSON itself does
+not expand shell variables. Independent API Center endpoints are unchanged.
+
 From VS Code, developers can:
 1. Browse to an MCP server in the API Center
 2. Click **"Copy MCP Configuration"**
@@ -386,7 +391,7 @@ From VS Code, developers can:
 {
   "mcpServers": {
     "enterprise-tools": {
-      "url": "https://apim-agents-gateway.azure-api.net/mcp/enterprise-tools/mcp",
+      "url": "${APIM_GATEWAY_URL}/mcp/enterprise-tools/mcp",
       "headers": {
         "Authorization": "Bearer <token>"
       }

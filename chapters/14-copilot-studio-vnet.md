@@ -2,6 +2,11 @@
 
 ## Objective
 
+**Topology boundary:** this chapter's private-endpoint/Power Platform DNS and URL examples
+are separate from Chapter 02's classic Internal-VNet endpoint-access gate. They intentionally
+retain their built-in topology examples; Chapter 02's custom-path acceptance does not deploy
+these DNS resources or prove this topology's live connectivity.
+
 In this chapter, you will connect **Microsoft Copilot Studio** to the **APIM MCP server** (built in Chapter 02) using **VNet integration** and **private endpoints** — ensuring all traffic between Copilot Studio and your AI Gateway stays on the Microsoft backbone network without traversing the public internet.
 
 By the end of this chapter, you will have:

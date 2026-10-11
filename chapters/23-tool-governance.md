@@ -100,13 +100,16 @@ az apic metadata create \
 
 ```bash
 # Define environments for tool lifecycle
+APIM_DEVELOPER_PORTAL_URL="https://$(jq -er '.selectedHostnames.developerPortal' <<<"$APIM_STAGE1_ENDPOINT_ACCESS")"
+APIM_SERVER_METADATA="$(jq -cn --arg portal "$APIM_DEVELOPER_PORTAL_URL" \
+  '{type:"Azure API Management",managementPortalUri:[$portal]}')"
 az apic environment create \
   --resource-group rg-agent-factory-platform \
   --service-name apic-agent-factory \
   --environment-id "dev" \
   --title "Development" \
   --kind "development" \
-  --server '{"type":"Azure API Management","managementPortalUri":["https://apim-agent-factory.developer.azure-api.net"]}'
+  --server "$APIM_SERVER_METADATA"
 
 az apic environment create \
   --resource-group rg-agent-factory-platform \
@@ -114,7 +117,7 @@ az apic environment create \
   --environment-id "production" \
   --title "Production" \
   --kind "production" \
-  --server '{"type":"Azure API Management","managementPortalUri":["https://apim-agent-factory.developer.azure-api.net"]}'
+  --server "$APIM_SERVER_METADATA"
 ```
 
 ---

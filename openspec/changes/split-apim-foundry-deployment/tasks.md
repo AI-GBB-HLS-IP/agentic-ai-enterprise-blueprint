@@ -1,5 +1,13 @@
 ## 1. Align Chapter 02 Requirements and Guidance
 
+Endpoint-access continuation #104 is owned by
+`../support-apim-custom-endpoint-access/tasks.md` and design D5. Its tasks 2.1/2.2
+extend foundation selection/readiness/runtime; 3.1 extends Stage 2 selected metadata/URLs;
+3.2 owns inventoried consumers; 4.1/4.2 own local/live acceptance. This does not complete
+the pending staged live gates below. Built-in/direct-private remains default; custom
+requires external DNS, three mandatory roles, passing context-bound evidence, and excludes
+only legacy portal/SCM client checks. Approved corporate routing is attested, not inferred.
+
 - [x] 1.1 Revise `chapters/02-ai-gateway.md` to introduce the APIM foundation and Foundry
   integration stages, state their independent Azure prerequisites, and verify the foundation
   walkthrough contains no Foundry-dependent command or input.
@@ -38,7 +46,7 @@
   alert; verify policy-owned diagnostic settings are detected without an attempted conflicting
   replacement.
 - [x] 2.7 Document the optional enterprise custom-domain path with approved CA certificates and
-  internal DNS A records to the APIM private VIP; verify the default VNet-local path does not
+  direct-private or explicitly approved corporate routing under continuation #104; verify the default VNet-local path does not
   require a custom domain.
 - [x] 2.9 Simplify the POC smoke-test contract so the foundation template creates the approved
   Standard/static APIM public IP and operators use one ignored `apim.customer.bicepparam` for

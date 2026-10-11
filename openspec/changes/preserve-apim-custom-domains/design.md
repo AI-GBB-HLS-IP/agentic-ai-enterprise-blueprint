@@ -14,6 +14,16 @@ PFX-backed gateway, developer portal and management domains, without committing 
 **Non-Goals:** certificate or Key Vault provisioning, private DNS for custom hostnames,
 automatic preservation of PFX domains, an in-template read of the live service.
 
+Endpoint access is separately owned by continuation #104,
+`../support-apim-custom-endpoint-access/design.md` D1-D5 and its tasks 1.1-4.2.
+`endpointMode` does not replace `hostnameMode`: preserve/merge/replace still assemble
+certificates and require capture/manual PFX resupply. Endpoint task 2.1 reuses
+`resolveHostnames` to validate the three selected custom roles against effective bindings;
+2.2 verifies live roles/DNS/TLS with direct-private or network-owner-approved corporate
+routing; 3.1/3.2 select Stage 2/client URLs; 4.1/4.2 own local/live acceptance.
+Custom/external only, complete matching pass evidence, and legacy portal/SCM client
+exclusions change neither certificate semantics nor platform dependencies.
+
 ## Decisions
 
 - **Read-then-resend via a capture script.** Alternatives rejected: an `existing` reference to the
@@ -45,8 +55,8 @@ automatic preservation of PFX domains, an in-template read of the live service.
   a non-production service.
 - [Merge expression evaluated only by `bicep snapshot`, which does not expand lambdas] → live
   validation task is BLOCKED until a non-production APIM is available.
-- [Custom hostnames unreachable in the internal VNet without DNS records] → documented; DNS is a
-  separate change.
+- [Custom hostnames unreachable in the internal VNet without DNS records] → external DNS
+  and path validation belong to endpoint-access continuation #104, not this certificate change.
 
 ## Migration Plan
 

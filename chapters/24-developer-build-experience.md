@@ -23,7 +23,7 @@ Welcome to the Secure Agent Factory!
 
 Your project has been provisioned:
   Project Name:   agent-customer-support-dev
-  APIM Endpoint:  https://apim-agent-factory.azure-api.net
+  APIM Endpoint:  <validated Chapter 02 selectedGatewayUrl>
   Key Vault:      kv-agent-factory
   App Insights:   appi-agent-factory
 
@@ -91,7 +91,7 @@ pip install -r requirements.txt
 # All values come from the AI CoE onboarding document
 
 # APIM Gateway (ONLY way to reach models and tools)
-APIM_GATEWAY_URL=https://apim-agent-factory.azure-api.net
+APIM_GATEWAY_URL=<validated-Chapter-02-selectedGatewayUrl>
 
 # Project identity (managed identity in cloud, az login locally)
 AZURE_CLIENT_ID=<from-onboarding>
@@ -117,7 +117,7 @@ TOKEN=$(az account get-access-token --resource api://apim-agent-factory --query 
 
 curl -s -o /dev/null -w "%{http_code}" \
   -H "Authorization: Bearer $TOKEN" \
-  "https://apim-agent-factory.azure-api.net/models/deployments/gpt-4o/chat/completions" \
+  "${APIM_GATEWAY_URL:?Set the selected Chapter 02 gateway}/models/deployments/gpt-4o/chat/completions" \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Hello"}],"max_tokens":10}'
 

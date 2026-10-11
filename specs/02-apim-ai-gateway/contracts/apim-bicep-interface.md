@@ -17,7 +17,17 @@
 - Policy handoff: `publicNetworkAccess` (Stage 1 permits only `Enabled`),
   `diagnosticSettingsOwnership`, `policyOwnedDiagnosticSettingsValidationReference`.
 - DNS: `privateDnsZoneName`, `privateDnsRecordName`, `privateDnsZoneTags`,
-  `privateDnsVnetLinkTags`.
+  `privateDnsVnetLinkTags`, `privateDnsDeploymentMode`, `externalDnsValidationReference`.
+- Endpoint access (#104): `endpointMode` (`built-in` default, `custom`),
+  `endpointAccessPath` (`direct-private` default, `corporate-routed`),
+  `customEndpointHostnames` (gateway/developerPortal/management), and
+  `endpointValidationEvidence`. Environment variables are `APIM_ENDPOINT_MODE`,
+  `APIM_ENDPOINT_ACCESS_PATH`, `APIM_CUSTOM_ENDPOINT_HOSTNAMES`,
+  `APIM_ENDPOINT_VALIDATION_EVIDENCE`.
+- Certificate handling remains `hostnameMode`, `existingHostnamesJson`,
+  `hostnameConfigurations`, and secure `hostnameCertificates`; it does not select endpoints.
+  Both foundation files accept `APIM_HOSTNAME_CONFIGURATIONS_JSON` and secret
+  `APIM_HOSTNAME_CERTIFICATES_JSON`; the customer example retains individual PFX defaults.
 - Monitoring: `applicationInsightsName`, `applicationInsightsTags`,
   `logAnalyticsWorkspaceId`, `logAnalyticsWorkspaceName`, `logAnalyticsWorkspaceTags`,
   `diagnosticSettingName`, `capacityAlertName`, `capacityAlertTags`,
@@ -50,6 +60,33 @@ or governed API.
 - DNS and monitoring resource IDs.
 - `foundationReadiness`.
 - `integrationReadiness` fixed to `not-deployed`.
+- Additive `selectedGatewayHostname`, selected gateway URL, and `endpointAccess` metadata;
+  `apimGatewayHostname` stays built-in. Custom `privateDnsHandoff` lists only the three roles
+  and legacy portal/SCM client exclusions.
+
+### Endpoint evidence and supported matrix
+
+Built-in/direct-private supports blueprint or external DNS; custom requires external DNS with
+direct-private or corporate-routed access. Other combinations fail. Custom selections must
+match effective/live endpoint types; no URL, port, path, wildcard, or missing role is accepted.
+
+`endpointValidationEvidence` extends
+`../../00-network-foundation/contracts/validation-evidence.md` with exact non-empty string
+base fields `validationType`, `status`, `owner`, `scope`, `approvalReference`,
+`evidenceSummary`, `timestampUtc`; gate `apim-endpoint-access`, statuses pass/fail/blocked,
+and ISO-8601 UTC timestamp (runtime validated, no aliases).
+Non-empty extension fields are `apimServiceId`, `endpointMode`, `endpointAccessPath`,
+`validationReference`, and `selectedHostnames` (exact three-role string map matching selection).
+Corporate access additionally requires `owner: network-owner` and a separate non-placeholder
+`routingApprovalReference`. `validationReference` must also be non-placeholder.
+Only valid matching pass evidence advances custom readiness; absent evidence is pending,
+non-pass cannot advance, and malformed/context-mismatched records fail explicitly.
+
+Base fields remain generic/redacted; live context is confined to untracked deployment inputs,
+handoffs, and approved evidence storage. ARM checks structure/context, not external approval
+authenticity. Runtime separately measures live binding, DNS, and certificate-validated TLS;
+direct access requires equality to live private IPs. Corporate origin requires network-owner
+attestation and revalidation after route/service/hostname/certificate changes.
 
 ## APIM Service Module
 
@@ -66,7 +103,9 @@ module emits no Foundry parameter, reference, role assignment, or readiness fiel
 ### Inputs
 
 - Existing APIM: `apimResourceGroupName`, `apimServiceName`, `stage1ApimServiceId`,
-  `stage1FoundationReadiness`.
+  `stage1FoundationReadiness`, additive `stage1EndpointAccess` selected metadata,
+  `endpointMode`, `endpointAccessPath`, `customEndpointHostnames`.
+  The metadata input is `APIM_STAGE1_ENDPOINT_ACCESS`; selection variables match Stage 1.
 - Existing Foundry: `foundryResourceGroupName`, `foundryAccountName`, `foundryAccountId`.
 - Governance: `genAiApprovalReference`, `foundryEnablementReference`,
   `customerPolicySource`, `approvedFoundryRegions`.
@@ -80,6 +119,17 @@ module emits no Foundry parameter, reference, role assignment, or readiness fiel
 - Approved model count and mappings.
 - `foundationReadiness` as `validated`.
 - `integrationReadiness`.
+- Selected gateway hostname and client URL preserving `apiPath`.
+
+Stage 2 requires matching selected context, complete passing custom evidence, and a role-matched
+live gateway. Overall deployed readiness cannot override invalid endpoint metadata. A legacy
+handoff without metadata accepts only built-in/direct-private. Runtime request overrides
+(`APIM_INTEGRATION_REQUEST_URL`) require HTTPS, selected host, configured path, no userinfo,
+and implicit or explicit port 443, checked before using credentials.
+
+Coverage/acceptance owner: `../../../openspec/changes/support-apim-custom-endpoint-access/design.md`
+D5 and tasks 1.1-4.2. Client legacy portal/SCM exclusions do not change platform dependencies,
+certificate lifecycle, or Stage 2 resource ownership and private Foundry acceptance.
 
 ## Invariants
 

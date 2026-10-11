@@ -189,6 +189,10 @@ az keyvault secret set \
 
 ### Step 2: Add Work IQ Tool to Agent
 
+Set `APIM_GATEWAY_URL` from Chapter 02's validated `endpointAccess.selectedGatewayUrl`
+for the APIM MCP client below. Keep the independent Foundry project endpoint unchanged;
+custom selection has no built-in fallback and does not establish this agent's live acceptance.
+
 ```python
 import os
 from dotenv import load_dotenv
@@ -217,7 +221,7 @@ with (
     )
 
     mcp_tool = McpTool(
-        server_url="https://apim-agents-gateway.azure-api.net/mcp/enterprise-tools/mcp",
+        server_url=f"{os.environ['APIM_GATEWAY_URL']}/mcp/enterprise-tools/mcp",
         server_label="Enterprise Tools",
         connection_id="<apim-connection-id>",
     )

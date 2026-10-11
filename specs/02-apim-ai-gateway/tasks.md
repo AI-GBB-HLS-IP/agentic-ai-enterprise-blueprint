@@ -4,6 +4,25 @@ The implementation source of truth is
 `openspec/changes/split-apim-foundry-deployment/tasks.md`. This checklist presents the same work
 in operator order and must not be used to claim live evidence that has not been collected.
 
+Endpoint access is a direct continuation tracked in #104 and
+`openspec/changes/support-apim-custom-endpoint-access/tasks.md`, with its design D5 mapping
+every endpoint requirement/scenario to tasks 1.1-4.2. This checklist does not supersede either
+change's pending live evidence.
+
+## Endpoint Access Continuation
+
+- [x] Complete foundation selection/effective binding/DNS/evidence task 2.1 and runtime task 2.2.
+- [x] Complete Stage 2 metadata, legacy compatibility, and safe selected URL task 3.1.
+- [x] Complete all inventoried operator/client documentation surfaces in task 3.2.
+- [x] Record evaluated/mocked/compilation outcomes and full diff review in task 4.1.
+- [ ] Obtain authorized operator/network-owner deployment evidence in task 4.2 before acceptance.
+
+Built-in/direct-private remains the default with either DNS owner. Custom requires external
+DNS and gateway/developerPortal/management names; direct-private or approved corporate-routed
+access excludes only legacy portal/SCM client checks. Only complete, matching pass evidence
+advances custom readiness. Retain certificate capture/PFX resupply, platform dependencies,
+and independent Foundry acceptance. Missing live evidence is BLOCKED, not completed.
+
 ## Stage 1 — APIM Foundation
 
 ### Prerequisites

@@ -188,7 +188,7 @@ Your project has been provisioned. Here's your onboarding package:
 Project Details:
   Name:           agent-customer-support-dev
   Resource Group: rg-agent-factory-dev
-  APIM Endpoint:  https://apim-agent-factory.azure-api.net
+  APIM Endpoint:  <validated Chapter 02 selectedGatewayUrl>
   Key Vault:      kv-agent-factory
   App Insights:   appi-agent-factory
 
@@ -250,6 +250,11 @@ The developer creates `agent.py` with their CustomerSupportAgent class (Lab 08, 
 ❌ Cannot hardcode any endpoint URL
 ❌ Cannot disable Content Safety or Prompt Shield
 ```
+
+The onboarding `APIM_GATEWAY_URL` is the exact validated Chapter 02
+`endpointAccess.selectedGatewayUrl`, not a built-in fallback. Preserve model/tool route
+suffixes and independent Foundry/API Center endpoints. Client-access evidence does not
+establish this walkthrough's separate model, agent, or live topology acceptance.
 
 ### Step 4.3 — Test Locally
 

@@ -348,7 +348,7 @@ az webapp config appsettings set \
   --name "app-discovery-portal" \
   --settings \
     VITE_API_CENTER_URL="https://apic-agents-platform.azure-api.net" \
-    VITE_APIM_URL="https://apim-agents-gateway.azure-api.net" \
+    VITE_APIM_URL="${APIM_GATEWAY_URL:?Set the validated Chapter 02 selectedGatewayUrl}" \
     VITE_ENTRA_CLIENT_ID="<your-app-registration-client-id>" \
     VITE_ENTRA_TENANT_ID="<your-tenant-id>"
 ```
@@ -384,7 +384,7 @@ az containerapp create \
   --ingress internal \
   --env-vars \
     VITE_API_CENTER_URL="https://apic-agents-platform.azure-api.net" \
-    VITE_APIM_URL="https://apim-agents-gateway.azure-api.net"
+    VITE_APIM_URL="${APIM_GATEWAY_URL:?Set the validated Chapter 02 selectedGatewayUrl}"
 ```
 
 ---
