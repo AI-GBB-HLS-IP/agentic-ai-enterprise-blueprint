@@ -507,7 +507,7 @@ validate_static_ownership() {
 
     printf '%s\n' '{"resources":[{"type":"Microsoft.ApiManagement/service"}]}' >"$temp_dir/seed-integration"
     if integration_resources_owned "$temp_dir/seed-integration" >/dev/null 2>&1; then
-      echo "ERROR: integration ownership regression self-test did not exercise assert_absent" >&2
+      echo "ERROR: integration ownership regression self-test did not exercise integration_resources_owned" >&2
       exit 1
     fi
   fi
