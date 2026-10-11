@@ -65,8 +65,12 @@ Direct-private retains current DNS-to-live-VIP equality and certificate-validate
 Corporate-routed performs live binding, Internal SKU/posture, DNS, and TLS checks, plus
 requires `endpointValidationEvidence` context and network-owner attestation. Root HTTP
 responses measure transport, not APIM origin or application success. Evidence records:
-service ID, mode, access path, exact role/hostname map, validation timestamp, non-placeholder
-validation reference, and corporate-only routing approval reference. The referenced
+service ID, mode, access path, exact role/hostname map, `status` (`pass`, `fail`, `blocked`),
+validation timestamp, non-placeholder validation reference, and corporate-only routing
+approval reference. Use `status` consistently with the generic validation-record contract
+at `specs/00-network-foundation/contracts/validation-evidence.md:8-18`. Context-bearing
+deployment evidence stays in the customer store; committed generic records remain redacted.
+The referenced
 network-owner record must identify the intended Internal APIM upstream and approved
 client path without unapproved public exposure. Retain it in the customer evidence store.
 
@@ -79,7 +83,11 @@ Preserve the standard external-DNS evidence reference for legacy built-in config
 
 ### D4: Readiness and integration consistency
 
-Keep DNS readiness pending until appropriate evidence is supplied; retain all other
+Custom readiness requires context-matching evidence with explicit `status: pass`.
+Missing evidence or status, `fail`, `blocked`, and invalid status cannot produce deployed
+readiness; report failed/blocked outcomes explicitly and reject invalid values. Stage 2
+rejects non-pass custom handoffs even if a supplied overall readiness says deployed.
+Keep DNS readiness pending without passing evidence; retain all other
 foundation gates. Bicep records operator evidence, while runtime validation establishes
 measured checks; an ARM success is not live proof. Stage 2 takes selected endpoint
 metadata from the handoff, checks its service/selection consistency and the selected
@@ -88,8 +96,9 @@ live gateway binding, and does not create APIM/DNS/monitoring.
 For a legacy handoff without endpoint metadata, accept only built-in/direct-private
 selection; reject any custom input without a custom handoff. Default request URLs use
 selected gateway and API path. Validate any `APIM_INTEGRATION_REQUEST_URL` override
-before using secrets, including HTTPS scheme, host, port, configured path, and absence
-of userinfo. Explicit client settings in future agent work consume the selected URL;
+before using secrets, including HTTPS scheme, host, configured path, and absence
+of userinfo. Only implicit port 443 or explicit `:443` is accepted; reject all other ports
+before any credential-bearing request. Explicit client settings in future agent work consume the selected URL;
 never silently rewrite a Foundry backend endpoint to the APIM hostname.
 
 ### D5: Coverage and traceability
@@ -101,9 +110,9 @@ scenarios are covered by the named tasks.
 |---|---|---|---|---|
 | Explicit endpoint modes | D1, D2 | Foundation Bicep, both parameter files, runtime endpoint selection; built-in/blueprint, built-in/external, custom/external; custom/blueprint rejected | 1.1, 2.1, 2.2, 4.1 | Existing standard configuration; Built-in names are blocked; Incomplete custom configuration; Unsupported custom DNS ownership |
 | Live endpoint binding verification | D2, D3 | Effective/live bindings, foundation/all runtime validator | 2.1, 2.2, 4.1 | Valid custom bindings; Wrong service or invalid certificate |
-| Access-path-specific verification | D1, D3 | Direct and corporate branches, evidence validation | 2.2, 4.1, 4.2 | Direct custom access; Approved intermediary; Unproven intermediary |
-| Context-bound readiness handoff | D2, D3, D4 | DNS module, foundation outputs, runtime evidence validation, Stage 2 preflight/Bicep | 2.1, 2.2, 3.1, 4.1 | Custom readiness completed; Changed selection or stale evidence; Legacy standard handoff |
-| Selected gateway integration | D2, D4 | Foundation endpoint selection, integration/all requests, URL output/overrides, client examples | 2.1, 2.2, 3.1, 3.2, 4.1, 4.2 | Custom gateway request; Conflicting override |
+| Access-path-specific verification | D1, D3, D4 | Direct and corporate branches, access-path inputs, evidence validation/readiness | 2.1, 2.2, 4.1, 4.2 | Direct custom access; Approved intermediary; Unproven intermediary |
+| Context-bound readiness handoff | D2, D3, D4 | DNS module, foundation outputs, runtime evidence validation, Stage 2 preflight/Bicep | 2.1, 2.2, 3.1, 4.1 | Custom readiness completed; Changed selection or stale evidence; Non-pass validation evidence; Legacy standard handoff |
+| Selected gateway integration | D2, D4 | Foundation endpoint selection, integration/all requests, URL output/overrides, client examples | 2.1, 2.2, 3.1, 3.2, 4.1, 4.2 | Custom gateway request; Conflicting override; Non-default HTTPS port |
 | Explicit operational limits | D3, D5 | Chapter 02 spec/plan/tasks/contracts, README, runtime evidence guidance, validation docs, related active artifacts | 1.1, 2.2, 3.2, 4.2 | Custom-only organization |
 
 Affected callers include `foundation`, `integration`, `all`, offline compile/static checks,
@@ -124,6 +133,8 @@ custom wildcard selection, and provisioning corporate routing are excluded.
   inspect what-if; no parallel foundation updates.
 - Evidence can become stale without a name change -> mandatory operator revalidation on
   route/certificate changes; no claim of continuous monitoring.
+- An operator can falsely label evidence pass -> explicit outcomes prevent accidental
+  acceptance of failed/blocked results, not forged evidence; external approval remains trusted.
 - Client-access success does not prove private Foundry access -> retain separate model,
   managed-identity, backend routing, request, and telemetry acceptance.
 

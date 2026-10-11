@@ -20,9 +20,10 @@ unconditional built-in checks unsuitable for those configurations.
   access or evidence-backed corporate routing, without accepting arbitrary addresses or a
   successful HTTP response as proof of APIM identity.
 - Emit a selected-endpoint handoff and record validation evidence bound to the selected APIM,
-  endpoints, and access path. Preserve Stage 2's readiness prerequisite.
+  endpoints, and access path. Require explicit `status: pass` for custom readiness; failed,
+  blocked, or missing outcomes cannot advance readiness. Preserve Stage 2's readiness prerequisite.
 - Use the selected gateway for integration requests and dependent consumers; allow explicit
-  overrides only when consistent with the selected live binding.
+  overrides only when consistent with the selected live binding and HTTPS port 443.
 - Update chapter specification, contracts, operator instructions, examples, and regressions.
 - No certificate lifecycle change, corporate DNS/proxy provisioning, platform dependency
   firewall changes, or claim that client access proves APIM-to-Foundry connectivity.

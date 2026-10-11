@@ -17,13 +17,16 @@
   Verify Bicep compile plus evaluated tests for built-in default, both DNS owners,
   custom/external/direct, custom/external/corporate, explicit custom/blueprint rejection,
   other invalid combinations/hostnames,
-  absent evidence pending, matching evidence ready, and mismatched evidence rejection.
+  absent evidence pending, context-matching `status: pass` evidence ready, and mismatched
+  evidence rejection. Verify `fail`, `blocked`, missing status, and invalid status cannot
+  produce deployed custom readiness.
 - [ ] 2.2 After 2.1, update foundation/all runtime validation for role-matched live bindings,
   direct-private equality, and corporate evidence plus DNS/TLS. Document the evidence JSON
   fields from D3, network-owner approval, missing-access BLOCKED behavior, and distinctions
   between measured checks and operator attestation. Add mocked checks proving custom mode
   performs no built-in probes, rejects wrong bindings/TLS failures/unproven routing, and
-  requires all three roles. Verify tests and shell syntax without using secrets.
+  requires all three roles. Include explicit pass/fail/blocked outcomes and tests rejecting
+  non-pass evidence as readiness proof. Verify tests and shell syntax without using secrets.
 
 ## 3. Integration and operator workflow
 
@@ -31,7 +34,9 @@
   files for selected endpoints, live gateway binding, legacy built-in compatibility, and
   custom context mismatches. Derive the selected client URL and validate explicit request
   overrides before credentials are used. Add tests for same-service custom handoffs, wrong
-  service/selection, legacy defaults, and conflicting/non-HTTPS/userinfo/path overrides;
+  service/selection, custom non-pass handoffs (even with overall status deployed), legacy
+  defaults, and conflicting/non-HTTPS/userinfo/path overrides. Test non-443-port rejection
+  before credentials are used and acceptance of implicit 443 and explicit `:443`;
   verify Stage 2 compilation and no APIM/DNS/observability mutation in structural checks.
 - [ ] 3.2 After 3.1, update README, Stage 1 smoke guide, validation README, foundation and
   integration evidence templates, request examples, and existing gateway consumers for

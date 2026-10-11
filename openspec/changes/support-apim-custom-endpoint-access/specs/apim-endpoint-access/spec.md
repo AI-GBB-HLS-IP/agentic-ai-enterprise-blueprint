@@ -65,9 +65,10 @@ APIM, in addition to live binding, DNS, and TLS checks. An IP range SHALL NOT im
 
 ### Requirement: Context-bound readiness handoff
 The handoff SHALL identify endpoint mode, access path, selected hostnames, APIM service,
-excluded endpoints, and validation evidence. Custom readiness SHALL remain pending without
-matching evidence. Stage 2 SHALL reject mismatched handoffs and preserve existing readiness
-checks. Legacy handoffs SHALL remain usable only with compatible built-in/direct-private inputs.
+excluded endpoints, and validation evidence. Custom readiness SHALL require matching evidence
+with explicit `status: pass`; `fail`, `blocked`, absent, or invalid outcomes SHALL NOT advance
+readiness. Stage 2 SHALL reject mismatched or non-pass custom handoffs and preserve existing
+readiness checks. Legacy handoffs SHALL remain usable only with built-in/direct-private inputs.
 
 #### Scenario: Custom readiness completed
 - **WHEN** selected endpoint checks pass and matching evidence is recorded with other foundation prerequisites ready
@@ -77,13 +78,18 @@ checks. Legacy handoffs SHALL remain usable only with compatible built-in/direct
 - **WHEN** the APIM service, selected names, or access path differs from the evidence context
 - **THEN** the handoff is rejected and new validation is required.
 
+#### Scenario: Non-pass validation evidence
+- **WHEN** custom evidence has status `fail` or `blocked`, omits status, or supplies an invalid status
+- **THEN** foundation readiness cannot become deployed and Stage 2 rejects the custom handoff.
+
 #### Scenario: Legacy standard handoff
 - **WHEN** a deployed legacy handoff is used without custom endpoint inputs
 - **THEN** existing built-in/direct-private integration remains compatible.
 
 ### Requirement: Selected gateway integration
 Integration request validation and generated client URLs SHALL use the selected gateway.
-Explicit request URL overrides SHALL match its HTTPS host and configured API path.
+Explicit request URL overrides SHALL match its HTTPS host and configured API path and
+SHALL use port 443, either implicitly or explicitly.
 Stage 2 SHALL reference, not redeploy, APIM and SHALL validate APIM-to-Foundry behavior
 separately from client-to-APIM connectivity.
 
@@ -94,6 +100,10 @@ separately from client-to-APIM connectivity.
 #### Scenario: Conflicting override
 - **WHEN** a request override names a different gateway or incorrect API path
 - **THEN** preflight fails rather than sending credentials to that destination.
+
+#### Scenario: Non-default HTTPS port
+- **WHEN** an override uses the selected hostname and API path but specifies port 8443 or any non-443 port
+- **THEN** preflight rejects it before sending credentials; implicit or explicit port 443 is permitted.
 
 ### Requirement: Explicit operational limits
 Guidance SHALL distinguish client endpoint exclusions from platform dependencies and
