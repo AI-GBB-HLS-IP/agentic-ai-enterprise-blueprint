@@ -28,6 +28,8 @@ param apimSkuCapacity = int(readEnvironmentVariable('APIM_SKU_CAPACITY', '1'))
 // Custom domains: run scripts/apim/get-existing-hostnames.sh before every deployment (see README).
 param hostnameMode = readEnvironmentVariable('APIM_HOSTNAME_MODE', 'preserve')
 param existingHostnamesJson = readEnvironmentVariable('APIM_EXISTING_HOSTNAMES_JSON', '')
+param hostnameConfigurations = json(readEnvironmentVariable('APIM_HOSTNAME_CONFIGURATIONS_JSON', '[]'))
+param hostnameCertificates = json(readEnvironmentVariable('APIM_HOSTNAME_CERTIFICATES_JSON', '{}'))
 
 param privateDnsZoneName = readEnvironmentVariable('APIM_PRIVATE_DNS_ZONE_NAME', 'azure-api.net')
 param privateDnsDeploymentMode = readEnvironmentVariable('APIM_PRIVATE_DNS_MODE', 'blueprint')
@@ -35,6 +37,10 @@ param privateDnsRecordName = readEnvironmentVariable('APIM_DNS_RECORD_NAME', 'ap
 param privateDnsZoneTags = json(readEnvironmentVariable('APIM_PRIVATE_DNS_ZONE_TAGS', '{}'))
 param privateDnsVnetLinkTags = json(readEnvironmentVariable('APIM_PRIVATE_DNS_VNET_LINK_TAGS', '{}'))
 param externalDnsValidationReference = readEnvironmentVariable('APIM_EXTERNAL_DNS_VALIDATION_REFERENCE', '')
+param endpointMode = readEnvironmentVariable('APIM_ENDPOINT_MODE', 'built-in')
+param endpointAccessPath = readEnvironmentVariable('APIM_ENDPOINT_ACCESS_PATH', 'direct-private')
+param customEndpointHostnames = json(readEnvironmentVariable('APIM_CUSTOM_ENDPOINT_HOSTNAMES', '{}'))
+param endpointValidationEvidence = json(readEnvironmentVariable('APIM_ENDPOINT_VALIDATION_EVIDENCE', '{}'))
 
 param applicationInsightsName = readEnvironmentVariable('APIM_APP_INSIGHTS_NAME', 'appi-apim-agent-factory-poc')
 param applicationInsightsTags = json(readEnvironmentVariable('APIM_APP_INSIGHTS_TAGS', '{}'))

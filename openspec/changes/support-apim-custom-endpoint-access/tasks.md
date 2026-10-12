@@ -2,7 +2,7 @@
 
 ## 1. Reconcile the endpoint contract
 
-- [ ] 1.1 Reconcile Chapter 02 `spec.md`, `plan.md`, `tasks.md`, contracts, and the active
+- [x] 1.1 Reconcile Chapter 02 `spec.md`, `plan.md`, `tasks.md`, contracts, and the active
   staged-deployment/custom-domain changes with design D1-D5 and its coverage matrix.
   Record the supported mode matrix, default compatibility, and custom legacy portal/SCM
   client exclusions; verify every requirement/scenario has an implementation and acceptance
@@ -10,7 +10,7 @@
 
 ## 2. Foundation selection and validation
 
-- [ ] 2.1 After 1.1, implement foundation endpoint/access-path inputs, effective-binding
+- [x] 2.1 After 1.1, implement foundation endpoint/access-path inputs, effective-binding
   checks, selected gateway output, mode-aware DNS handoff, and context-bound evidence/readiness
   in the foundation and DNS module. Wire both foundation parameter files; retain the existing
   built-in output and certificate helpers. Update foundation documentation concurrently.
@@ -25,7 +25,7 @@
   `validationReference`, plus corporate-only `routingApprovalReference`); test missing,
   empty, and wrong-type fields, wrong gate/owner, and timestamp aliases failing the
   required-field guard. Keep base fields generic and live extension context untracked.
-- [ ] 2.2 After 2.1, update foundation/all runtime validation for role-matched live bindings,
+- [x] 2.2 After 2.1, update foundation/all runtime validation for role-matched live bindings,
   direct-private equality, and corporate evidence plus DNS/TLS. Document the evidence JSON
   as an extension of the generic validation contract with every exact base/extension field
   from D3, network-owner approval, missing-access BLOCKED behavior, and distinctions
@@ -39,7 +39,7 @@
 
 ## 3. Integration and operator workflow
 
-- [ ] 3.1 After 2.1 and 2.2, extend Stage 2 handoff validation and both integration parameter
+- [x] 3.1 After 2.1 and 2.2, extend Stage 2 handoff validation and both integration parameter
   files for selected endpoints, live gateway binding, legacy built-in compatibility, and
   custom context mismatches. Derive the selected client URL and validate explicit request
   overrides before credentials are used. Add tests for same-service custom handoffs, wrong
@@ -50,7 +50,7 @@
   gate/owner, or `timestampUtc`, including alias-only timestamps, even if overall
   readiness claims deployed. Check both preflight and Bicep structural guards.
   Verify Stage 2 compilation and no APIM/DNS/observability mutation in structural checks.
-- [ ] 3.2 After 3.1, update README, Stage 1 smoke guide, validation README, foundation and
+- [x] 3.2 After 3.1, update README, Stage 1 smoke guide, validation README, foundation and
   integration evidence templates, request examples, and existing gateway consumers for
   selected URLs. Explain blocked Azure-managed client names versus unchanged platform
   dependencies, manual PFX redeployment, separate Foundry private connectivity, and
@@ -64,7 +64,7 @@
 
 ## 4. Cross-surface acceptance
 
-- [ ] 4.1 After 1.1, 2.1, 2.2, 3.1, and 3.2, run the smallest existing regressions covering
+- [x] 4.1 After 1.1, 2.1, 2.2, 3.1, and 3.2, run the smallest existing regressions covering
   the complete revision: `bash tests/foundry/test-apim-staged-contracts.sh`,
   `bash tests/foundry/test-apim-review-regressions.sh`,
   `bash tests/foundry/test-apim-hostname-capture.sh`, and

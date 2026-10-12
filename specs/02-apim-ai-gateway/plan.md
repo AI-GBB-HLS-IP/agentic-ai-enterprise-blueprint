@@ -45,6 +45,39 @@ an explicit ownership mode and are verified by live validation rather than overw
 
 ## Stage 2 Design
 
+### Endpoint selection continuation (#104)
+
+`../../openspec/changes/support-apim-custom-endpoint-access/design.md` D1-D5 is the
+endpoint-access design and coverage baseline. Its requirement/scenario-to-task matrix owns
+all endpoint acceptance; the staged deployment ownership table above remains unchanged.
+Task 1.1 reconciles contracts, 2.1 owns foundation/effective bindings/DNS/evidence,
+2.2 owns live binding and path-specific runtime checks, 3.1 owns Stage 2 handoff and
+credential-safe URL selection, 3.2 owns every D5 documentation consumer, 4.1 owns local
+cross-surface evaluation, and 4.2 owns authorized live deployment acceptance.
+
+Supported selections are built-in/direct-private with either DNS owner, and custom/external
+with direct-private or evidence-backed corporate routing. Defaults remain built-in,
+direct-private; custom/blueprint and built-in/corporate are rejected. Custom uses three
+mandatory roles, excluding only legacy portal/SCM client checks. Certificate modes and
+manual PFX resupply are unchanged. Additive selected metadata retains the built-in output.
+
+Custom DNS readiness requires all exact generic and deployment-extension evidence fields
+with context equality and explicit pass; missing evidence is pending, non-pass cannot advance,
+and invalid fields are rejected. Runtime validates ISO-8601 UTC `timestampUtc`; ARM structure
+does not authenticate external approval. Stage 2 verifies this metadata and the live gateway,
+accepts legacy handoffs only for built-in/direct-private, and validates HTTPS host/path/443
+before using request credentials. Corporate approval is operator attestation, not an IP-range
+or HTTP-status inference. Separate Foundry connectivity and telemetry remain mandatory.
+
+Feasibility: existing `infra/modules/apim/hostnames.bicep` assembles effective bindings;
+Stage 2's existing-resource reference preserves create/update boundaries. Microsoft Learn
+[custom domains](https://learn.microsoft.com/en-us/azure/api-management/configure-custom-domain)
+documents replacement of non-gateway defaults and retention of the default gateway;
+[Internal VNet](https://learn.microsoft.com/en-us/azure/api-management/api-management-using-with-internal-vnet)
+requires operator DNS. Corporate route provisioning, v2/workspace/multi-region mapping,
+wildcard selections, and Chapter 14 topology are excluded. Implementation/live outcomes
+must be recorded separately; no task or compilation status proves live readiness.
+
 `infra/envs/poc/apim-foundry-integration.bicep` declares APIM as an existing resource at
 `resourceGroup(apimResourceGroupName)`. It derives the system principal directly and composes:
 

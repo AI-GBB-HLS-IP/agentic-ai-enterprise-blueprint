@@ -56,7 +56,9 @@ APIM service endpoint in internal VNet mode.
 #### Scenario: Provision classic internal APIM
 - **WHEN** the customer-approved classic APIM configuration requires a public IP
 - **THEN** the deployment supplies that public IP for APIM platform operation and validation
-  still confirms that gateway, portal, management, and SCM endpoints are not publicly reachable
+  still confirms Internal posture and selected client endpoint access: all five built-in
+  names by default, or gateway/developer portal/management in explicit custom mode with
+  direct-private or network-owner-approved corporate routing without unapproved public exposure
 
 #### Scenario: Validate private gateway posture
 - **WHEN** an APIM public IP resource exists for control-plane requirements
@@ -202,10 +204,11 @@ required by classic internal APIM from public reachability of APIM service endpo
   outputs and complete end-to-end governed model validation
 
 ### Requirement: Enterprise DNS extension is explicit
-The foundation guidance SHALL identify the default `*.azure-api.net` private-resolution scope and
-SHALL document customer-approved custom domains, approved certificates, and internal enterprise
-DNS records as a separate conditional step when APIM must be resolvable beyond the deployment
-VNet across the enterprise network.
+Guidance SHALL retain built-in/direct-private defaults and support explicit custom/external
+selection with three mandatory roles, excluding only legacy portal/SCM client checks.
+Endpoint continuation #104 owns direct-private or approved corporate routing, selected URLs,
+and context-bound evidence under its design D5/tasks 1.1-4.2. Certificate handling, platform
+dependencies, and staged ownership SHALL remain unchanged.
 
 #### Scenario: VNet-local gateway usage
 - **WHEN** APIM consumers resolve and access the gateway only from the deployment VNet or
@@ -216,4 +219,7 @@ VNet across the enterprise network.
 #### Scenario: Enterprise-wide internal gateway usage
 - **WHEN** APIM must be resolvable across the broader customer network
 - **THEN** the operator is directed to configure approved custom endpoint domains and
-  certificates and request internal DNS A records to the APIM private VIP
+  certificates, select custom/external, and validate direct-private DNS to the live VIP or
+  retain network-owner approval for corporate routing alongside live binding/DNS/TLS.
+  Complete context-matching pass evidence with all generic/extension fields including
+  timestampUtc is required before custom readiness or Stage 2 can advance.

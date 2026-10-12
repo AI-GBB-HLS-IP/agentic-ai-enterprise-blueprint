@@ -171,6 +171,11 @@ Always respond with:
 
 ### Step 1: Define MCP Servers
 
+Set `APIM_GATEWAY_URL` to the validated Chapter 02 `endpointAccess.selectedGatewayUrl`.
+Render the JSON URL placeholders before saving (JSON does not expand shell variables);
+preserve MCP suffixes. This chapter's `AZURE_OPENAI_ENDPOINT` is explicitly APIM-routed,
+unlike independent Foundry backend endpoints in other chapters.
+
 Create `mcp.json`:
 
 ```json
@@ -178,14 +183,14 @@ Create `mcp.json`:
   "servers": {
     "enterprise-tools": {
       "type": "sse",
-      "url": "https://apim-agents-gateway.azure-api.net/mcp/enterprise-tools/mcp",
+      "url": "${APIM_GATEWAY_URL}/mcp/enterprise-tools/mcp",
       "headers": {
         "Ocp-Apim-Subscription-Key": "${APIM_SUBSCRIPTION_KEY}"
       }
     },
     "expense-api": {
       "type": "sse",
-      "url": "https://apim-agents-gateway.azure-api.net/mcp/expense-api/mcp",
+      "url": "${APIM_GATEWAY_URL}/mcp/expense-api/mcp",
       "headers": {
         "Ocp-Apim-Subscription-Key": "${APIM_SUBSCRIPTION_KEY}"
       }
@@ -238,12 +243,16 @@ Update `local.settings.json`:
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
-    "AZURE_OPENAI_ENDPOINT": "https://apim-agents-gateway.azure-api.net",
+    "AZURE_OPENAI_ENDPOINT": "${APIM_GATEWAY_URL}",
     "AZURE_OPENAI_API_KEY": "<your-apim-key>",
     "APIM_SUBSCRIPTION_KEY": "<your-subscription-key>"
   }
 }
 ```
+
+Replace `${APIM_GATEWAY_URL}` with the selected origin before saving `local.settings.json`;
+do not expect Functions to expand this JSON string. Pass the same value as `openAiEndpoint`
+in the deployment example below. Never infer a built-in fallback in custom mode.
 
 ### Step 2: Run Locally
 

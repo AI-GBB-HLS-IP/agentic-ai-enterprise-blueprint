@@ -1,5 +1,17 @@
 targetScope = 'resourceGroup'
 
+import { endpointMatrixValid, customHostnamesValid, endpointEvidenceValid, endpointEvidencePassed } from './endpoints.bicep'
+
+@allowed(['built-in', 'custom'])
+param endpointMode string = 'built-in'
+
+@allowed(['direct-private', 'corporate-routed'])
+param endpointAccessPath string = 'direct-private'
+
+param customEndpointHostnames object = {}
+param apimServiceId string = ''
+param endpointValidationEvidence object = {}
+
 @description('Private DNS zone name for internal APIM hostnames.')
 param privateDnsZoneName string = 'azure-api.net'
 
@@ -35,13 +47,22 @@ param additionalEndpointSubdomains array = [
   'scm'
 ]
 
-resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (deployPrivateDns) {
+var endpointConfigurationValidated = endpointMatrixValid(endpointMode, endpointAccessPath, deployPrivateDns ? 'blueprint' : 'external') && (endpointMode != 'custom' || customHostnamesValid(customEndpointHostnames))
+  ? true
+  : fail('Custom endpoints require external DNS and three valid custom hostnames; corporate routing requires custom/external.')
+var endpointEvidenceValidated = empty(endpointValidationEvidence) || (endpointMode == 'custom' && endpointEvidenceValid(endpointValidationEvidence, apimServiceId, endpointMode, endpointAccessPath, customEndpointHostnames))
+  ? true
+  : fail('Invalid endpointValidationEvidence: require all base/extension fields and matching endpoint context.')
+var customEndpointsReady = endpointEvidenceValidated && endpointEvidencePassed(endpointValidationEvidence, apimServiceId, endpointMode, endpointAccessPath, customEndpointHostnames)
+var deployValidatedPrivateDns = deployPrivateDns && endpointConfigurationValidated && endpointEvidenceValidated
+
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (deployValidatedPrivateDns) {
   name: privateDnsZoneName
   location: 'global'
   tags: privateDnsZoneTags
 }
 
-resource privateDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (deployPrivateDns) {
+resource privateDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = if (deployValidatedPrivateDns) {
   parent: privateDnsZone
   name: '${vnetName}-link'
   location: 'global'
@@ -54,7 +75,7 @@ resource privateDnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLin
   }
 }
 
-resource apimGatewayRecord 'Microsoft.Network/privateDnsZones/A@2020-06-01' = if (deployPrivateDns && length(apimPrivateIpAddresses) > 0) {
+resource apimGatewayRecord 'Microsoft.Network/privateDnsZones/A@2020-06-01' = if (deployValidatedPrivateDns && length(apimPrivateIpAddresses) > 0) {
   parent: privateDnsZone
   name: apimGatewayRecordName
   properties: {
@@ -65,7 +86,7 @@ resource apimGatewayRecord 'Microsoft.Network/privateDnsZones/A@2020-06-01' = if
   }
 }
 
-resource apimAdditionalEndpointRecords 'Microsoft.Network/privateDnsZones/A@2020-06-01' = [for subdomain in additionalEndpointSubdomains: if (deployPrivateDns && length(apimPrivateIpAddresses) > 0) {
+resource apimAdditionalEndpointRecords 'Microsoft.Network/privateDnsZones/A@2020-06-01' = [for subdomain in additionalEndpointSubdomains: if (deployValidatedPrivateDns && length(apimPrivateIpAddresses) > 0) {
   parent: privateDnsZone
   name: '${apimGatewayRecordName}.${subdomain}'
   properties: {
@@ -78,7 +99,11 @@ resource apimAdditionalEndpointRecords 'Microsoft.Network/privateDnsZones/A@2020
 
 var normalizedExternalDnsValidationReference = toLower(trim(externalDnsValidationReference))
 var externalDnsValidationReferenceIsPlaceholder = contains(externalDnsValidationReference, '<') || contains(externalDnsValidationReference, '>') || contains(normalizedExternalDnsValidationReference, 'placeholder') || contains(normalizedExternalDnsValidationReference, 'replace-me') || normalizedExternalDnsValidationReference == 'todo' || normalizedExternalDnsValidationReference == 'tbd'
-var externalDnsValidated = empty(normalizedExternalDnsValidationReference)
+var externalDnsValidated = endpointMode == 'custom'
+  ? (empty(normalizedExternalDnsValidationReference)
+      ? customEndpointsReady
+      : fail('Custom readiness uses endpointValidationEvidence, not externalDnsValidationReference.'))
+  : empty(normalizedExternalDnsValidationReference)
   ? false
   : (!externalDnsValidationReferenceIsPlaceholder
       ? (!deployPrivateDns
@@ -88,9 +113,13 @@ var externalDnsValidated = empty(normalizedExternalDnsValidationReference)
 
 output privateDnsZoneId string = deployPrivateDns ? privateDnsZone.id : ''
 output privateDnsLinkId string = deployPrivateDns ? privateDnsVnetLink.id : ''
-output apimGatewayFqdn string = '${apimGatewayRecordName}.${privateDnsZoneName}'
+output apimGatewayFqdn string = endpointConfigurationValidated
+  ? (endpointMode == 'custom' ? customEndpointHostnames.gateway : '${apimGatewayRecordName}.${privateDnsZoneName}')
+  : ''
 output apimGatewayRecordId string = deployPrivateDns && length(apimPrivateIpAddresses) > 0 ? apimGatewayRecord.id : ''
-output additionalEndpointFqdns array = [for subdomain in additionalEndpointSubdomains: '${apimGatewayRecordName}.${subdomain}.${privateDnsZoneName}']
+output additionalEndpointFqdns array = endpointMode == 'custom'
+  ? [customEndpointHostnames.developerPortal, customEndpointHostnames.management]
+  : map(additionalEndpointSubdomains, subdomain => '${apimGatewayRecordName}.${subdomain}.${privateDnsZoneName}')
 output dnsReadiness object = {
   mode: deployPrivateDns ? 'blueprint' : 'external'
   zone: deployPrivateDns ? 'deployed' : 'external'
@@ -99,6 +128,9 @@ output dnsReadiness object = {
   additionalEndpointRecords: !deployPrivateDns ? (externalDnsValidated ? 'validated' : 'external-handoff-required') : (length(apimPrivateIpAddresses) > 0 ? 'deployed' : 'pending')
   privateIpCount: length(apimPrivateIpAddresses)
   externalDnsValidation: externalDnsValidated ? 'validated' : (!deployPrivateDns ? 'required' : 'not-required')
-  externalDnsValidationReference: externalDnsValidated ? externalDnsValidationReference : ''
+  externalDnsValidationReference: externalDnsValidated
+    ? (endpointMode == 'custom' ? endpointValidationEvidence.validationReference : externalDnsValidationReference)
+    : ''
+  endpointValidationStatus: endpointMode == 'custom' ? (endpointValidationEvidence.?status ?? 'blocked') : 'not-required'
   status: (deployPrivateDns && length(apimPrivateIpAddresses) > 0) || (externalDnsValidated && length(apimPrivateIpAddresses) > 0) ? 'deployed' : 'pending'
 }

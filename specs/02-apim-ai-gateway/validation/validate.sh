@@ -265,30 +265,200 @@ apim_classic_sku_supported() {
   ' <<<"$1" >/dev/null
 }
 
+select_apim_endpoints() {
+  local apim_name="$1" stage="${2:-foundation}"
+  local mode="${APIM_ENDPOINT_MODE:-built-in}" path="${APIM_ENDPOINT_ACCESS_PATH:-direct-private}"
+  local dns_owner="${APIM_PRIVATE_DNS_MODE:-external}" hostnames="${APIM_CUSTOM_ENDPOINT_HOSTNAMES:-}"
+  [[ -n "$hostnames" ]] || hostnames='{}'
+  if [[ "$mode" == "built-in" && "$path" == "direct-private" && ( "$dns_owner" == "blueprint" || "$dns_owner" == "external" ) ]]; then
+    jq -cn --arg name "$(lowercase "$apim_name")" '[
+      {role:"gateway",type:"Proxy",hostname:($name+".azure-api.net")},
+      {role:"developerPortal",type:"DeveloperPortal",hostname:($name+".developer.azure-api.net")},
+      {role:"legacyPortal",type:"Portal",hostname:($name+".portal.azure-api.net")},
+      {role:"management",type:"Management",hostname:($name+".management.azure-api.net")},
+      {role:"scm",type:"Scm",hostname:($name+".scm.azure-api.net")}
+    ]'
+    return
+  fi
+  if [[ "$mode" != "custom" || "$dns_owner" != "external" || ( "$path" != "direct-private" && "$path" != "corporate-routed" ) ]]; then
+    echo "ERROR [$stage]: unsupported endpoint mode/access path/DNS owner; custom requires external DNS and corporate routing requires custom." >&2
+    return 1
+  fi
+  jq -ce '
+    def hostname:
+      type == "string" and
+      (ascii_downcase | gsub("^\\s+|\\s+$"; "") |
+        length <= 253 and test("[a-z]") and
+        test("^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$") and
+        (split(".") | all(.[]; length <= 63)) and
+        (endswith(".azure-api.net") | not));
+    if type == "object" and keys == ["developerPortal","gateway","management"]
+      and all(.[]; hostname) then
+      with_entries(.value |= (ascii_downcase | gsub("^\\s+|\\s+$"; ""))) |
+      [{role:"gateway",type:"Proxy",hostname:.gateway},
+       {role:"developerPortal",type:"DeveloperPortal",hostname:.developerPortal},
+       {role:"management",type:"Management",hostname:.management}]
+    else error("invalid custom endpoint hostnames") end
+  ' <<<"$hostnames" || {
+    echo "ERROR [$stage]: require exactly three DNS hostname strings: gateway, developerPortal, management; URLs, ports, paths, wildcards, and built-in names are invalid." >&2
+    return 1
+  }
+}
+
+validate_endpoint_bindings() {
+  local apim_json="$1" endpoints="$2" stage="${3:-foundation}"
+  jq -e --argjson selected "$endpoints" '
+    .hostnameConfigurations as $bindings |
+    all($selected[]; . as $endpoint |
+      any($bindings[]?; (.type | ascii_downcase) == ($endpoint.type | ascii_downcase)
+        and (.hostName | ascii_downcase) == $endpoint.hostname))
+  ' <<<"$apim_json" >/dev/null || {
+    echo "ERROR [$stage]: selected custom endpoints do not match the intended live APIM role bindings." >&2
+    return 1
+  }
+}
+
+validate_endpoint_evidence() {
+  local evidence="$1" service_id="$2" endpoints="$3" stage="${4:-foundation}"
+  local path="${APIM_ENDPOINT_ACCESS_PATH:-direct-private}" status
+  if [[ -z "$evidence" ]] || jq -e 'type == "object" and length == 0' <<<"$evidence" >/dev/null 2>&1; then
+    block "$stage" "Custom endpoint validation evidence is required; retain measured checks and approved routing context."
+    return 3
+  fi
+  jq -e --arg id "$service_id" --arg path "$path" --argjson selected "$endpoints" '
+    def nonempty: type == "string" and (gsub("^\\s+|\\s+$"; "") | length > 0);
+    def reference:
+      nonempty and (ascii_downcase | test("[<>]|placeholder|replace-me|^\\s*(todo|tbd)\\s*$") | not);
+    def utc:
+      nonempty and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$") and
+      (sub("\\.[0-9]+Z$"; "Z") as $canonical |
+        try (($canonical | fromdateiso8601 | strftime("%Y-%m-%dT%H:%M:%SZ")) == $canonical) catch false);
+    . as $e |
+    type == "object" and
+    all(["validationType","status","owner","scope","approvalReference","evidenceSummary","timestampUtc",
+         "apimServiceId","endpointMode","endpointAccessPath","validationReference"][]; $e[.] | nonempty) and
+    .validationType == "apim-endpoint-access" and
+    (.status == "pass" or .status == "fail" or .status == "blocked") and
+    (.timestampUtc | utc) and
+    (.apimServiceId | ascii_downcase) == ($id | ascii_downcase) and
+    .endpointMode == "custom" and .endpointAccessPath == $path and
+    .selectedHostnames == ($selected | map({key:.role,value:.hostname}) | from_entries) and
+    (.validationReference | reference) and
+    ($path != "corporate-routed" or
+      (.owner == "network-owner" and (.routingApprovalReference | reference)))
+  ' <<<"$evidence" >/dev/null || {
+    echo "ERROR [$stage]: invalid endpoint evidence; require exact base/extension fields, valid UTC timestampUtc, gate/owner, and matching service/mode/path/hostnames." >&2
+    return 1
+  }
+  status="$(jq -r '.status' <<<"$evidence")"
+  case "$status" in
+    pass) ;;
+    blocked)
+      block "$stage" "Endpoint evidence status is blocked; custom readiness cannot advance."
+      return 3
+      ;;
+    fail)
+      echo "ERROR [$stage]: endpoint evidence status is fail; custom readiness cannot advance." >&2
+      return 1
+      ;;
+  esac
+}
+
 validate_apim_endpoint_reachability() {
   local apim_name="$1"
   local apim_json="$2"
-  local endpoint ip
-  for endpoint in \
-    "$apim_name.azure-api.net" \
-    "$apim_name.developer.azure-api.net" \
-    "$apim_name.portal.azure-api.net" \
-    "$apim_name.management.azure-api.net" \
-    "$apim_name.scm.azure-api.net"; do
-    ip="$(getent ahostsv4 "$endpoint" | awk 'NR == 1 { print $1 }')"
-    if [[ -z "$ip" ]] || ! is_private_ipv4 "$ip"; then
-      echo "ERROR [foundation]: $endpoint did not resolve to a private IPv4 address." >&2
-      return 1
-    fi
-    jq -e --arg ip "$ip" '(.privateIPAddresses // []) | index($ip) != null' <<<"$apim_json" >/dev/null || {
-      echo "ERROR [foundation]: $endpoint resolved to $ip instead of an APIM-reported private IP." >&2
+  local endpoint ip endpoints ips service_id
+  local curl_args=(--silent --show-error --connect-timeout 5 --max-time 10)
+  if [[ "${APIM_ENDPOINT_ACCESS_PATH:-direct-private}" == "direct-private" ]]; then
+    curl_args+=(--noproxy '*')
+  fi
+  endpoints="$(select_apim_endpoints "$apim_name")" || return 1
+  if [[ "${APIM_ENDPOINT_MODE:-built-in}" == "custom" ]]; then
+    apim_classic_sku_supported "$apim_json" &&
+      [[ "$(lowercase "$(jq -r '.virtualNetworkType // ""' <<<"$apim_json")")" == "internal" ]] || {
+      echo "ERROR [foundation]: custom endpoint checks require classic Developer capacity 1 or Premium in Internal mode." >&2
       return 1
     }
-    if ! curl --silent --show-error --connect-timeout 5 --max-time 10 "https://$endpoint" -o /dev/null; then
-      echo "ERROR [foundation]: $endpoint was not reachable from the approved validation network." >&2
+    validate_endpoint_bindings "$apim_json" "$endpoints" || return 1
+  fi
+  while IFS= read -r endpoint; do
+    if ! ips="$(getent ahostsv4 "$endpoint" | awk '{print $1}' | sort -u)" || [[ -z "$ips" ]]; then
+      echo "ERROR [foundation]: a selected endpoint did not resolve to IPv4 from the validation network." >&2
       return 1
     fi
-  done
+    if [[ "${APIM_ENDPOINT_ACCESS_PATH:-direct-private}" == "direct-private" ]]; then
+      while IFS= read -r ip; do
+        if ! is_private_ipv4 "$ip" || ! jq -e --arg ip "$ip" '(.privateIPAddresses // []) | index($ip) != null' <<<"$apim_json" >/dev/null; then
+          echo "ERROR [foundation]: a selected endpoint resolved outside the APIM-reported private IPs." >&2
+          return 1
+        fi
+      done <<<"$ips"
+    fi
+    if ! curl "${curl_args[@]}" "https://$endpoint" -o /dev/null; then
+      echo "ERROR [foundation]: selected endpoint TLS/reachability failed; certificate bypass is not permitted." >&2
+      return 1
+    fi
+  done < <(jq -r '.[].hostname' <<<"$endpoints")
+  if [[ "${APIM_ENDPOINT_MODE:-built-in}" == "custom" ]]; then
+    service_id="$(jq -r '.id // ""' <<<"$apim_json")"
+    [[ -n "$service_id" ]] || {
+      block foundation "Live APIM service ID is unavailable; selected upstream context cannot be verified."
+      return 3
+    }
+    validate_endpoint_evidence "${APIM_ENDPOINT_VALIDATION_EVIDENCE:-}" "$service_id" "$endpoints" || return $?
+    echo "PASS [foundation]: selected live bindings and DNS/TLS measured; endpoint evidence retained separately from measurements."
+  fi
+}
+
+validate_endpoint_handoff() {
+  local apim_json="$1" endpoints="$2" handoff="${APIM_STAGE1_ENDPOINT_ACCESS:-}" service_id selected_hostnames
+  [[ -n "$handoff" ]] || handoff='{}'
+  service_id="$(jq -r '.id' <<<"$apim_json")"
+  if jq -e 'type == "object" and length == 0' <<<"$handoff" >/dev/null 2>&1; then
+    if [[ "${APIM_ENDPOINT_MODE:-built-in}" != "built-in" || "${APIM_ENDPOINT_ACCESS_PATH:-direct-private}" != "direct-private" ]]; then
+      echo "ERROR [integration]: custom selection requires a matching Stage 1 endpointAccess handoff; legacy permits only built-in/direct-private." >&2
+      return 1
+    fi
+    return
+  fi
+  selected_hostnames="$(jq -c 'map(select(.role == "gateway" or .role == "developerPortal" or .role == "management") | {key:.role,value:.hostname}) | from_entries' <<<"$endpoints")"
+  jq -e --arg id "$service_id" --arg mode "${APIM_ENDPOINT_MODE:-built-in}" \
+    --arg path "${APIM_ENDPOINT_ACCESS_PATH:-direct-private}" \
+    --argjson endpoints "$endpoints" --argjson hostnames "$selected_hostnames" '
+      type == "object" and (.apimServiceId | ascii_downcase) == ($id | ascii_downcase)
+      and .endpointMode == $mode and .endpointAccessPath == $path
+      and .selectedHostnames == $hostnames and .endpoints == $endpoints
+      and .selectedGatewayHostname == $endpoints[0].hostname
+      and .selectedGatewayUrl == ("https://"+$endpoints[0].hostname)
+      and .excludedClientChecks == (if $mode == "custom" then ["legacyPortal","scm"] else [] end)
+    ' <<<"$handoff" >/dev/null || {
+    echo "ERROR [integration]: Stage 1 endpointAccess does not match selected service/mode/path/hostnames." >&2
+    return 1
+  }
+  if [[ "${APIM_ENDPOINT_MODE:-built-in}" == "custom" ]]; then
+    local result=0
+    validate_endpoint_evidence "$(jq -c '.endpointValidationEvidence // {}' <<<"$handoff")" "$service_id" "$endpoints" integration || result=$?
+    if [[ "$result" != 0 ]]; then
+      echo "ERROR [integration]: custom Stage 1 handoff lacks complete valid pass endpoint evidence; overall readiness cannot override it." >&2
+      return 1
+    fi
+    validate_endpoint_bindings "$apim_json" "$(jq -c '.[0:1]' <<<"$endpoints")" integration || return 1
+  fi
+}
+
+selected_integration_request_url() {
+  local selected_gateway="$1" api_path="$2" override="${3:-}" request_url
+  request_url="${override:-https://$selected_gateway/$api_path/chat/completions}"
+  jq -en --arg url "$request_url" --arg host "$selected_gateway" --arg path "/$api_path/chat/completions" '
+    ($url | capture("^(?i:https)://(?<host>[a-zA-Z0-9.-]+)(?<port>:[0-9]+)?(?<path>/[^?#]*)$")) as $parsed |
+    ($parsed.host | ascii_downcase) == $host and
+    ($parsed.port == null or $parsed.port == ":443") and
+    $parsed.path == $path
+  ' >/dev/null || {
+    echo "ERROR [integration]: request URL must use HTTPS, selected gateway, configured API path, no userinfo/query/fragment, and implicit or explicit port 443." >&2
+    return 1
+  }
+  printf '%s\n' "$request_url"
 }
 
 validate_static_ownership() {
@@ -321,9 +491,10 @@ validate_static_ownership() {
 
   if [[ "$MODE" == "integration" || "$MODE" == "all" ]]; then
     compile_to "$INTEGRATION_TEMPLATE" "$temp_dir/integration.json"
-    assert_absent '"type": "Microsoft\.ApiManagement/service"|Microsoft\.Network/privateDnsZones|Microsoft\.Insights/components|Microsoft\.OperationalInsights/workspaces|Microsoft\.Insights/metricAlerts' \
-      "$temp_dir/integration.json" \
-      "integration compiled template declares a foundation-owned resource"
+    integration_resources_owned "$temp_dir/integration.json" || {
+      echo "ERROR: integration compiled template declares a foundation-owned resource" >&2
+      exit 1
+    }
     assert_present 'Microsoft\.Authorization/roleAssignments' \
       "$temp_dir/integration.json" \
       "integration compiled template lacks the Foundry role assignment"
@@ -334,13 +505,25 @@ validate_static_ownership() {
       "$temp_dir/integration.json" \
       "integration compiled template lacks the governed API"
 
-    printf '%s\n' '"type": "Microsoft.ApiManagement/service"' >"$temp_dir/seed-integration"
-    if (assert_absent '"type": "Microsoft\.ApiManagement/service"|Microsoft\.Network/privateDnsZones|Microsoft\.Insights/components|Microsoft\.OperationalInsights/workspaces|Microsoft\.Insights/metricAlerts' \
-      "$temp_dir/seed-integration" "seeded integration ownership violation") >/dev/null 2>&1; then
-      echo "ERROR: integration ownership regression self-test did not exercise assert_absent" >&2
+    printf '%s\n' '{"resources":[{"type":"Microsoft.ApiManagement/service"}]}' >"$temp_dir/seed-integration"
+    if integration_resources_owned "$temp_dir/seed-integration" >/dev/null 2>&1; then
+      echo "ERROR: integration ownership regression self-test did not exercise integration_resources_owned" >&2
       exit 1
     fi
   fi
+}
+
+integration_resources_owned() {
+  jq -e '
+    [.. | objects | select(has("resources")) | .resources[] |
+      select(.existing != true) |
+      select(.type == "Microsoft.ApiManagement/service"
+        or (.type | startswith("Microsoft.Network/privateDnsZones"))
+        or .type == "Microsoft.Insights/components"
+        or .type == "Microsoft.OperationalInsights/workspaces"
+        or .type == "Microsoft.Insights/metricAlerts")]
+    | length == 0
+  ' "$1" >/dev/null
 }
 
 validate_foundation_offline() {
@@ -461,6 +644,7 @@ validate_foundation_live() {
     return
   fi
   load_selected_parameter_values "$FOUNDATION_PARAMETERS"
+  select_apim_endpoints "$APIM_SERVICE_NAME" >/dev/null || exit 1
 
   local missing=false
   for name in APIM_RESOURCE_GROUP APIM_NETWORK_RESOURCE_GROUP APIM_VNET_NAME APIM_SUBNET_NAME APIM_APPROVED_NSG_RESOURCE_ID APIM_PUBLISHER_EMAIL; do
@@ -532,12 +716,12 @@ validate_foundation_live() {
     return
   fi
 
-  if az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" >/dev/null 2>&1; then
+  local apim_json
+  if apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" -o json)"; then
     local apim_json apim_id apim_name expected_sku expected_capacity expected_public_ip_id
     apim_name="$APIM_SERVICE_NAME"
     expected_sku="${APIM_SKU_NAME:-Premium}"
     expected_capacity="${APIM_SKU_CAPACITY:-1}"
-    apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" -o json)"
     jq -e --arg sku "$expected_sku" --argjson capacity "$expected_capacity" '
       .sku.name == $sku and
       .sku.capacity == $capacity and
@@ -588,8 +772,10 @@ validate_foundation_live() {
     fi
 
     if [[ "${APIM_VALIDATE_ENDPOINT_REACHABILITY:-false}" == "true" ]]; then
-      validate_apim_endpoint_reachability "$apim_name" "$apim_json" || exit 1
-      if [[ "${APIM_PRIVATE_DNS_MODE:-external}" == "external" ]]; then
+      local endpoint_result=0
+      validate_apim_endpoint_reachability "$apim_name" "$apim_json" || endpoint_result=$?
+      if [[ "$endpoint_result" == 1 ]]; then exit 1; fi
+      if [[ "${APIM_ENDPOINT_MODE:-built-in}" == "built-in" && "${APIM_PRIVATE_DNS_MODE:-external}" == "external" ]]; then
         require_evidence_reference APIM_EXTERNAL_DNS_VALIDATION_REFERENCE foundation || true
       fi
     elif [[ "${APIM_PRIVATE_DNS_MODE:-external}" == "external" ]]; then
@@ -640,7 +826,7 @@ validate_foundation_live() {
       --query "criteria.allOf[?metricName=='Capacity' && operator=='GreaterThan' && timeAggregation=='Average' && threshold>=\`${APIM_CAPACITY_ALERT_THRESHOLD:-60}\`] | length(@)" -o tsv | grep -qx 1
 
   else
-    block foundation "APIM is not deployed; runtime identity, DNS, diagnostics, alert, and internal endpoint checks remain pending."
+    block foundation "APIM runtime read is unavailable (missing deployment or access); identity, DNS, diagnostics, alert, and selected endpoint checks remain pending."
   fi
 }
 
@@ -710,7 +896,10 @@ validate_integration_live() {
     exit 1
   }
 
-  apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" -o json)"
+  if ! apim_json="$(az apim show --resource-group "$APIM_RESOURCE_GROUP" --name "$APIM_SERVICE_NAME" -o json)"; then
+    block integration "Live APIM read is unavailable; service identity and selected gateway binding cannot be verified."
+    return 0
+  fi
   apim_id="$(jq -r '.id' <<<"$apim_json")"
   [[ "$(lowercase "$apim_id")" == "$(lowercase "$APIM_STAGE1_SERVICE_ID")" ]] || {
     echo "ERROR [integration]: APIM_STAGE1_SERVICE_ID does not match the selected Stage 1 APIM service." >&2
@@ -729,6 +918,11 @@ validate_integration_live() {
     echo "ERROR [integration]: existing APIM has no system-assigned principal." >&2
     exit 1
   }
+  local selected_endpoints selected_gateway request_base_url
+  selected_endpoints="$(select_apim_endpoints "$APIM_SERVICE_NAME" integration)" || exit 1
+  validate_endpoint_handoff "$apim_json" "$selected_endpoints" || exit 1
+  selected_gateway="$(jq -r '.[0].hostname' <<<"$selected_endpoints")"
+  request_base_url="$(selected_integration_request_url "$selected_gateway" "${APIM_GOVERNED_API_PATH:-llm/v1}" "${APIM_INTEGRATION_REQUEST_URL:-}")" || exit 1
 
   foundry_json="$(az cognitiveservices account show --resource-group "$FOUNDRY_RESOURCE_GROUP" --name "$FOUNDRY_ACCOUNT_NAME" -o json)"
   foundry_id="$(jq -r '.id' <<<"$foundry_json")"
@@ -806,7 +1000,7 @@ validate_integration_live() {
     grep -q 'set-query-parameter name="subscription-key" exists-action="delete"' <<<"$api_policy"
 
     if [[ "${APIM_VALIDATE_INTEGRATION_REQUESTS:-false}" == "true" ]]; then
-      local request_base_url subscription_key approved_model unsupported_model request_body
+      local subscription_key approved_model unsupported_model request_body
       local response_file status_code success_count telemetry_workspace_id
       for name in APIM_INTEGRATION_SUBSCRIPTION_KEY APIM_INTEGRATION_TELEMETRY_WORKSPACE_ID APIM_ALLOWED_REQUEST_TELEMETRY_QUERY APIM_REJECTED_REQUEST_BACKEND_QUERY APIM_UNSAFE_TELEMETRY_QUERY; do
         require_env_value "$name" integration || missing=true
@@ -816,7 +1010,6 @@ validate_integration_live() {
         return 0
       fi
 
-      request_base_url="${APIM_INTEGRATION_REQUEST_URL:-https://${APIM_SERVICE_NAME}.azure-api.net/${APIM_GOVERNED_API_PATH:-llm/v1}/chat/completions}"
       subscription_key="$APIM_INTEGRATION_SUBSCRIPTION_KEY"
       approved_model="$(jq -r '.[] | select(.enabled == true) | .publicName' <<<"$approved_models_json" | head -n 1)"
       unsupported_model="validator-unapproved-model"
@@ -835,7 +1028,14 @@ validate_integration_live() {
           --header "Ocp-Apim-Subscription-Key: $subscription_key" \
           --data "$request_body" \
           "$request_base_url")"
-        [[ "$status_code" == 2* ]] && success_count=$((success_count + 1))
+        if [[ "$status_code" == 2* ]] && jq -e '
+          .object == "chat.completion" and (.model | type == "string" and length > 0)
+          and (.choices | type == "array" and length > 0)
+          and .choices[0].message.role == "assistant"
+          and (.choices[0].message.content | type == "string" and length > 0)
+        ' "$response_file" >/dev/null; then
+          success_count=$((success_count + 1))
+        fi
       done
       [[ "$success_count" -ge 9 ]] || {
         echo "ERROR [integration]: approved request reliability was $success_count/10; at least 9/10 must succeed." >&2

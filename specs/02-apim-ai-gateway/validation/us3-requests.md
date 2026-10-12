@@ -31,22 +31,27 @@ not yet complete.
 
 ## Reproduction commands
 
+The historical results above are unchanged. Current reproduction uses the selected gateway
+from the validated handoff, not a built-in fallback; Stage 2 preflight validates any override.
+
 ```bash
+export APIM_GATEWAY_URL="$(jq -er '.selectedGatewayUrl' <<<"$APIM_STAGE1_ENDPOINT_ACCESS")"
+APIM_REQUEST_URL="${APIM_GATEWAY_URL}/${APIM_GOVERNED_API_PATH:-llm/v1}/chat/completions"
 for i in $(seq 1 10); do
   curl -sS -o /tmp/apim-ok-$i.json -w "%{http_code}\n" \
-    "https://apim-agent-factory-private-poc.azure-api.net/llm/v1/chat/completions" \
+    "$APIM_REQUEST_URL" \
     -H "Content-Type: application/json" \
     -H "Ocp-Apim-Subscription-Key: <valid-key>" \
     -d '{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"hello"}],"stream":false}'
 done
 
 curl -sS -o /tmp/apim-deny.json -w "%{http_code}\n" \
-  "https://apim-agent-factory-private-poc.azure-api.net/llm/v1/chat/completions" \
+  "$APIM_REQUEST_URL" \
   -H "Content-Type: application/json" \
   -d '{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"hello"}],"stream":false}'
 
 curl -sS -o /tmp/apim-unapproved.json -w "%{http_code}\n" \
-  "https://apim-agent-factory-private-poc.azure-api.net/llm/v1/chat/completions" \
+  "$APIM_REQUEST_URL" \
   -H "Content-Type: application/json" \
   -H "Ocp-Apim-Subscription-Key: <valid-key>" \
   -d '{"model":"gpt-4.1","messages":[{"role":"user","content":"hello"}],"stream":false}'

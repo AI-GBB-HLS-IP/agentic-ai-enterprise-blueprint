@@ -23,12 +23,21 @@ public IP, including its DNS label and `ProjectCode=APIM` tag.
 `APIM_FOUNDATION_PARAMETERS_FILE` is used by both the explicit Azure deployment commands and the
 validator. The legacy `FOUNDATION_PARAMETERS` alias remains supported.
 
-The customer example defaults `APIM_PRIVATE_DNS_MODE` to `external`. This matches the observed
-production pattern: custom corporate hostnames and certificates resolve through corporate DNS
-servers reached through the hub. The deployment outputs `privateDnsHandoff` with the private IP
-and required APIM hostnames for the DNS team. After live validation confirms those hostnames resolve
-to the APIM private IPs and are reachable from the approved network, set
-`APIM_EXTERNAL_DNS_VALIDATION_REFERENCE` to the non-secret evidence reference and redeploy Stage 1.
+The customer example defaults DNS ownership to `external`, but endpoint selection remains
+`built-in`/`direct-private` until explicitly changed. Built-in/external uses the legacy
+`APIM_EXTERNAL_DNS_VALIDATION_REFERENCE` after private-IP/TLS validation.
+Custom mode requires three selected roles and external DNS; it uses complete matching
+`APIM_ENDPOINT_VALIDATION_EVIDENCE` instead of that legacy reference. Custom direct-private
+measures live-VIP equality; corporate-routed requires retained network-owner upstream/path
+approval in addition to bindings/DNS/TLS. See [all evidence fields](README.md#selected-endpoint-validation).
+Absent/non-pass evidence cannot advance readiness. Exclude only legacy portal/SCM custom
+client checks; retain platform dependencies and independent Foundry gates.
+
+Before **every** preserve/merge preview or deployment, run
+`scripts/apim/get-existing-hostnames.sh "$APIM_RESOURCE_GROUP" "$APIM_SERVICE_NAME"` into
+`APIM_EXISTING_HOSTNAMES_JSON`. The Fast Path commands below need that variable first.
+Uploaded PFX domains are omitted by capture and must be re-declared with merge/replace and
+secure certificate material on every redeployment; a SKU-only update does not preserve them.
 
 Run the three standard Azure checks:
 
@@ -84,15 +93,15 @@ evidence in the customer-approved evidence location and return a redacted summar
 set -euo pipefail
 
 git fetch origin
-if git show-ref --verify --quiet refs/heads/feat/split-apim-foundry-deployment; then
-  git switch feat/split-apim-foundry-deployment
+if git show-ref --verify --quiet refs/heads/feat/apim-custom-endpoint-access; then
+  git switch feat/apim-custom-endpoint-access
 else
-  git switch --track origin/feat/split-apim-foundry-deployment
+  git switch --track origin/feat/apim-custom-endpoint-access
 fi
-git pull --ff-only origin feat/split-apim-foundry-deployment
+git pull --ff-only origin feat/apim-custom-endpoint-access
 
 git rev-parse --short HEAD
-# Expected at or after: d6b1d19
+# Retain the exact reviewed implementation commit in the evidence record.
 ```
 
 ## 3. Export Approved Stage 1 Values
@@ -135,6 +144,10 @@ export APIM_DNS_RECORD_NAME="$APIM_SERVICE_NAME"
 export APIM_PRIVATE_DNS_ZONE_TAGS='{"Environment":"Example","Owner":"DnsPlatform"}'
 export APIM_PRIVATE_DNS_VNET_LINK_TAGS='{"Environment":"Example","Owner":"DnsPlatform"}'
 export APIM_EXTERNAL_DNS_VALIDATION_REFERENCE=''
+export APIM_ENDPOINT_MODE='built-in'
+export APIM_ENDPOINT_ACCESS_PATH='direct-private'
+export APIM_CUSTOM_ENDPOINT_HOSTNAMES='{}'
+export APIM_ENDPOINT_VALIDATION_EVIDENCE='{}'
 export APIM_SKU_NAME='Developer'
 export APIM_SKU_CAPACITY='1'
 
@@ -149,6 +162,7 @@ export APIM_CAPACITY_ALERT_NAME='<capacity-alert-name>'
 export APIM_CAPACITY_ALERT_TAGS='{"Environment":"Example","Owner":"OperationsPlatform"}'
 
 az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+export APIM_EXISTING_HOSTNAMES_JSON="$(scripts/apim/get-existing-hostnames.sh "$APIM_RESOURCE_GROUP" "$APIM_SERVICE_NAME")"
 az account show --query '{subscription:id,name:name,tenant:tenantId}' -o table
 test -f "$APIM_FOUNDATION_PARAMETERS_FILE"
 ```
@@ -300,8 +314,10 @@ Expected:
 - APIM uses the selected Developer or Premium SKU, is internal VNet-injected, and has a
   system-assigned principal;
 - TLS 1.0/1.1 and the prohibited weak cipher are disabled;
-- gateway, developer, portal, management, and SCM private DNS A records exist;
-- each APIM hostname resolves to RFC1918 space and is reachable from the approved internal host;
+- built-in mode checks gateway/developer/portal/management/SCM; custom checks only its three
+  role-matched selected bindings and emits no blueprint DNS resources;
+- direct-private DNS matches live private VIPs and TLS succeeds without a proxy; corporate
+  routing additionally has retained network-owner context/approval and complete pass evidence;
 - the platform public IP is not treated as a public gateway;
 - diagnostics include enabled AllLogs and AllMetrics at the required destination;
 - the average `Capacity` alert exists with `GreaterThan` and threshold `60`;
@@ -345,3 +361,11 @@ Return:
 After review, repository maintainers can update `foundation-preview.md`,
 `foundation-runtime.md`, `idempotency.md`, #71, and OpenSpec tasks 2.8, 5.2, and 5.4. Stage 2
 tasks remain unchecked until separate Foundry approval and integration evidence are available.
+
+For custom acceptance also record #104/task 4.2's built-in-unavailable client checks, retained
+bindings/TLS, routing approval, and `endpointAccess` handoff from the exact foundation deployment.
+Keep raw context untracked and return only redacted dispositions. Populate downstream
+`APIM_GATEWAY_URL` from `.selectedGatewayUrl` in `APIM_STAGE1_ENDPOINT_ACCESS`; do not infer a
+built-in URL from the service name. Revalidate after route/hostname/certificate/service changes.
+Run CLI/validator in the same Bash environment; WSL exports do not automatically reach Windows
+CLI processes. Forward required variables explicitly without printing secret material.

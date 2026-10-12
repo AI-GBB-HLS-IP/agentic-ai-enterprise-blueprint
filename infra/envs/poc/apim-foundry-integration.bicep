@@ -1,5 +1,7 @@
 targetScope = 'resourceGroup'
 
+import { endpointMatrixValid, customHostnamesValid, normalizeSelectedHostnames, selectedEndpoints, endpointBindingsValid, endpointHandoffValid } from '../../modules/apim/endpoints.bicep'
+
 @description('Resource group containing the existing APIM foundation.')
 param apimResourceGroupName string = resourceGroup().name
 
@@ -11,6 +13,17 @@ param stage1ApimServiceId string
 
 @description('Stage 1 foundationReadiness output for the validated APIM foundation.')
 param stage1FoundationReadiness object
+
+@description('Exact Stage 1 endpointAccess output; legacy empty handoffs permit only built-in/direct-private.')
+param stage1EndpointAccess object = {}
+
+@allowed(['built-in', 'custom'])
+param endpointMode string = 'built-in'
+
+@allowed(['direct-private', 'corporate-routed'])
+param endpointAccessPath string = 'direct-private'
+
+param customEndpointHostnames object = {}
 
 @description('Resource group containing the existing Foundry account.')
 param foundryResourceGroupName string
@@ -130,7 +143,23 @@ var enabledApprovedModelAliasesValidated = !duplicateEnabledPublicNames
 var modelAllowlistPresent = length(enabledApprovedModels) > 0 && length(validEnabledApprovedModels) == length(enabledApprovedModels)
   ? true
   : fail('Stage 2 requires at least one enabled approved model mapping with non-empty publicName and deploymentName values.')
-var stage1FoundationValidated = apimIdMatchesStage1Handoff && stage1ReadinessValidated && apimClassicSkuValidated && apimInternalNetworkValidated && apimIdentityValidated
+var endpointSelectionValidated = endpointMatrixValid(endpointMode, endpointAccessPath, 'external') && (endpointMode != 'custom' || customHostnamesValid(customEndpointHostnames))
+  ? true
+  : fail('Stage 2 endpoint selection is invalid: corporate-routed requires custom; custom requires three DNS hostnames.')
+var normalizedCustomHostnames = normalizeSelectedHostnames(customEndpointHostnames)
+var endpoints = selectedEndpoints(endpointMode, toLower(trim(apimServiceName)), normalizedCustomHostnames)
+var selectedHostnames = endpointMode == 'custom' ? normalizedCustomHostnames : {
+  gateway: endpoints[0].hostname
+  developerPortal: '${toLower(apimServiceName)}.developer.azure-api.net'
+  management: '${toLower(apimServiceName)}.management.azure-api.net'
+}
+var endpointHandoffValidated = endpointHandoffValid(stage1EndpointAccess, apimService.id, endpointMode, endpointAccessPath, selectedHostnames, endpoints)
+  ? true
+  : fail('Stage 2 requires matching Stage 1 endpointAccess metadata and complete context-matching pass custom evidence. A legacy handoff permits only built-in/direct-private.')
+var selectedGatewayBindingValidated = endpointMode != 'custom' || endpointBindingsValid(take(endpoints, 1), apimService.properties.?hostnameConfigurations ?? [])
+  ? true
+  : fail('Stage 2 selected custom gateway must match a live Proxy binding on the intended APIM.')
+var stage1FoundationValidated = apimIdMatchesStage1Handoff && stage1ReadinessValidated && apimClassicSkuValidated && apimInternalNetworkValidated && apimIdentityValidated && endpointSelectionValidated && endpointHandoffValidated && selectedGatewayBindingValidated
 var integrationPrerequisitesValidated = stage1FoundationValidated && foundryIdMatches && governanceEvidencePresent && foundryRegionApproved && foundryPrivatePostureApproved && modelAllowlistPresent && enabledApprovedModelAliasesValidated
 
 module foundryRoleAssignment '../../modules/apim/foundry-role-assignment.bicep' = {
@@ -173,6 +202,9 @@ module api '../../modules/apim/api.bicep' = {
 }
 
 output apimServiceId string = apimService.id
+output selectedGatewayHostname string = endpoints[0].hostname
+output apimGatewayUrl string = 'https://${endpoints[0].hostname}'
+output apimClientUrl string = 'https://${endpoints[0].hostname}/${apiPath}'
 output apimPrincipalId string = apimService.identity.?principalId ?? ''
 output foundryAccountId string = foundryAccount.id
 output foundryRoleAssignmentId string = foundryRoleAssignment.outputs.foundryRoleAssignmentId

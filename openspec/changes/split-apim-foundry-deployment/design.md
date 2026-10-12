@@ -149,6 +149,21 @@ validate the enforced configuration rather than fighting policy ownership.
 
 ### 9. Keep enterprise custom DNS conditional
 
+Endpoint-access continuation #104 is defined by
+`../support-apim-custom-endpoint-access/design.md` D1-D5 and
+`../support-apim-custom-endpoint-access/specs/apim-endpoint-access/spec.md`.
+It supersedes the direct-VIP-only custom client path below: built-in/direct-private remains
+the default with either DNS owner; custom requires external DNS and all three gateway,
+developer portal, and management roles, using direct-private or network-owner-attested
+corporate routing. Custom acceptance excludes only legacy portal/SCM client checks, not
+platform dependencies. Custom/blueprint and built-in/corporate are rejected.
+Its tasks 2.1/2.2 own endpoint readiness, 3.1 owns the Stage 2 selected metadata/live gateway
+and safe HTTPS/443 request URL, 3.2 owns D5's consumers, and 4.1/4.2 distinguish local/live
+acceptance. Custom evidence requires every exact base and extension field including
+`timestampUtc`, context equality, and explicit pass; missing/non-pass cannot advance.
+Stage 2 retains existing-resource ownership and separate Foundry gates. Certificate
+preserve/merge/replace and manual PFX resupply remain unchanged.
+
 The existing `azure-api.net` private DNS zone remains the VNet-local foundation mechanism.
 Customer guidance states that default APIM domains are not globally resolvable across the
 enterprise network in internal mode. Chapter 02 will therefore document approved custom domains,
@@ -159,7 +174,7 @@ for VNet-local consumers.
 Workload-subscription policy may prohibit workload-owned private DNS zones and require
 centrally managed DNS resolution through shared network infrastructure. The foundation therefore
 supports `blueprint` DNS mode where customer policy allows zone creation and `external` mode
-where it emits the required hostnames and private IPs for customer DNS fulfillment without
+where it emits the selected hostnames and private IPs for customer DNS fulfillment without
 attempting cross-subscription or centrally managed DNS writes.
 
 ### 10. Make customer Foundry governance a Stage 2 gate

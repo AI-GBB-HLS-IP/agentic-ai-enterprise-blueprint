@@ -365,7 +365,7 @@ APPI_CONNECTION=$(az keyvault secret show \
   --name "appi-connection-string" \
   --query value -o tsv)
 
-APIM_URL="https://apim-agent-factory.azure-api.net"
+APIM_URL="${APIM_GATEWAY_URL:?Set APIM_GATEWAY_URL from the validated Chapter 02 endpointAccess.selectedGatewayUrl}"
 
 # Deploy the blueprint
 echo "Deploying Foundry project blueprint..."

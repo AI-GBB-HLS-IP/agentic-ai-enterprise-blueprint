@@ -533,6 +533,12 @@ app.http("getCatalogTools", {
 
 ## Provisioning Pipeline: Infrastructure (IT Platform Eng Ownership)
 
+Populate the pipeline's `secrets.APIM_URL` from the exact validated Chapter 02
+`endpointAccess.selectedGatewayUrl` (`APIM_GATEWAY_URL`), not a built-in hostname inferred from
+the service name. Both `apimGatewayUrl` infrastructure input and onboarding `apimEndpoint`
+consume that same selected value. Revalidate/regenerate it after endpoint/service/route/certificate
+changes; this URL handoff does not prove the future portal's SDK or live topology acceptance.
+
 Triggered automatically when IT Platform Eng clicks "Approve" — no manual steps.
 
 ```yaml

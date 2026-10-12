@@ -32,6 +32,10 @@ param privateDnsRecordName = readEnvironmentVariable('APIM_DNS_RECORD_NAME', '<s
 param privateDnsZoneTags = json(readEnvironmentVariable('APIM_PRIVATE_DNS_ZONE_TAGS', '{}'))
 param privateDnsVnetLinkTags = json(readEnvironmentVariable('APIM_PRIVATE_DNS_VNET_LINK_TAGS', '{}'))
 param externalDnsValidationReference = readEnvironmentVariable('APIM_EXTERNAL_DNS_VALIDATION_REFERENCE', '')
+param endpointMode = readEnvironmentVariable('APIM_ENDPOINT_MODE', 'built-in')
+param endpointAccessPath = readEnvironmentVariable('APIM_ENDPOINT_ACCESS_PATH', 'direct-private')
+param customEndpointHostnames = json(readEnvironmentVariable('APIM_CUSTOM_ENDPOINT_HOSTNAMES', '{}'))
+param endpointValidationEvidence = json(readEnvironmentVariable('APIM_ENDPOINT_VALIDATION_EVIDENCE', '{}'))
 
 param applicationInsightsName = readEnvironmentVariable('APIM_APP_INSIGHTS_NAME', '<application-insights-name>')
 param applicationInsightsTags = json(readEnvironmentVariable('APIM_APP_INSIGHTS_TAGS', '{}'))
@@ -55,32 +59,16 @@ param hostnameMode = readEnvironmentVariable('APIM_HOSTNAME_MODE', 'preserve')
 param existingHostnamesJson = readEnvironmentVariable('APIM_EXISTING_HOSTNAMES_JSON', '')
 
 // Generic placeholder hostnames. Each certificate must cover its hostName (subject or SAN).
-param hostnameConfigurations = [
-  {
-    type: 'Proxy' // gateway
-    hostName: 'api.example.com'
-    certificateKey: 'gateway'
-    defaultSslBinding: true
-  }
-  {
-    type: 'DeveloperPortal'
-    hostName: 'developer.example.com'
-    certificateKey: 'developer'
-  }
-  {
-    type: 'Management'
-    hostName: 'management.example.com'
-    certificateKey: 'management'
-  }
-]
+param hostnameConfigurations = json(readEnvironmentVariable('APIM_HOSTNAME_CONFIGURATIONS_JSON', '[{"type":"Proxy","hostName":"api.example.com","certificateKey":"gateway","defaultSslBinding":true},{"type":"DeveloperPortal","hostName":"developer.example.com","certificateKey":"developer"},{"type":"Management","hostName":"management.example.com","certificateKey":"management"}]'))
 
 // Base64 PFX content and password come from the environment (or a pipeline secret); never commit them.
 // Example: export APIM_GATEWAY_PFX_BASE64="$(base64 < gateway.pfx | tr -d '\n')"
-param hostnameCertificates = {
+var defaultHostnameCertificates = {
   gateway: {
     encodedCertificate: readEnvironmentVariable('APIM_GATEWAY_PFX_BASE64', '')
     certificatePassword: readEnvironmentVariable('APIM_GATEWAY_PFX_PASSWORD', '')
   }
+
   developer: {
     encodedCertificate: readEnvironmentVariable('APIM_DEVELOPER_PFX_BASE64', '')
     certificatePassword: readEnvironmentVariable('APIM_DEVELOPER_PFX_PASSWORD', '')
@@ -90,3 +78,5 @@ param hostnameCertificates = {
     certificatePassword: readEnvironmentVariable('APIM_MANAGEMENT_PFX_PASSWORD', '')
   }
 }
+
+param hostnameCertificates = union(defaultHostnameCertificates, json(readEnvironmentVariable('APIM_HOSTNAME_CERTIFICATES_JSON', '{}')))

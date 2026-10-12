@@ -1,6 +1,7 @@
 targetScope = 'resourceGroup'
 
-import { existingHostnamesMissing } from '../../modules/apim/hostnames.bicep'
+import { existingHostnamesMissing, resolveHostnames } from '../../modules/apim/hostnames.bicep'
+import { endpointMatrixValid, customHostnamesValid, normalizeSelectedHostnames, selectedEndpoints, endpointBindingsValid, endpointEvidenceValid } from '../../modules/apim/endpoints.bicep'
 
 @description('Deployment location (defaults to resource group location).')
 param location string = resourceGroup().location
@@ -122,6 +123,20 @@ param privateDnsVnetLinkTags object = {}
 @description('Non-secret evidence reference recorded only after customer-managed APIM DNS resolution and reachability are validated.')
 param externalDnsValidationReference string = ''
 
+@allowed(['built-in', 'custom'])
+@description('Client endpoint selection, independent of DNS ownership and hostnameMode.')
+param endpointMode string = 'built-in'
+
+@allowed(['direct-private', 'corporate-routed'])
+@description('Corporate routing is supported only for custom endpoints with external DNS and network-owner evidence.')
+param endpointAccessPath string = 'direct-private'
+
+@description('Custom client hostnames: gateway, developerPortal, management. Never supply URLs or wildcard names.')
+param customEndpointHostnames object = {}
+
+@description('Generic validation base fields plus deployment endpoint context. Empty means validation is pending; only matching pass evidence advances custom readiness.')
+param endpointValidationEvidence object = {}
+
 @description('Application Insights component name.')
 param applicationInsightsName string = 'appi-apim-agent-factory-poc'
 
@@ -185,7 +200,10 @@ var normalizedSubnetNamingExceptionReference = toLower(trim(subnetNamingExceptio
 var subnetNamingExceptionReferenceIsPlaceholder = empty(normalizedSubnetNamingExceptionReference) || contains(normalizedSubnetNamingExceptionReference, '<') || contains(normalizedSubnetNamingExceptionReference, '>') || contains(normalizedSubnetNamingExceptionReference, 'placeholder') || contains(normalizedSubnetNamingExceptionReference, 'replace-me') || normalizedSubnetNamingExceptionReference == 'todo' || normalizedSubnetNamingExceptionReference == 'tbd'
 var normalizedRouteTableExceptionReference = toLower(trim(routeTableExceptionReference))
 var routeTableExceptionReferenceIsPlaceholder = empty(normalizedRouteTableExceptionReference) || contains(normalizedRouteTableExceptionReference, '<') || contains(normalizedRouteTableExceptionReference, '>') || contains(normalizedRouteTableExceptionReference, 'placeholder') || contains(normalizedRouteTableExceptionReference, 'replace-me') || normalizedRouteTableExceptionReference == 'todo' || normalizedRouteTableExceptionReference == 'tbd'
-var privateDnsContractValidated = (toLower(trim(privateDnsZoneName)) == 'azure-api.net' && toLower(trim(privateDnsRecordName)) == toLower(trim(apimServiceName))) ? true : fail('Private DNS must use the APIM built-in hostname contract: <service>.azure-api.net.')
+var endpointMatrixValidated = endpointMatrixValid(endpointMode, endpointAccessPath, privateDnsDeploymentMode)
+  ? true
+  : fail('Unsupported endpoint mode/access path/DNS owner: custom requires external DNS; corporate-routed requires custom/external.')
+var privateDnsContractValidated = endpointMode == 'custom' || (toLower(trim(privateDnsZoneName)) == 'azure-api.net' && toLower(trim(privateDnsRecordName)) == toLower(trim(apimServiceName))) ? true : fail('Private DNS must use the APIM built-in hostname contract: <service>.azure-api.net.')
 
 resource apimPublicIp 'Microsoft.Network/publicIPAddresses@2023-11-01' = {
   name: apimPublicIpAddressName
@@ -243,10 +261,25 @@ var publisherEmailApproved = contains(publisherEmailNormalized, '@') && !endsWit
 var skuCapacityApproved = apimSkuName == 'Developer' && apimSkuCapacity != 1
   ? fail('Developer APIM requires apimSkuCapacity to be 1.')
   : true
-var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && skuCapacityApproved && privateDnsContractValidated
+var foundationPolicyValidated = networkPolicyValidated && publisherEmailApproved && skuCapacityApproved && privateDnsContractValidated && endpointSelectionValidated
 
 var existingHostnamesValidated = !existingHostnamesMissing(hostnameMode, existingHostnamesJson) ? true : fail('hostnameMode ${hostnameMode} requires existingHostnamesJson (APIM_EXISTING_HOSTNAMES_JSON). Run scripts/apim/get-existing-hostnames.sh first; skipping it would remove live custom domains.')
 var existingHostnameConfigurations = !empty(trim(existingHostnamesJson)) ? json(existingHostnamesJson) : []
+var normalizedCustomHostnames = normalizeSelectedHostnames(customEndpointHostnames)
+var customHostnamesValidated = endpointMode != 'custom' || customHostnamesValid(customEndpointHostnames)
+  ? true
+  : fail('Custom endpoint selection requires exactly gateway, developerPortal, and management valid DNS hostnames, not URLs, ports, paths, wildcards, or built-in names.')
+var endpoints = selectedEndpoints(endpointMode, toLower(trim(apimServiceName)), normalizedCustomHostnames)
+var effectiveHostnames = resolveHostnames(hostnameMode, existingHostnameConfigurations, hostnameConfigurations, hostnameCertificates)
+var selectedBindingsValidated = endpointMode != 'custom' || endpointBindingsValid(endpoints, effectiveHostnames)
+  ? true
+  : fail('Each custom selected endpoint must match its role in the effective Proxy, DeveloperPortal, and Management hostname bindings. Resupply manual PFX domains with merge or replace.')
+var selectedServiceId = resourceId('Microsoft.ApiManagement/service', apimServiceName)
+var endpointEvidenceValidated = empty(endpointValidationEvidence) || (endpointMode == 'custom' && endpointEvidenceValid(endpointValidationEvidence, selectedServiceId, endpointMode, endpointAccessPath, normalizedCustomHostnames))
+  ? true
+  : fail('endpointValidationEvidence is invalid or mismatches the selected APIM/mode/path/hostnames. Require all exact generic base fields including timestampUtc and deployment extension fields.')
+var endpointSelectionValidated = endpointMatrixValidated && customHostnamesValidated && selectedBindingsValidated && endpointEvidenceValidated
+var selectedGateway = endpointSelectionValidated ? endpoints[0].hostname : ''
 
 module apimMain '../../modules/apim/main.bicep' = {
   name: 'apim-foundation-service'
@@ -280,6 +313,11 @@ module privateDns '../../modules/apim/private-dns.bicep' = {
     privateDnsZoneTags: privateDnsZoneTags
     privateDnsVnetLinkTags: privateDnsVnetLinkTags
     externalDnsValidationReference: externalDnsValidationReference
+    endpointMode: endpointMode
+    endpointAccessPath: endpointAccessPath
+    customEndpointHostnames: normalizedCustomHostnames
+    apimServiceId: selectedServiceId
+    endpointValidationEvidence: endpointEvidenceValidated ? endpointValidationEvidence : {}
   }
 }
 
@@ -309,6 +347,23 @@ module observability '../../modules/apim/observability.bicep' = {
 output apimServiceId string = apimMain.outputs.apimServiceId
 output apimServiceName string = apimMain.outputs.apimServiceName
 output apimGatewayHostname string = apimMain.outputs.apimGatewayHostname
+output selectedGatewayHostname string = selectedGateway
+output apimGatewayUrl string = 'https://${selectedGateway}'
+output endpointAccess object = {
+  apimServiceId: apimMain.outputs.apimServiceId
+  endpointMode: endpointMode
+  endpointAccessPath: endpointAccessPath
+  selectedHostnames: endpointMode == 'custom' ? normalizedCustomHostnames : {
+    gateway: selectedGateway
+    developerPortal: '${toLower(apimServiceName)}.developer.azure-api.net'
+    management: '${toLower(apimServiceName)}.management.azure-api.net'
+  }
+  endpoints: endpoints
+  selectedGatewayHostname: selectedGateway
+  selectedGatewayUrl: 'https://${selectedGateway}'
+  excludedClientChecks: endpointMode == 'custom' ? ['legacyPortal', 'scm'] : []
+  endpointValidationEvidence: endpointValidationEvidence
+}
 output apimPrincipalId string = apimMain.outputs.apimPrincipalId
 output apimSubnetId string = apimMain.outputs.subnetId
 output apimVirtualNetworkType string = apimMain.outputs.virtualNetworkType
@@ -328,6 +383,12 @@ output privateDnsHandoff object = {
   ], privateDns.outputs.additionalEndpointFqdns)
   validation: privateDns.outputs.dnsReadiness.externalDnsValidation
   validationReference: privateDns.outputs.dnsReadiness.externalDnsValidationReference
+  endpointMode: endpointMode
+  endpointAccessPath: endpointAccessPath
+  apimServiceId: apimMain.outputs.apimServiceId
+  endpoints: endpoints
+  excludedClientChecks: endpointMode == 'custom' ? ['legacyPortal', 'scm'] : []
+  endpointValidationEvidence: endpointValidationEvidence
 }
 output appInsightsId string = observability.outputs.applicationInsightsId
 output logAnalyticsWorkspaceId string = observability.outputs.logAnalyticsWorkspaceId

@@ -184,9 +184,12 @@ if [[ "$HAVE_AZ" == "true" ]]; then
         )
     ]
     | length == 2
-      and all(.condition == "[parameters('\''deployPrivateDns'\'')]")
+      and all(.condition == "[variables('\''deployValidatedPrivateDns'\'')]")
   ' "$workdir/private-dns.json" >/dev/null ||
     fail "private DNS zone and VNet link tags must apply only in blueprint DNS mode"
+  jq -e '.variables.deployValidatedPrivateDns == "[and(and(parameters('\''deployPrivateDns'\''), variables('\''endpointConfigurationValidated'\'')), variables('\''endpointEvidenceValidated'\''))]"' \
+    "$workdir/private-dns.json" >/dev/null ||
+    fail "DNS writes must require blueprint ownership and valid endpoint configuration/evidence"
 
   echo "==> Tag defaults and opaque custom-key passthrough (Stage 1)"
   env \
