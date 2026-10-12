@@ -60,6 +60,7 @@ LOCATION="eastus2"
 NETWORK_RG="rg-agent-blueprint-poc-network"
 FOUNDRY_RG="rg-agent-blueprint-poc-foundry"
 APIM_RG="rg-agent-blueprint-poc-apim"
+APIM_FOUNDATION_DEPLOYMENT_NAME="apim-foundation"
 
 az group create --name "$NETWORK_RG" --location "$LOCATION"
 az group create --name "$FOUNDRY_RG" --location "$LOCATION"
@@ -97,11 +98,13 @@ export APIM_EXISTING_HOSTNAMES_JSON="$(scripts/apim/get-existing-hostnames.sh "$
 
 az deployment group what-if \
   --resource-group "$APIM_RG" \
+  --name "$APIM_FOUNDATION_DEPLOYMENT_NAME" \
   --template-file infra/envs/poc/apim.bicep \
   --parameters infra/envs/poc/apim.bicepparam
 
 az deployment group create \
   --resource-group "$APIM_RG" \
+  --name "$APIM_FOUNDATION_DEPLOYMENT_NAME" \
   --template-file infra/envs/poc/apim.bicep \
   --parameters infra/envs/poc/apim.bicepparam
 ```
@@ -231,9 +234,14 @@ both integration parameter files. Legacy metadata-free handoffs permit only buil
 Stage 2 checks selected service/context, complete passing custom evidence, and the live gateway;
 it references APIM rather than redeploying APIM/DNS/monitoring.
 
+Use the same `APIM_RG` and `APIM_FOUNDATION_DEPLOYMENT_NAME` set in the deployment flow
+above. If the validated foundation was deployed under another name or resource group, set
+both variables to that exact deployment before retrieving its outputs; do not read an older
+deployment merely because its name is `apim-foundation`.
+
 ```bash
 export APIM_STAGE1_ENDPOINT_ACCESS="$(az deployment group show \
-  --resource-group "$APIM_RESOURCE_GROUP" --name apim-foundation \
+  --resource-group "$APIM_RG" --name "$APIM_FOUNDATION_DEPLOYMENT_NAME" \
   --query properties.outputs.endpointAccess.value -o json)"
 export APIM_GATEWAY_URL="$(jq -er '.selectedGatewayUrl' <<<"$APIM_STAGE1_ENDPOINT_ACCESS")"
 ```

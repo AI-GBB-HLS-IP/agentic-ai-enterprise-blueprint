@@ -37,6 +37,22 @@ grep -Fq 'managementPortalUri:[$portal]' chapters/23-tool-governance.md
 grep -q 'Topology boundary' chapters/14-copilot-studio-vnet.md
 grep -q 'privatelink.azure-api.net' chapters/14-copilot-studio-vnet.md
 
+readme_apim_commands="$(awk '
+  /^az deployment group (what-if|create) / { command=$0; capture=1; next }
+  capture {
+    command=command "\n" $0
+    if ($0 !~ /\\$/) {
+      if (command ~ /--template-file infra\/envs\/poc\/apim\.bicep/) print command
+      capture=0
+    }
+  }
+' infra/envs/poc/README.md)"
+grep -Fq 'APIM_FOUNDATION_DEPLOYMENT_NAME="apim-foundation"' infra/envs/poc/README.md
+[[ "$(grep -Fc -- '--resource-group "$APIM_RG"' <<<"$readme_apim_commands")" -eq 2 ]]
+[[ "$(grep -Fc -- '--name "$APIM_FOUNDATION_DEPLOYMENT_NAME"' <<<"$readme_apim_commands")" -eq 2 ]]
+readme_handoff="$(sed -n '/^export APIM_STAGE1_ENDPOINT_ACCESS=/,/^export APIM_GATEWAY_URL=/p' infra/envs/poc/README.md)"
+grep -Fq -- '--resource-group "$APIM_RG" --name "$APIM_FOUNDATION_DEPLOYMENT_NAME"' <<<"$readme_handoff"
+
 for file in infra/envs/poc/README.md specs/02-apim-ai-gateway/validation/foundation-runtime.md; do
   awk '/^```json/{capture=1;next} /^```/{if(capture){exit}} capture' "$file" |
     jq -e '
