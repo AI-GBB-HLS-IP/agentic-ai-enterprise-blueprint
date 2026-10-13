@@ -237,7 +237,9 @@ explicitly, including cross-subscription Cosmos connections. `CAPABILITY_HOST_NA
 It resolves the identity and workspace from the project, follows the succeeded Agents host's
 single thread-storage connection (project scope takes precedence over account scope), accepts
 `CosmosDb` category casing, and verifies the connected Cosmos account and all three containers
-before writing. Missing/ambiguous connections, non-AAD authentication, unsupported paginated
+before writing. The account ID is parsed from JSON, avoiding TSV carriage-return mismatches when
+using Windows Azure CLI from a Unix shell; target identity checks remain unchanged.
+Missing/ambiguous connections, non-AAD authentication, unsupported paginated
 connection listings, CLI errors, and identity changes block execution. It creates only missing
 Built-in Data Contributor grants on the three workspace-prefixed `enterprise_memory` containers;
 existing grants, broader grants, other identities, connections, and infrastructure are untouched.

@@ -94,8 +94,11 @@ COSMOS_RG="${BASH_REMATCH[2]}"
 COSMOS_NAME="${BASH_REMATCH[3]}"
 [[ "$COSMOS_SUBSCRIPTION" =~ $GUID_PATTERN ]] || die "Cosmos subscription must be a GUID."
 COSMOS_ARGS=(--subscription "$COSMOS_SUBSCRIPTION" --resource-group "$COSMOS_RG" --account-name "$COSMOS_NAME")
-ACTUAL_COSMOS_ID="$(az cosmosdb show --subscription "$COSMOS_SUBSCRIPTION" \
-  --resource-group "$COSMOS_RG" --name "$COSMOS_NAME" --query id -o tsv)"
+COSMOS_JSON="$(az cosmosdb show --subscription "$COSMOS_SUBSCRIPTION" \
+  --resource-group "$COSMOS_RG" --name "$COSMOS_NAME" -o json)"
+ACTUAL_COSMOS_ID="$(printf '%s' "$COSMOS_JSON" | jq -er \
+  '.id | select(type == "string" and length > 0)')" ||
+  die "Cosmos account response has no valid resource ID."
 [[ "$ACTUAL_COSMOS_ID" == "$COSMOS_ID" ]] || die "Resolved Cosmos account differs from connection ResourceId."
 shopt -u nocasematch
 

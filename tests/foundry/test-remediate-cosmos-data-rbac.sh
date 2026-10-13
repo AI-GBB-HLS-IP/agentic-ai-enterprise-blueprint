@@ -79,7 +79,16 @@ assert option("--subscription") == cosmos_sub, "Cross-subscription target must b
 assert option("--resource-group") == "cosmos-rg"
 if args[:2] == ["cosmosdb", "show"]:
     assert option("--name") == "test-cosmos"
-    print(cosmos_id if scenario != "wrong-account" else cosmos_id + "-other")
+    resolved_id = cosmos_id if scenario != "wrong-account" else cosmos_id + "-other"
+    if option("-o") == "json":
+        value = {"id": resolved_id}
+        if scenario == "missing-account-id":
+            value = {}
+        if scenario == "nonstring-account-id":
+            value = {"id": 123}
+        print(json.dumps(value), end="\r\n" if scenario == "crlf-account" else "\n")
+    else:
+        print(resolved_id, end="\r\n" if scenario == "crlf-account" else "\n")
     sys.exit(0)
 assert option("--account-name") == "test-cosmos"
 if args[:4] == ["cosmosdb", "sql", "container", "list"]:
@@ -163,7 +172,7 @@ fi
 [[ "$(create_count)" == 0 ]] || fail "Identity mismatch wrote"
 echo "PASS: execute requires matching approved identity"
 
-for scenario in "" uppercase-category account-connection other-principal broad-grant; do
+for scenario in "" uppercase-category account-connection other-principal broad-grant crlf-account; do
   reset_case "$scenario"
   run_script --execute || { cat "$workdir/error"; fail "Execute failed: $scenario"; }
   [[ "$(create_count)" == 3 ]] || fail "Expected three exact grants: $scenario"
@@ -186,7 +195,7 @@ echo "PASS: partial and complete grants are preserved; rerun is idempotent"
 
 for scenario in missing-identity bad-workspace failed-host missing-connection ambiguous-connection \
   wrong-category wrong-auth paginated connection-error wrong-account missing-container container-error \
-  assignment-error invalid-assignments; do
+  assignment-error invalid-assignments missing-account-id nonstring-account-id; do
   reset_case "$scenario"
   if run_script --execute; then fail "Unsafe preflight accepted: $scenario"; fi
   [[ "$(create_count)" == 0 ]] || fail "Preflight failure wrote: $scenario"
