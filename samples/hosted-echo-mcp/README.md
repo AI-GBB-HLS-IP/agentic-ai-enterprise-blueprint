@@ -82,8 +82,9 @@ This sample uses the default `Ocp-Apim-Subscription-Key` header.
 No Azure deployment is performed when packaging. The optional Python helper
 uses `create_version_from_code`, SHA-256, `python_3_13`, `bundled`,
 `["python", "main.py"]`, and `invocations` version `2.0.0`. It targets only the
-existing project and creates an agent version; no supporting infrastructure or
-connection is created.
+existing project and creates a version of an agent that must already exist there;
+it does not create the agent itself. No supporting infrastructure or connection
+is created.
 
 Install the deployment-client dependencies into your own virtual environment:
 

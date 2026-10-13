@@ -151,11 +151,13 @@ app = InvocationAgentServerHost()
 async def invoke(request: Request):
     correlation_id = str(uuid4())
     try:
-        body = await request.body()
-        if len(body) > MAX_REQUEST_BYTES:
-            raise DiagnosticError(413, "request_too_large", "Request exceeds 64 KiB.")
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > MAX_REQUEST_BYTES:
+                raise DiagnosticError(413, "request_too_large", "Request exceeds 64 KiB.")
+            body.extend(chunk)
         try:
-            invocation = Invocation.model_validate_json(body)
+            invocation = Invocation.model_validate_json(bytes(body))
         except ValidationError:
             raise DiagnosticError(400, "invalid_request", 'Send {"action":"list"} or {"action":"call","tool":"exact-name","arguments":{}}.') from None
         if invocation.action == "call" and not invocation.tool:

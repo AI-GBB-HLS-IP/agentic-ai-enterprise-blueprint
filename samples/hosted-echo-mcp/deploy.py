@@ -8,7 +8,13 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from azure.ai.projects import AIProjectClient
-from azure.ai.projects.models import CodeConfiguration, HostedAgentDefinition, ProtocolVersionRecord
+from azure.ai.projects.models import (
+    CodeConfiguration,
+    CreateAgentVersionFromCodeContent,
+    CreateAgentVersionFromCodeMetadata,
+    HostedAgentDefinition,
+    ProtocolVersionRecord,
+)
 from azure.identity import DefaultAzureCredential
 
 
@@ -78,10 +84,14 @@ def deploy(zip_path: Path, name: str, timeout: float) -> None:
         with zip_path.open("rb") as code:
             created = project.agents.create_version_from_code(
                 agent_name=name,
-                definition=definition,
-                code=code,
+                content=CreateAgentVersionFromCodeContent(
+                    metadata=CreateAgentVersionFromCodeMetadata(
+                        definition=definition,
+                        description="Model-free APIM Echo MCP diagnostic; ZIP source with bundled dependencies.",
+                    ),
+                    code=("agent.zip", code, "application/zip"),
+                ),
                 code_zip_sha256=digest,
-                description="Model-free APIM Echo MCP diagnostic; ZIP source with bundled dependencies.",
             )
         print(f"Created version {created.version}; SHA256={digest}")
         wait_for_active(project, name, created.version, timeout)

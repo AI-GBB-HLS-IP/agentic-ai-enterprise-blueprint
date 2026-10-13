@@ -1,13 +1,18 @@
 import asyncio
 import json
 import os
+import tempfile
 import unittest
+import zipfile
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 os.environ["OTEL_SDK_DISABLED"] = "true"
 
 import httpx
 import main
+import deploy as deploy_module
+from azure.ai.projects.models import CreateAgentVersionFromCodeContent
 from deploy import deployment_definition, wait_for_active
 
 URL = "https://gateway.example.com/echo-mcp/mcp"
@@ -201,6 +206,38 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(definition.protocol_versions[0].protocol, "invocations")
         self.assertEqual(definition.environment_variables["APIM_SUBSCRIPTION_KEY"], "${{connections.echo-mcp.credentials.key}}")
         self.assertIsNone(definition.container_configuration)
+
+    def test_deployment_passes_multipart_content_model(self):
+        from unittest.mock import MagicMock
+
+        with tempfile.TemporaryDirectory() as directory:
+            zip_path = os.path.join(directory, "agent.zip")
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("main.py", "")
+                archive.writestr("requirements.txt", "")
+                archive.writestr("packages/runtime.py", "")
+            project = MagicMock()
+            project.__enter__.return_value = project
+            credential = MagicMock()
+            credential.__enter__.return_value = credential
+            with (
+                patch.dict(os.environ, {
+                    "FOUNDRY_PROJECT_ENDPOINT": "https://account.services.ai.azure.com/api/projects/project",
+                    "APIM_MCP_URL": URL,
+                    "APIM_KEY_CONNECTION_NAME": "echo-mcp",
+                }),
+                patch.object(deploy_module, "DefaultAzureCredential", return_value=credential),
+                patch.object(deploy_module, "AIProjectClient", return_value=project),
+                patch.object(deploy_module, "wait_for_active"),
+            ):
+                deploy_module.deploy(Path(zip_path), "echo-agent", 1)
+
+            content = project.agents.create_version_from_code.call_args.kwargs["content"]
+            self.assertIsInstance(content, CreateAgentVersionFromCodeContent)
+            self.assertEqual(content.metadata.description, "Model-free APIM Echo MCP diagnostic; ZIP source with bundled dependencies.")
+            self.assertEqual(content.metadata.definition.code_configuration.runtime, "python_3_13")
+            self.assertEqual(content.code[0], "agent.zip")
+            self.assertEqual(content.code[2], "application/zip")
 
     def test_provisioning_failure_and_timeout(self):
         from unittest.mock import Mock

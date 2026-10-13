@@ -38,7 +38,7 @@ def check(zip_path: Path) -> None:
         env.pop("APIM_SUBSCRIPTION_KEY", None)
         with (root / "startup.log").open("w+") as log:
             process = subprocess.Popen(
-                [sys.executable, "-I", "main.py"], cwd=root, env=env, stdout=log, stderr=log,
+                [sys.executable, "-I", "-S", "main.py"], cwd=root, env=env, stdout=log, stderr=log,
             )
             try:
                 deadline = time.monotonic() + 30
