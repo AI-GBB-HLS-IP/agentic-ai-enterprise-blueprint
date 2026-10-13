@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import os
 import tempfile
@@ -12,7 +13,7 @@ os.environ["OTEL_SDK_DISABLED"] = "true"
 import httpx
 import main
 import deploy as deploy_module
-from azure.ai.projects.models import CreateAgentVersionFromCodeContent
+from azure.core.credentials import AccessToken
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError, ServiceRequestError
 from deploy import deployment_definition, wait_for_active
 
@@ -208,7 +209,7 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(definition.environment_variables["APIM_SUBSCRIPTION_KEY"], "${{connections.echo-mcp.credentials.key}}")
         self.assertIsNone(definition.container_configuration)
 
-    def test_deployment_passes_multipart_content_model(self):
+    def test_deployment_passes_public_sdk_arguments(self):
         from unittest.mock import MagicMock
 
         with tempfile.TemporaryDirectory() as directory:
@@ -235,12 +236,74 @@ class ConfigurationTests(unittest.TestCase):
 
             project.connections.get.assert_called_once_with(name="echo-mcp", include_credentials=False)
             self.assertEqual(project.method_calls[0][0], "connections.get")
-            content = project.agents.create_version_from_code.call_args.kwargs["content"]
-            self.assertIsInstance(content, CreateAgentVersionFromCodeContent)
-            self.assertEqual(content.metadata.description, "Model-free APIM Echo MCP diagnostic; ZIP source with bundled dependencies.")
-            self.assertEqual(content.metadata.definition.code_configuration.runtime, "python_3_13")
-            self.assertEqual(content.code[0], "agent.zip")
-            self.assertEqual(content.code[2], "application/zip")
+            kwargs = project.agents.create_version_from_code.call_args.kwargs
+            self.assertNotIn("content", kwargs)
+            self.assertEqual(kwargs["description"], "Model-free APIM Echo MCP diagnostic; ZIP source with bundled dependencies.")
+            self.assertEqual(kwargs["definition"].code_configuration.runtime, "python_3_13")
+            self.assertEqual(kwargs["code"].name, zip_path)
+
+    def test_real_sdk_serializes_zip_and_polls_offline(self):
+        from email import policy
+        from email.parser import BytesParser
+        from io import BytesIO
+        from unittest.mock import MagicMock
+        import requests
+
+        calls = []
+
+        def send(request, **kwargs):
+            calls.append(request)
+            response = requests.Response()
+            response.status_code = 200
+            response.headers["Content-Type"] = "application/json"
+            response.url = request.url
+            if request.method == "GET" and "/connections/echo-mcp" in request.url:
+                payload = {"name": "echo-mcp", "type": "ApiKey", "target": URL}
+            elif request.method in ("POST", "GET") and "/agents/echo-agent/" in request.url:
+                payload = {"name": "echo-agent", "version": "1", "status": "active"}
+            else:
+                self.fail(f"Unexpected SDK request: {request.method} {request.url}")
+            response._content = json.dumps(payload).encode()
+            response.raw = BytesIO(response._content)
+            return response
+
+        with tempfile.TemporaryDirectory() as directory:
+            zip_path = Path(directory) / "agent.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("main.py", "")
+                archive.writestr("requirements.txt", "")
+                archive.writestr("packages/runtime.py", "")
+            zip_bytes = zip_path.read_bytes()
+            credential = MagicMock(spec=["get_token", "__enter__", "__exit__"])
+            credential.__enter__.return_value = credential
+            credential.get_token.return_value = AccessToken("offline-test-token", 4102444800)
+            with (
+                patch.dict(os.environ, {
+                    "FOUNDRY_PROJECT_ENDPOINT": "https://account.services.ai.azure.com/api/projects/project",
+                    "APIM_MCP_URL": URL,
+                    "APIM_KEY_CONNECTION_NAME": "echo-mcp",
+                }),
+                patch.object(deploy_module, "DefaultAzureCredential", return_value=credential),
+                patch.object(requests.Session, "send", side_effect=send),
+            ):
+                deploy_module.deploy(zip_path, "echo-agent", 1)
+
+        self.assertEqual([call.method for call in calls], ["GET", "POST", "GET"])
+        upload = calls[1]
+        self.assertEqual(
+            upload.url,
+            "https://account.services.ai.azure.com/api/projects/project/agents/echo-agent/versions?api-version=v1",
+        )
+        self.assertEqual(upload.headers["x-ms-code-zip-sha256"], hashlib.sha256(zip_bytes).hexdigest())
+        multipart = BytesParser(policy=policy.default).parsebytes(
+            b"Content-Type: " + upload.headers["Content-Type"].encode() + b"\r\n\r\n" + upload.body
+        )
+        parts = {part.get_param("name", header="content-disposition"): part for part in multipart.iter_parts()}
+        self.assertEqual(parts["code"].get_filename(), "agent.zip")
+        self.assertEqual(parts["code"].get_payload(decode=True), zip_bytes)
+        metadata = json.loads(parts["metadata"].get_payload(decode=True))
+        self.assertEqual(metadata["definition"], deployment_definition(URL, "echo-mcp").as_dict())
+        self.assertNotIn(KEY, upload.body.decode(errors="replace"))
 
     def test_connection_failures_prevent_upload(self):
         from unittest.mock import MagicMock

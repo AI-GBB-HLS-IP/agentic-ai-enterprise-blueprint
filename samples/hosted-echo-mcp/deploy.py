@@ -10,8 +10,6 @@ from urllib.parse import urlsplit
 from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import (
     CodeConfiguration,
-    CreateAgentVersionFromCodeContent,
-    CreateAgentVersionFromCodeMetadata,
     HostedAgentDefinition,
     ProtocolVersionRecord,
 )
@@ -96,13 +94,9 @@ def deploy(zip_path: Path, name: str, timeout: float) -> None:
         with zip_path.open("rb") as code:
             created = project.agents.create_version_from_code(
                 agent_name=name,
-                content=CreateAgentVersionFromCodeContent(
-                    metadata=CreateAgentVersionFromCodeMetadata(
-                        definition=definition,
-                        description="Model-free APIM Echo MCP diagnostic; ZIP source with bundled dependencies.",
-                    ),
-                    code=("agent.zip", code, "application/zip"),
-                ),
+                definition=definition,
+                code=code,
+                description="Model-free APIM Echo MCP diagnostic; ZIP source with bundled dependencies.",
                 code_zip_sha256=digest,
             )
         print(f"Created version {created.version}; SHA256={digest}")

@@ -113,6 +113,14 @@ Install the deployment-client dependencies into your own virtual environment:
 python -m pip install -r samples/hosted-echo-mcp/deploy-requirements.txt
 ```
 
+The helper targets Projects SDK **2.8.x** and its public
+`project.agents.create_version_from_code(definition=..., code=<ZIP stream>, ...)`
+contract. SDK 2.2 exposes code deployment under the beta subclient instead;
+its stable `project.agents` has no such method. Reinstall the deployment
+requirements after pulling helper updates. The public method moved to
+`project.agents` and changed its arguments in SDK 2.3; this helper does not use
+the old multipart `content=` model or fall back to a different deployment path.
+
 Install the complete deployment requirements with the same virtual-environment
 interpreter used to run `deploy.py`. They explicitly include `httpx`, which the
 Projects SDK imports; installing the runtime requirements is not necessary for
@@ -235,6 +243,7 @@ the test server and removes only its temporary extraction directory.
 - [Hosting protocols, port 8088, readiness, and connection-templated secrets](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent)
 - [Add a connection to the selected Foundry project](https://learn.microsoft.com/en-us/azure/foundry/how-to/connections-add)
 - [SDK connection metadata lookup without credentials](https://learn.microsoft.com/en-us/python/api/azure-ai-projects/azure.ai.projects.operations.connectionsoperations?view=azure-python)
+- [Projects SDK release history and source-deployment API changes](https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/ai/azure-ai-projects/CHANGELOG.md)
 - [Hosted-agent protocol choice, endpoint format, identity, and compute sizes](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)
 
 Rollback: stop using the diagnostic endpoint and remove only its agent/version
