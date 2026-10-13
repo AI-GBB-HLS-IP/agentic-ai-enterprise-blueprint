@@ -13,6 +13,7 @@ import httpx
 import main
 import deploy as deploy_module
 from azure.ai.projects.models import CreateAgentVersionFromCodeContent
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError, ServiceRequestError
 from deploy import deployment_definition, wait_for_active
 
 URL = "https://gateway.example.com/echo-mcp/mcp"
@@ -232,12 +233,58 @@ class ConfigurationTests(unittest.TestCase):
             ):
                 deploy_module.deploy(Path(zip_path), "echo-agent", 1)
 
+            project.connections.get.assert_called_once_with(name="echo-mcp", include_credentials=False)
+            self.assertEqual(project.method_calls[0][0], "connections.get")
             content = project.agents.create_version_from_code.call_args.kwargs["content"]
             self.assertIsInstance(content, CreateAgentVersionFromCodeContent)
             self.assertEqual(content.metadata.description, "Model-free APIM Echo MCP diagnostic; ZIP source with bundled dependencies.")
             self.assertEqual(content.metadata.definition.code_configuration.runtime, "python_3_13")
             self.assertEqual(content.code[0], "agent.zip")
             self.assertEqual(content.code[2], "application/zip")
+
+    def test_connection_failures_prevent_upload(self):
+        from unittest.mock import MagicMock
+
+        with tempfile.TemporaryDirectory() as directory:
+            zip_path = Path(directory) / "agent.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("main.py", "")
+                archive.writestr("requirements.txt", "")
+                archive.writestr("packages/runtime.py", "")
+            for error in (
+                ResourceNotFoundError("missing connection"),
+                HttpResponseError("connection access denied"),
+                ServiceRequestError("connection metadata unreachable"),
+            ):
+                with self.subTest(error=type(error).__name__):
+                    project = MagicMock()
+                    project.__enter__.return_value = project
+                    project.connections.get.side_effect = error
+                    credential = MagicMock()
+                    credential.__enter__.return_value = credential
+                    with (
+                        patch.dict(os.environ, {
+                            "FOUNDRY_PROJECT_ENDPOINT": "https://account.services.ai.azure.com/api/projects/project",
+                            "APIM_MCP_URL": URL,
+                            "APIM_KEY_CONNECTION_NAME": "existing-key",
+                        }),
+                        patch.object(deploy_module, "DefaultAzureCredential", return_value=credential),
+                        patch.object(deploy_module, "AIProjectClient", return_value=project),
+                        patch.object(deploy_module, "wait_for_active") as wait,
+                    ):
+                        expected = ValueError if isinstance(error, ResourceNotFoundError) else type(error)
+                        with self.assertRaises(expected) as caught:
+                            deploy_module.deploy(zip_path, "echo-agent", 1)
+                    if isinstance(error, ResourceNotFoundError):
+                        self.assertIn("Foundry connection 'existing-key'", str(caught.exception))
+                        self.assertIn("FOUNDRY_PROJECT_ENDPOINT", str(caught.exception))
+                        self.assertIn("Connected resources", str(caught.exception))
+                        self.assertIs(caught.exception.__cause__, error)
+                    else:
+                        self.assertIs(caught.exception, error)
+                    project.connections.get.assert_called_once_with(name="existing-key", include_credentials=False)
+                    project.agents.create_version_from_code.assert_not_called()
+                    wait.assert_not_called()
 
     def test_provisioning_failure_and_timeout(self):
         from unittest.mock import Mock

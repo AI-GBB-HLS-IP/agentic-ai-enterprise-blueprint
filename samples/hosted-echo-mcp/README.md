@@ -63,6 +63,15 @@ APIM subscription key. Use an `ApiKey` connection, whose secret field is `key`,
 or a `CustomKeys` connection with an explicitly named `key` secret field.
 For example, name the connection `echo-mcp`.
 
+In [Foundry portal](https://ai.azure.com), select the same project identified by
+`FOUNDRY_PROJECT_ENDPOINT`, then open
+**Manage > Project details > Connected resources** and select **Add connection**.
+Choose **API key** or **Custom key**, store the APIM
+subscription key securely, and confirm the connection's resource name. For
+Custom key, name the secret field exactly `key`. Set `APIM_KEY_CONNECTION_NAME`
+to that resource name; `echo-mcp` is only an example. An APIM API/MCP server named
+`echo-mcp` does not create a Foundry connection with that name.
+
 Keep the key out of source files, ZIPs, command-line arguments, and logs. The
 deployment helper supplies the runtime environment as:
 
@@ -71,10 +80,17 @@ APIM_MCP_URL=<your exact APIM MCP HTTPS URL>
 APIM_SUBSCRIPTION_KEY=${{connections.echo-mcp.credentials.key}}
 ```
 
-Foundry resolves the connection reference at sandbox startup. If the connection
-or field is missing, invocation reports `configuration_error`; readiness and
-deployment status alone do not prove resolution. The subscription must be
-authorized for the MCP API/product, not merely for the original Echo REST API.
+Foundry validates referenced connection names when creating the agent version
+and resolves their values at sandbox startup. A missing connection can reject
+deployment with `bad_request` and `workspace connections ... were not found`.
+The helper first checks the selected connection's existence using metadata only;
+it does not fetch, validate, or print its secret fields. Permission and network
+errors from that check stop deployment and are surfaced unchanged. This check
+requires connection-read permission and does not prove runtime resolution.
+If an empty or unresolved key reaches the runtime, invocation reports
+`configuration_error`; readiness and deployment status alone do not prove
+resolution. The subscription must be authorized for the MCP API/product, not
+merely for the original Echo REST API.
 This sample uses the default `Ocp-Apim-Subscription-Key` header.
 
 ## Deploy the ZIP yourself
@@ -85,6 +101,11 @@ uses `create_version_from_code`, SHA-256, `python_3_13`, `bundled`,
 existing project and creates a version of an agent that must already exist there;
 it does not create the agent itself. No supporting infrastructure or connection
 is created.
+
+If deployment reports that `echo-mcp` was not found, create the connection above
+in the selected Foundry project, or set `APIM_KEY_CONNECTION_NAME` to an existing
+compatible connection's exact name and retry. Increasing `--timeout`, rebuilding
+the ZIP, or changing the APIM endpoint will not fix a missing connection.
 
 Install the deployment-client dependencies into your own virtual environment:
 
@@ -202,6 +223,8 @@ the test server and removes only its temporary extraction directory.
 
 - [ZIP source deployment, bundled layout, supported runtimes, and firewall requirements](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent-code?tabs=python)
 - [Hosting protocols, port 8088, readiness, and connection-templated secrets](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/deploy-hosted-agent)
+- [Add a connection to the selected Foundry project](https://learn.microsoft.com/en-us/azure/foundry/how-to/connections-add)
+- [SDK connection metadata lookup without credentials](https://learn.microsoft.com/en-us/python/api/azure-ai-projects/azure.ai.projects.operations.connectionsoperations?view=azure-python)
 - [Hosted-agent protocol choice, endpoint format, identity, and compute sizes](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)
 
 Rollback: stop using the diagnostic endpoint and remove only its agent/version

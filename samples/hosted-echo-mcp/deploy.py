@@ -15,6 +15,7 @@ from azure.ai.projects.models import (
     HostedAgentDefinition,
     ProtocolVersionRecord,
 )
+from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 
 
@@ -81,6 +82,17 @@ def deploy(zip_path: Path, name: str, timeout: float) -> None:
             raise ValueError("ZIP integrity check failed.")
     digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
     with DefaultAzureCredential() as credential, AIProjectClient(endpoint=endpoint, credential=credential) as project:
+        connection = os.environ["APIM_KEY_CONNECTION_NAME"]
+        try:
+            project.connections.get(name=connection, include_credentials=False)
+        except ResourceNotFoundError as error:
+            raise ValueError(
+                f"Foundry connection '{connection}' was not found in the selected project. "
+                "Verify FOUNDRY_PROJECT_ENDPOINT and APIM_KEY_CONNECTION_NAME, or create "
+                "an approved ApiKey/CustomKeys connection with a 'key' secret field "
+                "under Manage > Project details > Connected resources before retrying. "
+                "The APIM MCP API name is not a Foundry connection; this helper creates no connections."
+            ) from error
         with zip_path.open("rb") as code:
             created = project.agents.create_version_from_code(
                 agent_name=name,
