@@ -3,6 +3,57 @@
 These scripts contain the shared Azure deployment contract. They do not depend on GitHub,
 Bitbucket, or a specific portal. CI systems should authenticate to Azure and invoke these scripts.
 
+## Local private DNS diagnostic
+
+Run this read-only helper from the client network you want to diagnose (for example, the
+VPN-connected laptop or an approved host using the Foundry VNet's DNS path). It requires
+Python 3 and `nslookup`, but no Azure login, credentials, or third-party Python packages.
+
+```bash
+export FOUNDRY_ACCOUNT_NAME="test-foundry"
+export COSMOS_ACCOUNT_NAME="test-cosmos"
+export STORAGE_ACCOUNT_NAME="teststorage"
+export SEARCH_SERVICE_NAME="test-search"
+
+# Optional: use a specific resolver instead of this machine's default.
+# export DNS_SERVER="10.0.0.2"
+# Optional: only when Key Vault is an actual dependency.
+# export KEY_VAULT_NAME="test-vault"
+# Optional: copy every regional hostname from the Cosmos private endpoint's DNS configuration.
+# export COSMOS_REGIONAL_HOSTNAMES="test-cosmos-eastus.documents.azure.com"
+
+python3 scripts/foundry/check-private-dns.py
+```
+
+The resource names construct the Foundry service-plane, OpenAI, Cognitive Services, Cosmos,
+Blob Storage, and Search hostnames/HTTPS URLs. A project name is unnecessary for DNS:
+projects share the account's service-plane hostname. The URLs printed are labels, not HTTP
+requests. Optional Cosmos regional hostnames must be supplied explicitly rather than guessed.
+The helper targets Azure public-cloud DNS suffixes; sovereign-cloud suffixes are not supported.
+
+Each lookup prints the raw `nslookup` response and a verdict:
+
+- `PASS`: the expected private-link DNS name is observed and every answer IP is in RFC1918,
+  RFC6598 shared address space (`100.64.0.0/10`), or IPv6 ULA. Shared space is not RFC1918.
+- `WARN`: answer IPs are non-public, but the expected private-link name is not observed.
+  This can be valid split DNS; the helper cannot verify private-link association.
+- `FAIL`: the lookup fails/times out, returns no answer IPs, or includes public/other
+  addresses. A private-link CNAME alone is not enough. DNS server addresses are excluded.
+
+Exit codes are `0` for no failures (warnings remain visible), `1` for DNS failures, and `2`
+for invalid inputs or unavailable tools. CRLF/outer whitespace in exported values is trimmed.
+`DNS_SERVER` accepts an IPv4 address or resolver hostname; a literal IPv6 resolver is not supported.
+
+These are **local DNS observations**, not proof of expected endpoint IP ownership, private-endpoint
+approval, routing/firewall access, TLS, RBAC, or Foundry runtime readiness. Verify answer IPs
+against the private endpoint's DNS configuration. Laptop results do not establish resolution
+from Foundry's injected subnet; check that resolver path separately. APIM/MCP, registry and
+authentication egress, optional non-Blob storage services, and other dependencies are outside
+this helper's scope. Do not enable public access to work around a failed lookup.
+
+This complements `audit-byo-deployment.sh`; it does not repair that audit's existing discovery
+or CLI-output handling limitations.
+
 ## Preflight
 
 ```bash
