@@ -205,6 +205,55 @@ copied from a prior dry-run review); `--execute` without one of these is refused
 exit. Dry-run listing (the default, no `--execute`) remains unrestricted for discovery/visibility
 and does not require either.
 
+## Restore missing Cosmos project-container data grants
+
+The current Foundry deployment already invokes `cosmos-data-rbac.bicep` after capability-host
+activation. A succeeded capability host alone does not establish that the later RBAC module
+succeeded. Missing grants can reflect an older/different deployment, a failed post-host module,
+or subsequent removal; inspect the original deployment operations before concluding which.
+Full `foundry.bicep` redeployment uses Incremental mode, which reconciles declared resource
+properties, not just missing resources. Review what-if before choosing that broader repair.
+
+For an existing project whose three containers already exist, use this narrowly scoped helper:
+
+```bash
+export FOUNDRY_PROJECT_ID="/subscriptions/<subscription-id>/resourceGroups/<foundry-rg>/providers/Microsoft.CognitiveServices/accounts/<account>/projects/<project>"
+
+# Read-only preflight and exact missing-grant plan.
+bash scripts/foundry/remediate-cosmos-data-rbac.sh
+
+# After reviewing the dry-run, approve the resolved project identity explicitly.
+EXPECTED_PRINCIPAL_ID="<principal-guid-from-dry-run>" \
+bash scripts/foundry/remediate-cosmos-data-rbac.sh --execute
+```
+
+Requires `az`, `jq`, and Python 3, Azure authentication, read access to the explicit project,
+project/account connection metadata, and its connected Cosmos account, and Cosmos SQL
+role-assignment write permission for execute.
+The helper does not switch Azure CLI's active subscription: each call targets its subscription
+explicitly, including cross-subscription Cosmos connections. `CAPABILITY_HOST_NAME` defaults to
+`caphostproj`; set it explicitly if the existing host has a different name.
+
+It resolves the identity and workspace from the project, follows the succeeded Agents host's
+single thread-storage connection (project scope takes precedence over account scope), accepts
+`CosmosDb` category casing, and verifies the connected Cosmos account and all three containers
+before writing. The account ID is parsed from JSON, avoiding TSV carriage-return mismatches when
+using Windows Azure CLI from a Unix shell; target identity checks remain unchanged.
+Missing/ambiguous connections, non-AAD authentication, unsupported paginated
+connection listings, CLI errors, and identity changes block execution. It creates only missing
+Built-in Data Contributor grants on the three workspace-prefixed `enterprise_memory` containers;
+existing grants, broader grants, other identities, connections, and infrastructure are untouched.
+Assignment IDs use the same ARM `guid()` inputs as `cosmos-data-rbac.bicep`.
+
+Run serially, without concurrent identity/connection changes or RBAC deployments; preflight is
+not a transaction or a lock. A later create failure may leave earlier grants applied. Execute
+performs management-plane read-back of all three grants and fails if verification is incomplete;
+rerun a dry-run to inspect partial progress. Do not substitute database/account-wide access.
+It does not remediate management-plane RBAC, Storage/Search access, DNS, firewall rules, or
+missing containers. Even successful read-back does not prove permission propagation, Agents UI
+recovery, ZIP deployment, or runtime connectivity: retry authenticated agent listing, then
+deployment/invocation from the approved network and retain live evidence separately.
+
 ## BYO deployment audit
 
 `audit-byo-deployment.sh` is a **read-only**, fully standalone diagnostic for an already-deployed
