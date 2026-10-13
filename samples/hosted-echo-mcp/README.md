@@ -113,6 +113,16 @@ Install the deployment-client dependencies into your own virtual environment:
 python -m pip install -r samples/hosted-echo-mcp/deploy-requirements.txt
 ```
 
+Install the complete deployment requirements with the same virtual-environment
+interpreter used to run `deploy.py`. They explicitly include `httpx`, which the
+Projects SDK imports; installing the runtime requirements is not necessary for
+the deployment helper. Confirm the deployment-only installation without making
+an Azure request:
+
+```bash
+python samples/hosted-echo-mcp/deploy.py --help
+```
+
 Sign in yourself using an approved Azure credential. Set these **local**
 environment variables; substitute your actual values, but do not commit them:
 
