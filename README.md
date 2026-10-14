@@ -190,7 +190,7 @@ separate implementation increments.
 | [03](./chapters/03-agent-framework.md) | Build an Agent with Microsoft Agent Framework | Create agent, memory, harness, expose via A2A protocol |
 | [05](./chapters/05-react-discovery-ui.md) | Build a React Discovery UI | Custom UI for agent, MCP tool, and skill discovery |
 | [07](./chapters/07-prompt-agent.md) | Build a Prompt Agent in Foundry | Agent with knowledge base, MCP tools, and A2A calls |
-| [08](./chapters/08-hosted-agent.md) | Build a Hosted Agent in Foundry | Deploy Agent Framework agent as hosted agent, expose via A2A in APIM |
+| [08](./chapters/08-hosted-agent.md) | Build a Hosted Agent in Foundry | Runnable ZIP MCP diagnostic; conditional container guidance; A2A/APIM and catalog verification remain follow-on gates |
 | [09](./chapters/09-work-iq.md) | Connect Your Agent with Work IQ | Microsoft 365 data grounding (emails, Teams, SharePoint, calendar) |
 | [10](./chapters/10-serverless-agent.md) | Create a Serverless Agent with Azure Functions | Event-driven agents with the serverless agents runtime |
 | [11](./chapters/11-fabric-iq.md) | Connect Your Agent with Fabric IQ (Optional) | Lakehouse, ontology, and Fabric IQ integration for data analytics |
